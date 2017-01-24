@@ -32,7 +32,7 @@ public class Database {
 
 	private Random urbg_;
 	private Sketcher targetSketcher_;
-	private Sketcher  querySketcher_;
+	private Sketcher querySketcher_;
 	private long targetWindowSize_;
 	private long targetWindowStride_;
 	private long queryWindowSize_;
@@ -40,10 +40,10 @@ public class Database {
 	private long maxLocsPerFeature_;
 	private short nextTargetId_;
 	private ArrayList<TargetProperty> targets_;
-	Dataset<Row> features_;
-	HashMap<String,Integer> sid2gid_;
-	Taxonomy taxa_;
-	TaxonomyParam taxonomyParam;
+	private Dataset<Row> features_;
+	private HashMap<String,Integer> sid2gid_;
+	private Taxonomy taxa_;
+	private TaxonomyParam taxonomyParam;
 	private int numPartitions = 1;
 	private String dbfile;
 	private SparkSession sparkS;
@@ -181,12 +181,44 @@ public class Database {
 		this.taxa_ = taxa_;
 	}
 
+	public TaxonomyParam getTaxonomyParam() {
+		return taxonomyParam;
+	}
+
+	public void setTaxonomyParam(TaxonomyParam taxonomyParam) {
+		this.taxonomyParam = taxonomyParam;
+	}
+
+	public int getNumPartitions() {
+		return numPartitions;
+	}
+
+	public void setNumPartitions(int numPartitions) {
+		this.numPartitions = numPartitions;
+	}
+
+	public String getDbfile() {
+		return dbfile;
+	}
+
+	public void setDbfile(String dbfile) {
+		this.dbfile = dbfile;
+	}
+
+	public SparkSession getSparkS() {
+		return sparkS;
+	}
+
+	public void setSparkS(SparkSession sparkS) {
+		this.sparkS = sparkS;
+	}
+
 	/*
-	const taxon&
-    taxon_of_target(target_id id) const noexcept {
-        return taxa_[targets_[id].taxonId];
-    }
-	 */
+		const taxon&
+		taxon_of_target(target_id id) const noexcept {
+			return taxa_[targets_[id].taxonId];
+		}
+		 */
 	public Taxon taxon_of_target(Long id) {
 		return taxa_.getTaxa_().get((int)targets_.get((int)id.longValue()).getTax());
 	}
@@ -218,11 +250,11 @@ public class Database {
 
 	}
 
-	public void buildDatabase(SparkSession sparkS, String infiles, String dbfile, HashMap<String, Long> sequ2taxid, int numPartitions, Build.build_info infoMode) {
+	public void buildDatabase(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 
-		JavaSparkContext javaSparkContext = new JavaSparkContext(sparkS.sparkContext());
+		JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 
-		JavaPairRDD<String,String> inputData = javaSparkContext.wholeTextFiles(infiles, numPartitions);
+		JavaPairRDD<String,String> inputData = javaSparkContext.wholeTextFiles(infiles, this.numPartitions);
 /*
 		JavaPairRDD<Integer, ArrayList<Location>> databaseDataRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(), true)
 				.mapToPair(new PairFunction<Tuple2<Integer,ArrayList<Location>>, Integer, ArrayList<Location>>() {
@@ -260,6 +292,7 @@ public class Database {
 
 
 
+	// These infilenames are taxonomies???
 	HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,ArrayList<String> infilenames) {
 	//HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,String infilenames)	{
 		//gather all taxonomic mapping files that can be found in any

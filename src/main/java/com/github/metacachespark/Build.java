@@ -56,11 +56,8 @@ public class Build {
 
 		param = new BuildOptions(args);
 
-
 		this.sparkS =sparkS;
 		this.db = new Database(this.sparkS, this.param.getTaxonomyParam(), this.param.getNumPartitions(), this.param.getDbfile());
-
-
 
 		//configure sketching scheme
 		/*
@@ -342,7 +339,7 @@ public class Build {
 	// add to database with spark
 	public void add_targets_to_database(Database db, HashMap<String, Long> sequ2taxid, build_info infoMode) {
 
-		db.buildDatabase(this.sparkS, this.param.getInfiles(), this.param.getDbfile(), sequ2taxid, this.param.getNumPartitions(), infoMode);
+		db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
 
 
 	}
