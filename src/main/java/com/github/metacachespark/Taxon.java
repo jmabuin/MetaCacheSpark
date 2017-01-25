@@ -46,7 +46,7 @@ public class Taxon {
 
 	}
 
-	@Override
+	/*@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
 		if (o == null || getClass() != o.getClass()) return false;
@@ -54,6 +54,10 @@ public class Taxon {
 		Taxon taxon = (Taxon) o;
 
 		return taxonId == taxon.taxonId;
+	}*/
+	@Override
+	public boolean equals(Object o) {
+		return this.taxonId == ((Taxon)o).taxonId;
 	}
 
 	@Override

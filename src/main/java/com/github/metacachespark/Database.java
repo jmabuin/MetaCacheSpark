@@ -252,6 +252,7 @@ public class Database {
 
 	public void buildDatabase(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 
+		LOG.info("Starting to build database...");
 		JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 
 		JavaPairRDD<String,String> inputData = javaSparkContext.wholeTextFiles(infiles, this.numPartitions);

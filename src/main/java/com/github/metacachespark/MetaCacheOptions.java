@@ -54,12 +54,12 @@ public class MetaCacheOptions {
 
 		//Parse the given arguments
 		CommandLineParser parser = new BasicParser();
-		CommandLine cmd;
+		CommandLine cmd = null;
 
 		this.mode = Mode.HELP;
 
 		try {
-			cmd = parser.parse(this.options, args);
+			cmd = parser.parse(this.options, args, true);
 
 			//We look for the operation mode
 			if (cmd.hasOption('h') || cmd.hasOption("help")) {
@@ -81,7 +81,7 @@ public class MetaCacheOptions {
 				// Case of annotate
 				this.mode = Mode.ANNOTATE;
 			} else {
-				// Default case. Mem algorithm
+				// Default case. Help
 				LOG.warn("[" + this.getClass().getName() + "] :: No operation mode selected. Using help ");
 			}
 
@@ -94,6 +94,8 @@ public class MetaCacheOptions {
 			//formatter.printHelp(correctUse, header, options, footer, true);
 
 			System.exit(1);
+
+
 		} catch (MissingOptionException e) {
 			//formatter.printHelp(correctUse, header, options, footer, true);
 			System.exit(1);

@@ -28,7 +28,10 @@ public class TaxonomyParam {
 
 		this.path = inputPath;
 
-		if(!this.path.isEmpty() && this.path.toCharArray()[this.path.length()] != '/') {
+		this.mappingPreFiles = new ArrayList<String>();
+		this.mappingPostFiles = new ArrayList<String>();
+
+		if(!this.path.isEmpty() && this.path.toCharArray()[this.path.length()-1] != '/') {
 			this.path += "/";
 		}
 
@@ -52,7 +55,9 @@ public class TaxonomyParam {
 		this.mappingPostFiles.add(this.path + "nucl_gss.accession2taxid");
 
 		//find additional maps by file extension ".accession2taxid"
+		// Change to use HDFS version
 		for(String f : FilesysUtility.files_in_directory(this.path, 0)) {
+		//for(String f : FilesysUtility.findInHDFS(this.path,"*.accession2taxid", sparkS)) {
 			if(f.contains(".accession2taxid")) {
 				this.mappingPostFiles.add(f);
 			}

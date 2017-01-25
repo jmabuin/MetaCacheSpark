@@ -164,7 +164,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 			currentInput = arg0.next()._2;
 			currentFile = arg0.next()._1;
-
+			LOG.info("New data: "+ currentFile);
 
 			// We could do str.replace("\n",""); ??
 			//data = data.replace("\n", "");

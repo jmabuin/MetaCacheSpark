@@ -68,7 +68,7 @@ public class BuildOptions {
 
 			}
 
-			if (cmd.hasOption('t') || cmd.hasOption("winstride")) {
+			if (cmd.hasOption('d') || cmd.hasOption("winstride")) {
 				// Case of winstride
 				this.winstrideValue = Integer.parseInt(cmd.getOptionValue("winstride"));
 
@@ -122,10 +122,15 @@ public class BuildOptions {
 
 			}
 
-
+			/*
 			if(this.taxpostmapValue != "" && this.taxonomyValue != "") {
 				this.taxonomyParam = new TaxonomyParam(this.taxonomyValue, this.taxpostmapValue);
 			}
+			*/
+			if(this.taxonomyValue != "") {
+				this.taxonomyParam = new TaxonomyParam(this.taxonomyValue, this.taxpostmapValue);
+			}
+
 
 			if (cmd.hasOption('l') || cmd.hasOption("num_partitions")) {
 				// Case of max_load_fac

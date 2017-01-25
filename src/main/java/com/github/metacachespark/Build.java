@@ -19,6 +19,9 @@ package com.github.metacachespark;
 import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -34,6 +37,7 @@ import scala.Tuple2;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -100,9 +104,14 @@ public class Build {
 		//failure to do so will not be fatal
 		HashMap<Long, String> taxonNames = new HashMap<Long,String>();
 		BufferedReader br;
+		JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 
 		try {
-			br = new BufferedReader(new FileReader(taxNamesFile));
+			//br = new BufferedReader(new FileReader(taxNamesFile));
+			FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			FSDataInputStream inputStream = fs.open(new Path(taxNamesFile));
+
+			br = new BufferedReader(new InputStreamReader(inputStream));
 
 			LOG.info("Reading taxon names ... ");
 
@@ -112,7 +121,7 @@ public class Build {
 			String category;
 
 			for(String line; (line = br.readLine()) != null; ) {
-				String[] lineParts = line.split("|");
+				String[] lineParts = line.split("\\|");
 
 				String name = null;
 				//String word;
@@ -144,6 +153,9 @@ public class Build {
 			}
 
 			br.close();
+			inputStream.close();
+			fs.close();
+
 			LOG.info("Done.");
 		}
 		catch (IOException e) {
@@ -160,7 +172,12 @@ public class Build {
 		//read merged taxa
 		HashMap<Long, Long> mergedTaxa = new HashMap<Long, Long>();
 		try {
-			br = new BufferedReader(new FileReader(mergeTaxFile));
+			//br = new BufferedReader(new FileReader(mergeTaxFile));
+
+			FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			FSDataInputStream inputStream = fs.open(new Path(mergeTaxFile));
+
+			br = new BufferedReader(new InputStreamReader(inputStream));
 
 			LOG.info("Reading taxonomic node mergers ... ");
 
@@ -170,16 +187,16 @@ public class Build {
 			String category;
 
 			for(String line; (line = br.readLine()) != null; ) {
-				String[] lineParts = line.split("|");
+				String[] lineParts = line.split("\\|");
 
 
 				for(int i = 0; i< lineParts.length; i++) {
 					String currentvalueTrim = lineParts[i].trim();
 
-					if(i == 0) {
+					if((i == 0) && (!currentvalueTrim.isEmpty())) {
 						oldId = Long.parseLong(currentvalueTrim);
 					}
-					else if((i == 1)){
+					else if((i == 1) && (!currentvalueTrim.isEmpty())){
 						newId = Long.parseLong(currentvalueTrim);
 					}
 
@@ -190,6 +207,9 @@ public class Build {
 			}
 
 			br.close();
+			inputStream.close();
+			fs.close();
+
 			LOG.info("Done.");
 		}
 		catch (IOException e) {
@@ -203,7 +223,12 @@ public class Build {
 		Taxonomy tax = new Taxonomy();
 
 		try {
-			br = new BufferedReader(new FileReader(taxNodesFile));
+			//br = new BufferedReader(new FileReader(taxNodesFile));
+
+			FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			FSDataInputStream inputStream = fs.open(new Path(taxNodesFile));
+
+			br = new BufferedReader(new InputStreamReader(inputStream));
 
 			LOG.info("Reading taxonomic tree ... ");
 
@@ -212,19 +237,17 @@ public class Build {
 			String rankName = "";
 
 			for(String line; (line = br.readLine()) != null; ) {
-				String[] lineParts = line.split("|");
-
+				String[] lineParts = line.split("\\|");
 
 				for(int i = 0; i< lineParts.length; i++) {
 					String currentvalueTrim = lineParts[i].trim();
-
-					if(i == 0) {
+					if((i == 0) && (!currentvalueTrim.isEmpty())) {
 						taxonId = Long.parseLong(currentvalueTrim);
 					}
-					else if((i == 1)){
+					else if((i == 1) && (!currentvalueTrim.isEmpty())){
 						parentId = Long.parseLong(currentvalueTrim);
 					}
-					else if(i == 2) {
+					else if((i == 2)  && (!currentvalueTrim.isEmpty())) {
 						rankName = currentvalueTrim;
 					}
 
@@ -258,6 +281,8 @@ public class Build {
 			}
 
 			br.close();
+			inputStream.close();
+			fs.close();
 			LOG.info(tax.taxon_count() + " taxa read.");
 		}
 		catch (IOException e) {
@@ -268,7 +293,7 @@ public class Build {
 
 		//make sure every taxon has a rank designation
 		tax.rank_all_unranked();
-
+		LOG.info("End of rank_all_unranked");
 		return tax;
 	}
 
@@ -290,7 +315,7 @@ public class Build {
 		}
 
 		if(this.db.taxon_count() < 1) {
-			LOG.info("The datbase doesn't contain a taxonomic hierarchy yet.\n" +
+			LOG.info("The database doesn't contain a taxonomic hierarchy yet.\n" +
 					"You can add one or update later via:\n" +
 					"./metacache add <database> -taxonomy <directory>");
 		}

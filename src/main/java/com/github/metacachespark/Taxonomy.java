@@ -18,6 +18,7 @@
 package com.github.metacachespark;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -27,8 +28,19 @@ import java.util.Set;
 public class Taxonomy {
 
 
-	private ArrayList<Taxon> taxa_;
+	//private ArrayList<Taxon> taxa_;
+	private HashMap<Long, Taxon> taxa_;
 	private Taxon noTaxon_;
+
+	/*
+	public Taxonomy() {
+		this.taxa_ = new ArrayList<Taxon>();
+	}
+	*/
+
+	public Taxonomy() {
+		this.taxa_ = new HashMap<Long, Taxon>();
+	}
 
 	public enum Rank {
 		Sequence,
@@ -143,32 +155,32 @@ public class Taxonomy {
 
 	//---------------------------------------------------------------
 	public static Rank rank_from_name(String name) {
-		if(name == "sequence")      return Rank.Sequence;
-		if(name == "genome")        return Rank.Sequence;
-		if(name == "form")          return Rank.Form;
-		if(name == "forma")         return Rank.Form;
-		if(name == "variety")       return Rank.Variety;
-		if(name == "varietas")      return Rank.Variety;
-		if(name == "subspecies")    return Rank.subSpecies;
-		if(name == "species")       return Rank.Species;
-		if(name == "subgenus")      return Rank.subGenus;
-		if(name == "genus")         return Rank.Genus;
-		if(name == "subtribe")      return Rank.subTribe;
-		if(name == "tribe")         return Rank.Tribe;
-		if(name == "subfamily")     return Rank.subFamily;
-		if(name == "family")        return Rank.Family;
-		if(name == "suborder")      return Rank.subOrder;
-		if(name == "order")         return Rank.Order;
-		if(name == "subclass")      return Rank.subClass;
-		if(name == "class")         return Rank.Class;
-		if(name == "subphylum")     return Rank.subPhylum;
-		if(name == "phylum")        return Rank.Phylum;
-		if(name == "division")      return Rank.Phylum;
-		if(name == "subkingdom")    return Rank.subKingdom;
-		if(name == "kingdom")       return Rank.Kingdom;
-		if(name == "superkingdom")  return Rank.Domain;
-		if(name == "domain")        return Rank.Domain;
-		if(name == "root")          return Rank.root;
+		if(name.equals("sequence"))      return Rank.Sequence;
+		if(name.equals("genome"))        return Rank.Sequence;
+		if(name.equals("form"))          return Rank.Form;
+		if(name.equals("forma"))         return Rank.Form;
+		if(name.equals("variety"))       return Rank.Variety;
+		if(name.equals("varietas"))      return Rank.Variety;
+		if(name.equals("subspecies"))    return Rank.subSpecies;
+		if(name.equals("species"))       return Rank.Species;
+		if(name.equals("subgenus"))      return Rank.subGenus;
+		if(name.equals("genus"))         return Rank.Genus;
+		if(name.equals("subtribe"))      return Rank.subTribe;
+		if(name.equals("tribe"))         return Rank.Tribe;
+		if(name.equals("subfamily"))     return Rank.subFamily;
+		if(name.equals("family"))        return Rank.Family;
+		if(name.equals("suborder"))      return Rank.subOrder;
+		if(name.equals("order"))         return Rank.Order;
+		if(name.equals("subclass"))      return Rank.subClass;
+		if(name.equals("class"))         return Rank.Class;
+		if(name.equals("subphylum"))     return Rank.subPhylum;
+		if(name.equals("phylum"))        return Rank.Phylum;
+		if(name.equals("division"))      return Rank.Phylum;
+		if(name.equals("subkingdom"))    return Rank.subKingdom;
+		if(name.equals("kingdom"))       return Rank.Kingdom;
+		if(name.equals("superkingdom"))  return Rank.Domain;
+		if(name.equals("domain"))        return Rank.Domain;
+		if(name.equals("root"))          return Rank.root;
 		return Rank.none;
 	}
 
@@ -179,16 +191,26 @@ public class Taxonomy {
 		return r.name();
 
 	}
-
+/*
 	public ArrayList<Taxon> getTaxa_() {
 		return taxa_;
+	}
+*/
+
+	public HashMap<Long, Taxon> getTaxa_() {
+		return this.taxa_;
 	}
 
 	public boolean empty() {
 		return taxa_.isEmpty();
 	}
-
+/*
 	public void setTaxa_(ArrayList<Taxon> taxa_) {
+		this.taxa_ = taxa_;
+	}
+*/
+
+	public void setTaxa_(HashMap<Long, Taxon> taxa_) {
 		this.taxa_ = taxa_;
 	}
 
@@ -218,10 +240,10 @@ public class Taxonomy {
 		Taxon currentTaxon = null;
 
 		while(id != 0) {
-
+			/*
 			boolean foundTaxon = false;
 
-			Iterator<Taxon> taxonIterator = this.taxa_.iterator();
+			Iterator<Taxon> taxonIterator = this.taxa_.values().iterator();
 
 			while(taxonIterator.hasNext()) {
 				currentTaxon = taxonIterator.next();
@@ -232,8 +254,9 @@ public class Taxonomy {
 				}
 
 			}
-
-			if (foundTaxon) {
+			*/
+			currentTaxon = this.taxa_.get(id);
+			if (currentTaxon != null) {
 
 				lin.add(id);
 				if(currentTaxon.getParentId() != 0) {
@@ -264,7 +287,7 @@ public class Taxonomy {
 		Taxon currentTaxon = null;
 
 		while(id != (long)0) {
-
+/*
 			boolean foundTaxon = false;
 
 			Iterator<Taxon> taxonIterator = this.taxa_.iterator();
@@ -280,7 +303,9 @@ public class Taxonomy {
 			}
 
 			if (foundTaxon) {
-
+*/
+			currentTaxon = this.taxa_.get(id);
+			if(currentTaxon != null) {
 				if(currentTaxon.getRank() != Rank.none) {
 					lin[currentTaxon.getRank().ordinal()] = currentTaxon.getTaxonId();
 				}
@@ -314,7 +339,7 @@ public class Taxonomy {
 
 	public void emplace(long taxonId, long parentId, String taxonName, Rank rank) {
 
-		this.taxa_.add(new Taxon(taxonId, parentId, taxonName, rank));
+		this.taxa_.put(taxonId,new Taxon(taxonId, parentId, taxonName, rank));
 
 	}
 
@@ -323,8 +348,10 @@ public class Taxonomy {
 	}
 
 	public void rank_all_unranked() {
-		for(Taxon tax : taxa_) {
+		for(Taxon tax : taxa_.values()) {
+
 			if(tax.getRank() == Rank.none) {
+				System.err.println("Ranking unranked: "+tax.getTaxonId());
 				Rank lr = this.lowest_rank(tax);
 				if(lr != Rank.none) {
 					if (lr.compareTo(Rank.subSpecies) > 0) {
@@ -340,9 +367,12 @@ public class Taxonomy {
 	public Rank	lowest_rank(long id) {
 
 		Taxon currentTaxon = null;
+		//int currentTaxonIndex = -1;
 
 		while(id != (long)0) {
+			//System.err.println("Current taxon id: "+id);
 
+			/*
 			boolean foundTaxon = false;
 
 			Iterator<Taxon> taxonIterator = this.taxa_.iterator();
@@ -356,13 +386,20 @@ public class Taxonomy {
 				}
 
 			}
+			*/
 
-			if (foundTaxon) {
+			//currentTaxonIndex = this.taxa_.indexOf(new Taxon(id));
+			currentTaxon = this.taxa_.get(id);
 
+			//if (foundTaxon) {
+			if(currentTaxon != null) {
+				//currentTaxon = this.taxa_.get(currentTaxonIndex);
+				//System.err.println("Found taxon "+id);
 				if(currentTaxon.getRank() != Rank.none) {
 					return currentTaxon.getRank();
 				}
-				if(currentTaxon.getParentId() != 0){
+				if(currentTaxon.getParentId() != id){
+					//System.err.println("Current taxon id: "+id+ " and parent is "+currentTaxon.getParentId());
 					id = currentTaxon.getParentId();
 				}
 				else {
