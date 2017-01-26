@@ -17,6 +17,8 @@
 package com.github.metacachespark;
 
 //import org.apache.spark.sql.SparkSession;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.spark.sql.*;
 
 import java.io.Serializable;
@@ -26,6 +28,8 @@ import java.io.Serializable;
  * @brief MetaCacheSpark main class
  */
 public class MetaCacheSpark implements Serializable {
+
+	private static final Log LOG = LogFactory.getLog(MetaCacheSpark.class);
 
 	public static void main(String[] args) {
 
@@ -46,17 +50,17 @@ public class MetaCacheSpark implements Serializable {
 			Build buildObject = new Build(buildArgs, sparkS);
 
 			buildObject.buildDatabase();
-
+			LOG.info("End of program ...");
 			sparkS.close();
 		}
 		else {
 			System.out.println("Not recognized option");
 			newOptions.printHelp();
-			System.exit(1);
+			//System.exit(1);
 		}
 
 
-		System.exit(0);
+		//System.exit(0);
 	}
 
 }

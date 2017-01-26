@@ -276,6 +276,7 @@ public class Database implements Serializable{
 			Dataset<Row> datasetDB = sparkS.createDataFrame(databaseDataRDD, Location.class);
 
 			this.features_ = datasetDB;
+			LOG.info("Database created ...");
 		}
 		catch(Exception e) {
 			LOG.error(e.getMessage());

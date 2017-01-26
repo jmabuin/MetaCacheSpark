@@ -192,7 +192,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 			}
 
 			if(isFastaFile) {
-				//LOG.info("[JMAbuin] New data: "+ currentFile);
+				LOG.info("[JMAbuin] New data: "+ currentFile);
 
 				String seqId = SequenceReader.extract_sequence_id(header);
 				String fileIdentifier = SequenceReader.extract_sequence_id(currentFile);
@@ -235,9 +235,11 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 
 				//try to add to database
+				//LOG.info("Before add data: "+data);
 				boolean added = this.add_target(data, partitionId, (short)fileId, currentFile, header, returnedValues);
-
-				if(infoMode == Build.build_info.verbose && !added) {
+				//LOG.info("After add data: "+data);
+				//if(infoMode == Build.build_info.verbose && !added) {
+				if(!added) {
 					LOG.info(seqId + " not added to database");
 				}
 			}
