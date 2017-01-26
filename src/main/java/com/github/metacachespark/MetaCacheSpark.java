@@ -19,11 +19,13 @@ package com.github.metacachespark;
 //import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.*;
 
+import java.io.Serializable;
+
 /**
  * @author Jose M. Abuin
  * @brief MetaCacheSpark main class
  */
-public class MetaCacheSpark {
+public class MetaCacheSpark implements Serializable {
 
 	public static void main(String[] args) {
 
@@ -32,10 +34,10 @@ public class MetaCacheSpark {
 		if(newOptions.getMode() == MetaCacheOptions.Mode.HELP) {
 			newOptions.printHelp();
 		}
-		if(newOptions.getMode() == MetaCacheOptions.Mode.BUILD) {
+		else if(newOptions.getMode() == MetaCacheOptions.Mode.BUILD) {
 			// Build mode entry point
 			SparkSession sparkS = SparkSession
-					.builder()
+					.builder().master("yarn")
 					.appName("MetaCacheSpark - Build")
 					.getOrCreate();
 

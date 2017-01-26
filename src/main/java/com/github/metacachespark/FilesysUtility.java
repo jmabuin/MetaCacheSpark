@@ -1,6 +1,7 @@
 package com.github.metacachespark;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.io.File;
 
@@ -16,7 +17,7 @@ import org.apache.spark.sql.SparkSession;
 /**
  * Created by chema on 1/13/17.
  */
-public class FilesysUtility {
+public class FilesysUtility implements Serializable {
 
 	private static final Log LOG = LogFactory.getLog(FilesysUtility.class);
 
@@ -53,20 +54,24 @@ public class FilesysUtility {
 	public static ArrayList<String> findInHDFS(String path, String fileName, SparkSession sparkS) {
 
 		try {
-			JavaSparkContext javaSparkContext = new JavaSparkContext(sparkS.sparkContext());
-			FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			//JavaSparkContext javaSparkContext = new JavaSparkContext(sparkS.sparkContext());
+			FileSystem fs = FileSystem.get(sparkS.sparkContext().hadoopConfiguration());
 			ArrayList<String> returnedItems = new ArrayList<String>();
 
 			if(path == ""){
 				path = fs.getHomeDirectory().toString();
-			}
 
+			}
+			//System.err.println("[JMAbuin] the current path is: " + path);
 			RemoteIterator<LocatedFileStatus> filesInPath = fs.listFiles(new Path(path), true);
 
 			while(filesInPath.hasNext()) {
 				LocatedFileStatus newFile = filesInPath.next();
 
-				if(newFile.getPath().getName().equals(fileName) && fs.isFile(newFile.getPath())) {
+				//System.err.println("[JMAbuin] found file: " + newFile.getPath().toString());
+
+				if(newFile.getPath().getName().contains(fileName) && fs.isFile(newFile.getPath())) {
+					//System.err.println("[JMAbuin] Added file: " + newFile.getPath().toString());
 					returnedItems.add(newFile.getPath().toString());
 				}
 

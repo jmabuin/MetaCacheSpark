@@ -87,7 +87,7 @@ public class SequenceReader implements Serializable{
 				}
 			}
 
-			return text.substring(i, k-i);
+			return text.substring(i, k);
 
 		}
 
@@ -126,8 +126,8 @@ public class SequenceReader implements Serializable{
 					}
 				}
 			}
-
-			return text.substring(i, k-i);
+			//System.err.println("[JMAbuin] i is "+i+" and k is "+k);
+			return text.substring(i, k);
 
 		}
 
@@ -164,7 +164,7 @@ public class SequenceReader implements Serializable{
 				}
 			}
 
-			return text.substring(i, j-i);
+			return text.substring(i, j);
 		}
 
 		return "";
@@ -187,7 +187,7 @@ public class SequenceReader implements Serializable{
 			}
 
 			try {
-				return Long.parseLong(text.substring(i, j-i));
+				return Long.parseLong(text.substring(i, j));
 			}
 			catch(Exception e) {
 				return 0L;

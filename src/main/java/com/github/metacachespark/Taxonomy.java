@@ -17,6 +17,7 @@
 
 package com.github.metacachespark;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -25,7 +26,7 @@ import java.util.Set;
 /**
  * Created by chema on 1/13/17.
  */
-public class Taxonomy {
+public class Taxonomy implements Serializable {
 
 
 	//private ArrayList<Taxon> taxa_;
@@ -351,7 +352,7 @@ public class Taxonomy {
 		for(Taxon tax : taxa_.values()) {
 
 			if(tax.getRank() == Rank.none) {
-				System.err.println("Ranking unranked: "+tax.getTaxonId());
+				//System.err.println("Ranking unranked: "+tax.getTaxonId());
 				Rank lr = this.lowest_rank(tax);
 				if(lr != Rank.none) {
 					if (lr.compareTo(Rank.subSpecies) > 0) {

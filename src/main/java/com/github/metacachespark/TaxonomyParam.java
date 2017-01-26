@@ -1,12 +1,13 @@
 package com.github.metacachespark;
 
 import java.io.File;
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
  * Created by chema on 1/13/17.
  */
-public class TaxonomyParam {
+public class TaxonomyParam implements Serializable {
 
 	private String path;
 	private String nodesFile;

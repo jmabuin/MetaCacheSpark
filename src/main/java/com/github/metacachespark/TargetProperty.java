@@ -1,11 +1,12 @@
 package com.github.metacachespark;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
  * Created by chema on 1/19/17.
  */
-public class TargetProperty {
+public class TargetProperty implements Serializable {
 
 	private String identifier;
 	private long tax;

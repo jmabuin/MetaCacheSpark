@@ -2,13 +2,12 @@ package com.github.metacachespark;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.*;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -18,6 +17,7 @@ import scala.Tuple2;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
@@ -26,7 +26,7 @@ import java.util.Set;
 /**
  * Created by chema on 1/19/17.
  */
-public class Database {
+public class Database implements Serializable{
 
 	private static final Log LOG = LogFactory.getLog(Database.class);
 
@@ -75,6 +75,10 @@ public class Database {
 		this.taxonomyParam = taxonomyParam;
 		this.numPartitions = numPartitions;
 		this.dbfile = dbfile;
+
+
+		this.targets_ = new ArrayList<TargetProperty>();
+		this.sid2gid_ = new HashMap<String,Integer>();
 	}
 
 	public Random getUrbg_() {
@@ -251,11 +255,35 @@ public class Database {
 	}
 
 	public void buildDatabase(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+		try{
+			LOG.info("Starting to build database from "+ infiles +" ...");
+			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 
-		LOG.info("Starting to build database...");
-		JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
+			//JavaPairRDD<String,String> inputData = javaSparkContext.wholeTextFiles(infiles, this.numPartitions);
+			JavaPairRDD<String,String> inputData = this.sparkS.sparkContext().wholeTextFiles(infiles, this.numPartitions).toJavaRDD().mapToPair(
+					new PairFunction<Tuple2<String, String>, String, String>() {
+						public Tuple2<String, String> call(Tuple2<String, String> stringStringTuple2) throws Exception {
+							return stringStringTuple2;
+						}
+					});
+			//= javaSparkContext.wholeTextFiles(infiles, 1);
 
-		JavaPairRDD<String,String> inputData = javaSparkContext.wholeTextFiles(infiles, this.numPartitions);
+
+			LOG.info("Total files:"+ inputData.count() +" ...");
+
+			JavaRDD<Location> databaseDataRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
+
+			Dataset<Row> datasetDB = sparkS.createDataFrame(databaseDataRDD, Location.class);
+
+			this.features_ = datasetDB;
+		}
+		catch(Exception e) {
+			LOG.error(e.getMessage());
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+
 /*
 		JavaPairRDD<Integer, ArrayList<Location>> databaseDataRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(), true)
 				.mapToPair(new PairFunction<Tuple2<Integer,ArrayList<Location>>, Integer, ArrayList<Location>>() {
@@ -281,19 +309,21 @@ public class Database {
 
 		Dataset<Row> datasetDB = sparkS.createDataFrame(databaseRDD, DatabaseRow.class);
 */
+
+		/*
 		JavaRDD<Location> databaseDataRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
 
 		Dataset<Row> datasetDB = sparkS.createDataFrame(databaseDataRDD, Location.class);
 
 		this.features_ = datasetDB;
-
+*/
 		//datasetDB.write().parquet(dbfile);
 
 	}
 
 
 
-	// These infilenames are taxonomies???
+	// These infilenames are where assembly_summary.txt found are
 	HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,ArrayList<String> infilenames) {
 	//HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,String infilenames)	{
 		//gather all taxonomic mapping files that can be found in any
@@ -302,7 +332,9 @@ public class Database {
 
 		HashMap<String, Long> map = new HashMap<String, Long>();
 
-		for(String newFile: mappingFilenames) {
+		//for(String newFile: mappingFilenames) {
+		for(String newFile: infilenames) {
+			//System.err.println("[JMAbuin] Accessing file: " + newFile + " in make_sequence_to_taxon_id_map");
 			map = read_sequence_to_taxon_id_mapping(newFile, map);
 		}
 
@@ -314,8 +346,8 @@ public class Database {
 
 
 		try {
-			JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
-			FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
+			FileSystem fs = FileSystem.get(this.sparkS.sparkContext().hadoopConfiguration());
 			FSDataInputStream inputStream = fs.open(new Path(mappingFile));
 
 			BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
@@ -356,15 +388,16 @@ public class Database {
 			int col = 0;
 			String header = d.readLine();
 
-			header = header.replaceFirst("# ", "");
+			header = header.replaceFirst("#", "");
 
 			String headerSplits[] = header.split("\t");
 
 			for(String headerField: headerSplits) {
-				if(headerField == "taxid") {
+				//System.err.println("[JMAbuin] header split " + headerField.trim());
+				if(headerField.trim().equals("taxid")) {
 					taxcol = col;
 				}
-				else if (header == "accession.version" || header == "assembly_accession") {
+				else if (header.trim().equals("accession.version") || header.trim().equals("assembly_accession")) {
 					keycol = col;
 				}
 				col++;
@@ -391,19 +424,20 @@ public class Database {
 
 				map.put(key, taxonId);
 
+				newLine = d.readLine();
 
 			}
-
-
-
+			//System.err.println("[JMAbuin] End of read_sequence_to_taxon_id_mapping");
 
 		}
 		catch (IOException e) {
-			LOG.error("I/O Error accessing HDFS: "+e.getMessage());
+			e.printStackTrace();
+			LOG.error("I/O Error accessing HDFS in read_sequence_to_taxon_id_mapping: "+e.getMessage());
 			System.exit(1);
 		}
 		catch (Exception e) {
-			LOG.error("General error accessing HDFS: "+e.getMessage());
+			e.printStackTrace();
+			LOG.error("General error accessing HDFS in read_sequence_to_taxon_id_mapping: "+e.getMessage());
 			System.exit(1);
 		}
 
@@ -478,8 +512,8 @@ public class Database {
 		try {
 			LOG.info("Try to map sequences to taxa using '" + mappingFile);
 
-			JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
-			FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
+			FileSystem fs = FileSystem.get(this.sparkS.sparkContext().hadoopConfiguration());
 			FSDataInputStream inputStream = fs.open(new Path(mappingFile));
 
 			BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
@@ -558,11 +592,11 @@ public class Database {
 		}
 
 		catch (IOException e) {
-			LOG.error("I/O Error accessing HDFS: "+e.getMessage());
+			LOG.error("I/O Error accessing HDFS in rank_targets_post_process: "+e.getMessage());
 			System.exit(1);
 		}
 		catch (Exception e) {
-			LOG.error("General error accessing HDFS: "+e.getMessage());
+			LOG.error("General error accessing HDFS in rank_targets_post_process: "+e.getMessage());
 			System.exit(1);
 		}
 
@@ -576,6 +610,7 @@ public class Database {
 		}
 
 		if(maxambig == 0) maxambig = 1;
+		//Todo: Do it with Spark
 /*
 		if(r == Taxonomy.Rank.Sequence) {
 			long i = 0;
@@ -613,7 +648,35 @@ public class Database {
 	}
 
 	public void write_database() {
-		this.features_.write().parquet(this.dbfile);
+
+
+		try {
+
+			//JavaSparkContext javaSparkContext = new JavaSparkContext(sparkS.sparkContext());
+			//FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			FileSystem fs = FileSystem.get(this.sparkS.sparkContext().hadoopConfiguration());
+
+			String path = fs.getHomeDirectory().toString();
+
+
+			this.features_.write().parquet(path+"/"+this.dbfile);
+			fs.close();
+
+			LOG.info("Database created at "+ path+"/"+this.dbfile);
+
+		}
+		catch (IOException e) {
+			LOG.error("I/O Error accessing HDFS in write_database: "+e.getMessage());
+			e.printStackTrace();
+			System.exit(1);
+		}
+		catch (Exception e) {
+			LOG.error("General error accessing HDFS in write_database: "+e.getMessage());
+			e.printStackTrace();
+			System.exit(1);
+		}
+
+
 	}
 
 }

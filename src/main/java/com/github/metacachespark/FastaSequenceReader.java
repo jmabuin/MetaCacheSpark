@@ -144,12 +144,13 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 	private static final Log LOG = LogFactory.getLog(FastaSequenceReader.class);
 
 	public FastaSequenceReader(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
+		//LOG.info("[JMAbuin] Creating FastaSequenceReader object ");
 		this.sequ2taxid = sequ2taxid;
 		this.infoMode = infoMode;
 	}
 
 	public Iterator<Location> call(Integer partitionId, Iterator<Tuple2<String, String>> arg0) {
-
+		LOG.info("[JMAbuin] Starting Call function");
 		String header = "";
 		String data = "";
 		String qualities = "";
@@ -160,71 +161,87 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		long fileId = 0;
 		ArrayList<Location> returnedValues = new ArrayList<Location>();
 
+		boolean isFastaFile;
+
+		long currentLine = 0;
+		Tuple2<String, String> currentInputData;
 		while(arg0.hasNext()) {
 
-			currentInput = arg0.next()._2;
-			currentFile = arg0.next()._1;
-			LOG.info("New data: "+ currentFile);
+			currentInputData = arg0.next();
+
+			currentInput = currentInputData._2;
+			currentFile = currentInputData._1;
+
+			currentLine = 0;
+			isFastaFile = false;
 
 			// We could do str.replace("\n",""); ??
 			//data = data.replace("\n", "");
 
 			for (String newLine : currentInput.split("\n")) {
 
-				if (newLine.startsWith(">")) { // We are in the header
+				if ((newLine.startsWith(">")) && (currentLine == 0L)) { // We are in the header
 					header = newLine.substring(1);
+					LOG.info("Found header "+ header+" in file: "+currentFile);
+					isFastaFile = true;
 				} else {
 					data = data + newLine;
 				}
+				currentLine++;
 
 			}
 
-			String seqId = SequenceReader.extract_sequence_id(header);
-			String fileIdentifier = SequenceReader.extract_sequence_id(currentFile);
+			if(isFastaFile) {
+				//LOG.info("[JMAbuin] New data: "+ currentFile);
 
-			//make sure sequence id is not empty,
-			//use entire header if neccessary
-			if(seqId.isEmpty()) {
-				if(!fileIdentifier.isEmpty()) {
-					seqId = fileIdentifier;
-				} else {
-					seqId = header;
-				}
-			}
+				String seqId = SequenceReader.extract_sequence_id(header);
+				String fileIdentifier = SequenceReader.extract_sequence_id(currentFile);
 
-			//targets need to have a sequence id
-			//look up taxon id
-			int taxid = 0;
-
-			if(!sequ2taxid.isEmpty()) {
-				Long it = sequ2taxid.get(seqId);
-				if(it != null) {
-					taxid = it.intValue();
-				} else {
-					it = sequ2taxid.get(fileIdentifier);
-					if(it != null) {
-						taxid = it.intValue();
+				//make sure sequence id is not empty,
+				//use entire header if neccessary
+				if(seqId.isEmpty()) {
+					if(!fileIdentifier.isEmpty()) {
+						seqId = fileIdentifier;
+					} else {
+						seqId = header;
 					}
 				}
-			}
-			//no valid taxid assigned -> try to find one in annotation
-			if(taxid > 0) {
-				if(infoMode == Build.build_info.verbose)
-					 LOG.info("[" + seqId + ":" + taxid + "] ");
-			}
-			else {
-				taxid = SequenceReader.extract_taxon_id(header).intValue();
-				if(infoMode == Build.build_info.verbose)
-					LOG.info("[" + seqId + "] ");
-			}
+
+				//targets need to have a sequence id
+				//look up taxon id
+				int taxid = 0;
+
+				if(!sequ2taxid.isEmpty()) {
+					Long it = sequ2taxid.get(seqId);
+					if(it != null) {
+						taxid = it.intValue();
+					} else {
+						it = sequ2taxid.get(fileIdentifier);
+						if(it != null) {
+							taxid = it.intValue();
+						}
+					}
+				}
+				//no valid taxid assigned -> try to find one in annotation
+				if(taxid > 0) {
+					if(infoMode == Build.build_info.verbose)
+						LOG.info("[" + seqId + ":" + taxid + "] ");
+				}
+				else {
+					taxid = SequenceReader.extract_taxon_id(header).intValue();
+					if(infoMode == Build.build_info.verbose)
+						LOG.info("[" + seqId + "] ");
+				}
 
 
-			//try to add to database
-			boolean added = this.add_target(data, partitionId, (short)fileId, currentFile, header, returnedValues);
+				//try to add to database
+				boolean added = this.add_target(data, partitionId, (short)fileId, currentFile, header, returnedValues);
 
-			if(infoMode == Build.build_info.verbose && !added) {
-				LOG.info(seqId + " not added to database");
+				if(infoMode == Build.build_info.verbose && !added) {
+					LOG.info(seqId + " not added to database");
+				}
 			}
+
 
 
 			fileId++;
@@ -254,7 +271,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		// We iterate over windows (with overlap)
 		while (currentEnd < data.length()) {
 
-			currentWindow = data.substring(currentStart, currentEnd + 1);
+			currentWindow = data.substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
 
 			for (int j = 0; j < features.length; j++) {
 				features[j] = Integer.MIN_VALUE;
@@ -266,7 +283,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 
 			// We compute the k-mers
-			for (int i = 0; i < currentWindow.length(); i++) {
+			for (int i = 0; i < currentWindow.length() - MCSConfiguration.kmerSize; i++) {
 
 				kmer = currentWindow.substring(i, i + MCSConfiguration.kmerSize);
 				reversed_kmer = HashFunctions.reverse_complement(kmer);

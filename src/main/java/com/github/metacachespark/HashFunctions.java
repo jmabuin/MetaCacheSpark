@@ -1,9 +1,11 @@
 package com.github.metacachespark;
 
+import java.io.Serializable;
+
 /**
  * Created by chema on 1/16/17.
  */
-public class HashFunctions {
+public class HashFunctions implements Serializable {
 
 	public static int thomas_mueller_hash(int x) {
 		x = ((x >> 16) ^ x) * 0x45d9f3b;

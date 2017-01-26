@@ -21,7 +21,9 @@ import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-public class MetaCacheOptions {
+import java.io.Serializable;
+
+public class MetaCacheOptions implements Serializable {
 
 	private static final Log LOG = LogFactory.getLog(MetaCacheOptions.class);
 

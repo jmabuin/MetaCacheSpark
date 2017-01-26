@@ -34,15 +34,12 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import scala.Tuple2;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
-public class Build {
+public class Build implements Serializable {
 
 	private static final Log LOG = LogFactory.getLog(Build.class);
 
@@ -104,11 +101,11 @@ public class Build {
 		//failure to do so will not be fatal
 		HashMap<Long, String> taxonNames = new HashMap<Long,String>();
 		BufferedReader br;
-		JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
+		//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 
 		try {
 			//br = new BufferedReader(new FileReader(taxNamesFile));
-			FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			FileSystem fs = FileSystem.get(this.sparkS.sparkContext().hadoopConfiguration());
 			FSDataInputStream inputStream = fs.open(new Path(taxNamesFile));
 
 			br = new BufferedReader(new InputStreamReader(inputStream));
@@ -174,7 +171,7 @@ public class Build {
 		try {
 			//br = new BufferedReader(new FileReader(mergeTaxFile));
 
-			FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			FileSystem fs = FileSystem.get(this.sparkS.sparkContext().hadoopConfiguration());
 			FSDataInputStream inputStream = fs.open(new Path(mergeTaxFile));
 
 			br = new BufferedReader(new InputStreamReader(inputStream));
@@ -184,7 +181,7 @@ public class Build {
 			long oldId = 0;
 			long newId = 0;
 
-			String category;
+			//String category;
 
 			for(String line; (line = br.readLine()) != null; ) {
 				String[] lineParts = line.split("\\|");
@@ -225,7 +222,7 @@ public class Build {
 		try {
 			//br = new BufferedReader(new FileReader(taxNodesFile));
 
-			FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+			FileSystem fs = FileSystem.get(this.sparkS.sparkContext().hadoopConfiguration());
 			FSDataInputStream inputStream = fs.open(new Path(taxNodesFile));
 
 			br = new BufferedReader(new InputStreamReader(inputStream));
@@ -339,6 +336,10 @@ public class Build {
 
 			ArrayList<String> inFilesTaxonIdMap = FilesysUtility.findInHDFS(this.param.getInfiles(),"assembly_summary.txt",this.sparkS);
 
+			/*for(String currentFile: inFilesTaxonIdMap) {
+
+				System.err.println("[JMAbuin] "+currentFile);
+			}*/
 			this.add_targets_to_database(db, db.make_sequence_to_taxon_id_map(
 					this.param.getTaxonomyParam().getMappingPreFiles(),
 					inFilesTaxonIdMap),

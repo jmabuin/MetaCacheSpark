@@ -1,14 +1,11 @@
 package com.github.metacachespark;
 
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
+import java.io.*;
 
 /**
  * Created by chema on 1/13/17.
  */
-public class Taxon {
+public class Taxon implements Serializable {
 
 
 

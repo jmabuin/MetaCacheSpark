@@ -4,10 +4,12 @@ import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.io.Serializable;
+
 /**
  * Created by chema on 1/24/17.
  */
-public class BuildOptions {
+public class BuildOptions implements Serializable {
 
 	private static final Log LOG = LogFactory.getLog(BuildOptions.class);
 
