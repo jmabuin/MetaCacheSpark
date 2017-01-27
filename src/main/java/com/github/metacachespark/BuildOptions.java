@@ -182,7 +182,7 @@ public class BuildOptions implements Serializable {
 	private Options initOptions(String[] args) {
 		Options privateOptions = new Options();
 
-		OptionGroup buildOptions = new OptionGroup();
+		//OptionGroup buildOptions = new OptionGroup();
 
 		/*
 		Previous options from main program are:
@@ -208,42 +208,54 @@ public class BuildOptions implements Serializable {
 		 */
 
 		Option sketchlen = new Option("s","sketchlen", true,"Shows documentation");
-		buildOptions.addOption(sketchlen);
+		//buildOptions.addOption(sketchlen);
+		privateOptions.addOption(sketchlen);
 
 		Option winlen = new Option("w","winlen", true,"Classify read sequences using pre-built database");
-		buildOptions.addOption(winlen);
+		//buildOptions.addOption(winlen);
+		privateOptions.addOption(winlen);
 
 		Option winstride = new Option("d", "winstride", true, "Build new database from reference genomes");
-		buildOptions.addOption(winstride);
+		//buildOptions.addOption(winstride);
+		privateOptions.addOption(winstride);
 
 		Option kmerlen = new Option("k", "kmerlen", true, "Add reference genomes and/or taxonomy to existing database");
-		buildOptions.addOption(kmerlen);
+		//buildOptions.addOption(kmerlen);
+		privateOptions.addOption(kmerlen);
 
 		Option verbose = new Option("v", "verbose", false, "Shows database and reference genome properties");
-		buildOptions.addOption(verbose);
+		//buildOptions.addOption(verbose);
+		privateOptions.addOption(verbose);
 
 		Option taxonomy = new Option("t", "taxonomy", true, "Annotate sequences with taxonomic information");
-		buildOptions.addOption(taxonomy);
+		//buildOptions.addOption(taxonomy);
+		privateOptions.addOption(taxonomy);
 
 		Option taxpostmap = new Option("p", "taxpostmap", true, "Shows database and reference genome properties");
-		buildOptions.addOption(taxpostmap);
+		//buildOptions.addOption(taxpostmap);
+		privateOptions.addOption(taxpostmap);
 
 		Option max_load_fac = new Option("f", "max_load_fac", true,"Maximum value for load factor");
-		buildOptions.addOption(max_load_fac);
+		//buildOptions.addOption(max_load_fac);
+		privateOptions.addOption(max_load_fac);
 
 		Option max_locations_per_feature = new Option("r", "max_locations_per_feature", true, "Maximum number of locations per feature");
-		buildOptions.addOption(max_locations_per_feature);
+		//buildOptions.addOption(max_locations_per_feature);
+		privateOptions.addOption(max_locations_per_feature);
 
 		Option remove_ambig_features = new Option("z", "remove_ambig_features", true, "Remove ambiguous features on rank");
-		buildOptions.addOption(remove_ambig_features);
+		//buildOptions.addOption(remove_ambig_features);
+		privateOptions.addOption(remove_ambig_features);
 
 		Option max_ambig_per_feature = new Option("e","max_ambig_per_feature", true, "Maximim ambiguous per feature" );
-		buildOptions.addOption(max_ambig_per_feature);
+		//buildOptions.addOption(max_ambig_per_feature);
+		privateOptions.addOption(max_ambig_per_feature);
 
 		Option num_partitions = new Option("l","num_partitions", true,"Number of desired partitions to parallelize");
-		buildOptions.addOption(num_partitions);
+		//buildOptions.addOption(num_partitions);
+		privateOptions.addOption(num_partitions);
 
-		privateOptions.addOptionGroup(buildOptions);
+		//privateOptions.addOptionGroup(buildOptions);
 
 		return privateOptions;
 
