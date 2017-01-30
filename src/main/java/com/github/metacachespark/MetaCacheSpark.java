@@ -41,7 +41,7 @@ public class MetaCacheSpark implements Serializable {
 		else if(newOptions.getMode() == MetaCacheOptions.Mode.BUILD) {
 			// Build mode entry point
 			SparkSession sparkS = SparkSession
-					.builder().master("yarn")
+					.builder()
 					.appName("MetaCacheSpark - Build")
 					.getOrCreate();
 
