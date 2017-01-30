@@ -10,6 +10,7 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
 import scala.Function1;
 import scala.Tuple2;
@@ -46,7 +47,10 @@ public class Database implements Serializable{
 	private TaxonomyParam taxonomyParam;
 	private int numPartitions = 1;
 	private String dbfile;
+
 	private SparkSession sparkS;
+	private JavaSparkContext jsc;
+	private int sparkV = 2;
 
 	public Database(Sketcher targetSketcher_, Sketcher querySketcher_, long targetWindowSize_, long targetWindowStride_,
 					long queryWindowSize_, long queryWindowStride_, long maxLocsPerFeature_, short nextTargetId_,
@@ -79,6 +83,19 @@ public class Database implements Serializable{
 
 		this.targets_ = new ArrayList<TargetProperty>();
 		this.sid2gid_ = new HashMap<String,Integer>();
+	}
+
+	public Database(JavaSparkContext jsc, TaxonomyParam taxonomyParam, int numPartitions, String dbfile) {
+		this.jsc = jsc;
+		this.taxonomyParam = taxonomyParam;
+		this.numPartitions = numPartitions;
+		this.dbfile = dbfile;
+
+
+		this.targets_ = new ArrayList<TargetProperty>();
+		this.sid2gid_ = new HashMap<String,Integer>();
+
+		this.sparkV = 1;
 	}
 
 	public Random getUrbg_() {
@@ -255,6 +272,16 @@ public class Database implements Serializable{
 	}
 
 	public void buildDatabase(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+		if (this.sparkV == 2) {
+
+			this.buildDatabase2(infiles, sequ2taxid, infoMode);
+		}
+		else if (this.sparkV == 1) {
+			this.buildDatabase1(infiles, sequ2taxid, infoMode);
+		}
+	}
+
+	private void buildDatabase2(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 		try{
 			LOG.info("Starting to build database from "+ infiles +" ...");
 			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
@@ -266,7 +293,6 @@ public class Database implements Serializable{
 							return stringStringTuple2;
 						}
 					});
-			//= javaSparkContext.wholeTextFiles(infiles, 1);
 
 
 			LOG.info("Total files:"+ inputData.count() +" ...");
@@ -284,48 +310,36 @@ public class Database implements Serializable{
 			System.exit(1);
 		}
 
+	}
 
-/*
-		JavaPairRDD<Integer, ArrayList<Location>> databaseDataRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(), true)
-				.mapToPair(new PairFunction<Tuple2<Integer,ArrayList<Location>>, Integer, ArrayList<Location>>() {
+	private void buildDatabase1(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+		try {
+			LOG.info("Starting to build database from " + infiles + " ...");
+			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 
-					public Tuple2<Integer, ArrayList<Location>> call(Tuple2<Integer, ArrayList<Location>> arg0) {
-						//Iterable<Location> iterable = arg0._2();
-						//	return new Tuple2<Integer, Iterable<Location>>(arg0._1(), iterable);
-						return arg0;
-						}
-					}
-				).reduceByKey(new Function2<ArrayList<Location>, ArrayList<Location>, ArrayList<Location>>() {
-					public ArrayList<Location> call(ArrayList<Location> locations, ArrayList<Location> locations2) throws Exception {
-						locations.addAll(locations2);
-						return locations;
-					}
-				});
+			//JavaPairRDD<String,String> inputData = javaSparkContext.wholeTextFiles(infiles, this.numPartitions);
+			JavaPairRDD<String, String> inputData = this.jsc.wholeTextFiles(infiles, this.numPartitions);
 
-		JavaRDD<DatabaseRow> databaseRDD = databaseDataRDD.map(new Function<Tuple2<Integer, ArrayList<Location>>, DatabaseRow>() {
-			public DatabaseRow call(Tuple2<Integer, ArrayList<Location>> integerArrayListTuple2) throws Exception {
-				return new DatabaseRow(integerArrayListTuple2._1(), integerArrayListTuple2._2());
-			}
-		});
+			SQLContext sqlContext = new SQLContext(this.jsc);
 
-		Dataset<Row> datasetDB = sparkS.createDataFrame(databaseRDD, DatabaseRow.class);
-*/
+			LOG.info("Total files:" + inputData.count() + " ...");
 
-		/*
-		JavaRDD<Location> databaseDataRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
+			JavaRDD<Location> databaseDataRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
 
-		Dataset<Row> datasetDB = sparkS.createDataFrame(databaseDataRDD, Location.class);
+			Dataset<Row> datasetDB = sqlContext.createDataFrame(databaseDataRDD, Location.class);
 
-		this.features_ = datasetDB;
-*/
-		//datasetDB.write().parquet(dbfile);
+			this.features_ = datasetDB;
+			LOG.info("Database created ...");
+		} catch (Exception e) {
+			LOG.error(e.getMessage());
+			e.printStackTrace();
+			System.exit(1);
+		}
 
 	}
 
-
-
 	// These infilenames are where assembly_summary.txt found are
-	HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,ArrayList<String> infilenames) {
+	public HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,ArrayList<String> infilenames) {
 	//HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,String infilenames)	{
 		//gather all taxonomic mapping files that can be found in any
 		//of the input directories

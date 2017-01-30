@@ -19,6 +19,8 @@ package com.github.metacachespark;
 //import org.apache.spark.sql.SparkSession;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.*;
 
 import java.io.Serializable;
@@ -40,18 +42,36 @@ public class MetaCacheSpark implements Serializable {
 		}
 		else if(newOptions.getMode() == MetaCacheOptions.Mode.BUILD) {
 			// Build mode entry point
-			SparkSession sparkS = SparkSession
-					.builder()
-					.appName("MetaCacheSpark - Build")
-					.getOrCreate();
+			try {
+				SparkSession sparkS = SparkSession
+						.builder()
+						.appName("MetaCacheSpark - Build")
+						.getOrCreate();
 
+				String buildArgs[] = newOptions.getOtherOptions();
+				Build buildObject = new Build(buildArgs, sparkS);
 
-			String buildArgs[] = newOptions.getOtherOptions();
-			Build buildObject = new Build(buildArgs, sparkS);
+				buildObject.buildDatabase();
+				LOG.info("End of program ...");
+			}
+			catch(Exception e) {
 
-			buildObject.buildDatabase();
-			LOG.info("End of program ...");
-			sparkS.close();
+				LOG.warn("Program fails with Spark 2 ");
+
+				SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Build");
+
+				//The ctx is created from scratch
+				JavaSparkContext ctx = new JavaSparkContext(sparkConf);
+
+				LOG.warn("Using old Spark version!! - " + ctx.version());
+
+				String buildArgs[] = newOptions.getOtherOptions();
+				Build buildObject = new Build(buildArgs, ctx);
+
+				buildObject.buildDatabase();
+				LOG.info("End of program ...");
+			}
+
 		}
 		else {
 			System.out.println("Not recognized option");
