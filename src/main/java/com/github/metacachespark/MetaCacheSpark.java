@@ -42,35 +42,18 @@ public class MetaCacheSpark implements Serializable {
 		}
 		else if(newOptions.getMode() == MetaCacheOptions.Mode.BUILD) {
 			// Build mode entry point
-			try {
-				SparkSession sparkS = SparkSession
-						.builder()
-						.appName("MetaCacheSpark - Build")
-						.getOrCreate();
 
-				String buildArgs[] = newOptions.getOtherOptions();
-				Build buildObject = new Build(buildArgs, sparkS);
+			SparkSession sparkS = SparkSession
+					.builder()
+					.appName("MetaCacheSpark - Build")
+					.getOrCreate();
 
-				buildObject.buildDatabase();
-				LOG.info("End of program ...");
-			}
-			catch(Exception e) {
+			String buildArgs[] = newOptions.getOtherOptions();
+			Build buildObject = new Build(buildArgs, sparkS);
 
-				LOG.warn("Program fails with Spark 2 ");
+			buildObject.buildDatabase();
+			LOG.info("End of program ...");
 
-				SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Build");
-
-				//The ctx is created from scratch
-				JavaSparkContext ctx = new JavaSparkContext(sparkConf);
-
-				LOG.warn("Using old Spark version!! - " + ctx.version());
-
-				String buildArgs[] = newOptions.getOtherOptions();
-				Build buildObject = new Build(buildArgs, ctx);
-
-				buildObject.buildDatabase();
-				LOG.info("End of program ...");
-			}
 
 		}
 		else {
