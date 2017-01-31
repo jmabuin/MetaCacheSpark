@@ -136,7 +136,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		return returnedValues.iterator();
 	}
 */
-public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<String, String>>, Iterator<Location>> {
+public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<String, String>>, Iterator<Sequence>> {
 
 	private HashMap<String, Long> sequ2taxid;
 	private Build.build_info infoMode;
@@ -150,8 +150,8 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		this.infoMode = infoMode;
 	}
 
-	public Iterator<Location> call(Integer partitionId, Iterator<Tuple2<String, String>> arg0) {
-		LOG.info("[JMAbuin] Starting Call function");
+	public Iterator<Sequence> call(Integer partitionId, Iterator<Tuple2<String, String>> arg0) {
+		LOG.info("Starting Call function");
 		String header = "";
 		String data = "";
 		String qualities = "";
@@ -160,7 +160,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		String currentFile = "";
 
 		long fileId = 0;
-		ArrayList<Location> returnedValues = new ArrayList<Location>();
+		ArrayList<Sequence> returnedValues = new ArrayList<Sequence>();
 
 		boolean isFastaFile;
 
@@ -193,7 +193,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 			}
 
 			if(isFastaFile) {
-				LOG.info("[JMAbuin] New data: "+ currentFile);
+				//LOG.info("Processing file: "+ currentFile);
 
 				String seqId = SequenceReader.extract_sequence_id(header);
 				String fileIdentifier = SequenceReader.extract_sequence_id(currentFile);
@@ -235,6 +235,8 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 				}
 
 
+				returnedValues.add(new Sequence(data, partitionId, fileId, currentFile, header, taxid));
+/*
 				//try to add to database
 				//LOG.info("Before add data: "+data);
 				boolean added = this.add_target(data, partitionId, (short)fileId, currentFile, header, returnedValues);
@@ -243,6 +245,8 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 				if(!added) {
 					LOG.info(seqId + " not added to database");
 				}
+
+				*/
 			}
 
 
@@ -318,7 +322,6 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 				returnedValues.add(new Location(features[i], fileId, numWindows, partitionId, currentFile, header));
 
-
 			}
 
 			currentMaxValue = Integer.MAX_VALUE;
@@ -379,6 +382,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 		for(char character: characters) {
 
+			returnedValue = returnedValue  << 2;
 
 			switch(character) {
 				case 'A': case 'a': break;
@@ -388,7 +392,6 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 				default: break;
 			}
 
-			returnedValue = returnedValue  << 2;
 
 		}
 

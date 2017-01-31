@@ -6,6 +6,7 @@ import org.apache.hadoop.fs.*;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.Dataset;
@@ -19,10 +20,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created by chema on 1/19/17.
@@ -49,8 +47,7 @@ public class Database implements Serializable{
 	private String dbfile;
 
 	private SparkSession sparkS;
-	private JavaSparkContext jsc;
-	private int sparkV = 2;
+	//private JavaSparkContext jsc;
 
 	public Database(Sketcher targetSketcher_, Sketcher querySketcher_, long targetWindowSize_, long targetWindowStride_,
 					long queryWindowSize_, long queryWindowStride_, long maxLocsPerFeature_, short nextTargetId_,
@@ -85,18 +82,6 @@ public class Database implements Serializable{
 		this.sid2gid_ = new HashMap<String,Integer>();
 	}
 
-	public Database(JavaSparkContext jsc, TaxonomyParam taxonomyParam, int numPartitions, String dbfile) {
-		this.jsc = jsc;
-		this.taxonomyParam = taxonomyParam;
-		this.numPartitions = numPartitions;
-		this.dbfile = dbfile;
-
-
-		this.targets_ = new ArrayList<TargetProperty>();
-		this.sid2gid_ = new HashMap<String,Integer>();
-
-		this.sparkV = 1;
-	}
 
 	public Random getUrbg_() {
 		return urbg_;
@@ -272,16 +257,6 @@ public class Database implements Serializable{
 	}
 
 	public void buildDatabase(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
-		if (this.sparkV == 2) {
-
-			this.buildDatabase2(infiles, sequ2taxid, infoMode);
-		}
-		else if (this.sparkV == 1) {
-			this.buildDatabase1(infiles, sequ2taxid, infoMode);
-		}
-	}
-
-	private void buildDatabase2(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 		try{
 			LOG.info("Starting to build database from "+ infiles +" ...");
 			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
@@ -297,9 +272,30 @@ public class Database implements Serializable{
 
 			LOG.info("Total files:"+ inputData.count() +" ...");
 
-			JavaRDD<Location> databaseDataRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
+			JavaRDD<Sequence> databaseSequencesRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
 
-			Dataset<Row> datasetDB = sparkS.createDataFrame(databaseDataRDD, Location.class);
+			JavaRDD<Feature> databaseRDD = databaseSequencesRDD.map(new Sketcher()).flatMap(new FlatMapFunction<Iterator<Sketch>, Feature>() {
+				@Override
+				public Iterator<Feature> call(Iterator<Sketch> sketchIterator) throws Exception {
+
+					ArrayList<Feature> returnedValues = new ArrayList<Feature>();
+
+					while(sketchIterator.hasNext()) {
+						Sketch currentSketch = sketchIterator.next();
+
+						for(Feature currentFeature: currentSketch.getFeatures()) {
+							returnedValues.add(currentFeature);
+						}
+
+
+					}
+
+
+					return returnedValues.iterator();
+				}
+			});
+
+			Dataset<Row> datasetDB = sparkS.createDataFrame(databaseRDD, Feature.class);
 
 			this.features_ = datasetDB;
 			LOG.info("Database created ...");
@@ -309,34 +305,9 @@ public class Database implements Serializable{
 			e.printStackTrace();
 			System.exit(1);
 		}
-
 	}
 
-	private void buildDatabase1(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
-		try {
-			LOG.info("Starting to build database from " + infiles + " ...");
-			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 
-			//JavaPairRDD<String,String> inputData = javaSparkContext.wholeTextFiles(infiles, this.numPartitions);
-			JavaPairRDD<String, String> inputData = this.jsc.wholeTextFiles(infiles, this.numPartitions);
-
-			SQLContext sqlContext = new SQLContext(this.jsc);
-
-			LOG.info("Total files:" + inputData.count() + " ...");
-
-			JavaRDD<Location> databaseDataRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
-
-			Dataset<Row> datasetDB = sqlContext.createDataFrame(databaseDataRDD, Location.class);
-
-			this.features_ = datasetDB;
-			LOG.info("Database created ...");
-		} catch (Exception e) {
-			LOG.error(e.getMessage());
-			e.printStackTrace();
-			System.exit(1);
-		}
-
-	}
 
 	// These infilenames are where assembly_summary.txt found are
 	public HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,ArrayList<String> infilenames) {

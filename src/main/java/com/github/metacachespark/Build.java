@@ -48,7 +48,7 @@ public class Build implements Serializable {
 
 	private Database db;
 	private SparkSession sparkS;
-	private JavaSparkContext jsc;
+	//private JavaSparkContext jsc;
 
 	public enum build_info {
 		silent, moderate, verbose
@@ -77,16 +77,6 @@ public class Build implements Serializable {
 
 	}
 
-	public Build(String[] args, JavaSparkContext jsc) {
-
-		param = new BuildOptions(args);
-
-		this.jsc = jsc;
-
-		this.db = new Database(this.jsc, this.param.getTaxonomyParam(), this.param.getNumPartitions(), this.param.getDbfile());
-
-
-	}
 
 
 	public void buildDatabase() {
