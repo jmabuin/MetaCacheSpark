@@ -142,6 +142,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 	private Build.build_info infoMode;
 
 	private static final Log LOG = LogFactory.getLog(FastaSequenceReader.class);
+	private int currentMaxValue = Integer.MAX_VALUE;
 
 	public FastaSequenceReader(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
 		//LOG.info("[JMAbuin] Creating FastaSequenceReader object ");
@@ -270,13 +271,15 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		String reversed_kmer;
 		int kmer32;
 
+
+
 		// We iterate over windows (with overlap)
 		while (currentEnd < data.length()) {
 
 			currentWindow = data.substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
 
 			for (int j = 0; j < features.length; j++) {
-				features[j] = Integer.MIN_VALUE;
+				features[j] = Integer.MAX_VALUE;
 			}
 
 			// Compute k-mers
@@ -294,15 +297,20 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 				// Apply hash to current kmer
 				int hashValue = HashFunctions.thomas_mueller_hash(kmer32);
-				this.insert(hashValue, features);
+				if(hashValue < this.currentMaxValue) {
+					this.insert(hashValue, features);
+				}
+
 
 				// Apply hash to reverse complement of the kmer
 				kmer32 = this.kmer2int32(reversed_kmer);
 
 				// Apply hash to current kmer
 				hashValue = HashFunctions.thomas_mueller_hash(kmer32);
-				this.insert(hashValue, features);
 
+				if(hashValue < this.currentMaxValue) {
+					this.insert(hashValue, features);
+				}
 			}
 
 			// Insert sketch (16 features) into hashtable
@@ -313,6 +321,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 			}
 
+			currentMaxValue = Integer.MAX_VALUE;
 			numWindows++;
 			currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
 			currentEnd = currentStart + MCSConfiguration.windowSize;
@@ -339,6 +348,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 			arr[k+1]=arr[k];
 		}
 		arr[i]=val;
+		this.currentMaxValue = arr[arr.length-1];
 		//System.out.println(Arrays.toString(arr));
 
 	}
