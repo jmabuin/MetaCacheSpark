@@ -37,6 +37,20 @@ public class MetaCacheSpark implements Serializable {
 
 
 		}
+		else if(newOptions.getMode() == MetaCacheOptions.Mode.QUERY) {
+			// Query mode entry point
+			SparkSession sparkS = SparkSession
+					.builder()
+					.appName("MetaCacheSpark - Query")
+					.getOrCreate();
+
+			String queryArgs[] = newOptions.getOtherOptions();
+
+			//Build buildObject = new Build(buildArgs, sparkS);
+			//buildObject.buildDatabase();
+
+			LOG.info("End of program ...");
+		}
 		else {
 			System.out.println("Not recognized option");
 			newOptions.printHelp();
