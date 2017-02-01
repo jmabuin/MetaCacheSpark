@@ -26,116 +26,7 @@ import scala.Tuple2;
 
 import java.util.*;
 
-//public class FastaSequenceReader implements PairFlatMapFunction<Iterator<String>, Integer, ArrayList<Integer>> {
-/*
-public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<String, String>>, Iterator<Tuple2<Integer, ArrayList<Location>>>> {
-	public Iterator<Tuple2<Integer, ArrayList<Location>>> call(Integer partitionId, Iterator<Tuple2<String, String>> arg0) {
 
-		String header = "";
-		String data = "";
-		String qualities = "";
-
-		String currentInput = "";
-		String currentFile = "";
-
-		Hashtable<Integer, ArrayList<Location>> returnedValuesHashTable = new Hashtable<Integer, ArrayList<Location>>();
-
-		ArrayList<Tuple2<Integer, ArrayList<Location>>> returnedValues = new ArrayList<Tuple2<Integer, ArrayList<Location>>>();
-
-		while(arg0.hasNext()) {
-
-			currentInput = arg0.next()._2;
-			currentFile = arg0.next()._1;
-
-			for (String newLine : currentInput.split("\n")) {
-
-				if (newLine.startsWith(">")) { // We are in the header
-					header = newLine.substring(1);
-				} else {
-					data = data + newLine;
-				}
-
-			}
-
-			int currentStart = 0;
-			int currentEnd = MCSConfiguration.windowSize;
-
-			String currentWindow = "";
-			int numWindows = 0;
-
-			int[] features = new int[MCSConfiguration.sketchSize];
-			String kmer;
-			String reversed_kmer;
-			int kmer32;
-
-			// We iterate over windows (with overlap)
-			while (currentEnd < data.length()) {
-
-				currentWindow = data.substring(currentStart, currentEnd + 1);
-
-				for (int j = 0; j < features.length; j++) {
-					features[j] = Integer.MIN_VALUE;
-				}
-
-				// Compute k-mers
-				kmer = "";
-				kmer32 = 0;
-
-
-				// We compute the k-mers
-				for (int i = 0; i < currentWindow.length(); i++) {
-
-					kmer = currentWindow.substring(i, i + MCSConfiguration.kmerSize);
-					reversed_kmer = HashFunctions.reverse_complement(kmer);
-
-					kmer32 = this.kmer2int32(kmer);
-
-					// Apply hash to current kmer
-					int hashValue = HashFunctions.thomas_mueller_hash(kmer32);
-					this.insert(hashValue, features);
-
-					// Apply hash to reverse complement of the kmer
-					kmer32 = this.kmer2int32(reversed_kmer);
-
-					// Apply hash to current kmer
-					hashValue = HashFunctions.thomas_mueller_hash(kmer32);
-					this.insert(hashValue, features);
-
-				}
-
-				// Insert sketch (16 features) into hashtable
-				for (int i = 0; i< features.length; i++) {
-
-					if(returnedValuesHashTable.containsKey(features[i])) {
-						returnedValuesHashTable.get(features[i]).add(new Location((short)0,numWindows,partitionId, header));
-					}
-					else {
-						ArrayList<Location> newArrayList = new ArrayList<Location>();
-						newArrayList.add(new Location((short)0,numWindows,partitionId, header));
-						returnedValuesHashTable.put(features[i], newArrayList);
-
-					}
-				}
-
-				numWindows++;
-				currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
-				currentEnd = currentStart + MCSConfiguration.windowSize;
-
-			}
-
-			//ResultType newResult = new ResultType(header, data, qualities);
-		}
-
-		Iterator<Map.Entry<Integer, ArrayList<Location>>> valuesInMap = returnedValuesHashTable.entrySet().iterator();
-
-		while(valuesInMap.hasNext()) {
-			Map.Entry<Integer, ArrayList<Location>> currentEntry = valuesInMap.next();
-			returnedValues.add(new Tuple2<Integer, ArrayList<Location>>(currentEntry.getKey(), currentEntry.getValue()));
-		}
-
-		return returnedValues.iterator();
-	}
-*/
 public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<String, String>>, Iterator<Sequence>> {
 
 	private HashMap<String, Long> sequ2taxid;
@@ -145,13 +36,14 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 	private int currentMaxValue = Integer.MAX_VALUE;
 
 	public FastaSequenceReader(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
-		//LOG.info("[JMAbuin] Creating FastaSequenceReader object ");
+		//LOG.warn("[JMAbuin] Creating FastaSequenceReader object ");
 		this.sequ2taxid = sequ2taxid;
 		this.infoMode = infoMode;
 	}
 
+	@Override
 	public Iterator<Sequence> call(Integer partitionId, Iterator<Tuple2<String, String>> arg0) {
-		LOG.info("Starting Call function");
+		//LOG.warn("[JMAbuin] Starting Call function");
 		String header = "";
 		String data = "";
 		String qualities = "";
@@ -172,7 +64,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 			currentInput = currentInputData._2;
 			currentFile = currentInputData._1;
-
+			//LOG.warn("[JMAbuin] parsing "+currentInput);
 			currentLine = 0;
 			isFastaFile = false;
 
@@ -260,144 +152,5 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		return returnedValues.iterator();
 
 	}
-
-
-	public boolean add_target(String data, int partitionId, short fileId, String currentFile, String header, ArrayList<Location> returnedValues) {
-
-		int currentStart = 0;
-		int currentEnd = MCSConfiguration.windowSize;
-
-		String currentWindow = "";
-		int numWindows = 0;
-
-		int[] features = new int[MCSConfiguration.sketchSize];
-		String kmer;
-		String reversed_kmer;
-		int kmer32;
-
-
-
-		// We iterate over windows (with overlap)
-		while (currentEnd < data.length()) {
-
-			currentWindow = data.substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
-
-			for (int j = 0; j < features.length; j++) {
-				features[j] = Integer.MAX_VALUE;
-			}
-
-			// Compute k-mers
-			kmer = "";
-			kmer32 = 0;
-
-
-			// We compute the k-mers
-			for (int i = 0; i < currentWindow.length() - MCSConfiguration.kmerSize; i++) {
-
-				kmer = currentWindow.substring(i, i + MCSConfiguration.kmerSize);
-				reversed_kmer = HashFunctions.reverse_complement(kmer);
-
-				kmer32 = this.kmer2int32(kmer);
-
-				// Apply hash to current kmer
-				int hashValue = HashFunctions.thomas_mueller_hash(kmer32);
-				if(hashValue < this.currentMaxValue) {
-					this.insert(hashValue, features);
-				}
-
-
-				// Apply hash to reverse complement of the kmer
-				kmer32 = this.kmer2int32(reversed_kmer);
-
-				// Apply hash to current kmer
-				hashValue = HashFunctions.thomas_mueller_hash(kmer32);
-
-				if(hashValue < this.currentMaxValue) {
-					this.insert(hashValue, features);
-				}
-			}
-
-			// Insert sketch (16 features) into hashtable
-			for (int i = 0; i< features.length; i++) {
-
-				returnedValues.add(new Location(features[i], fileId, numWindows, partitionId, currentFile, header));
-
-			}
-
-			currentMaxValue = Integer.MAX_VALUE;
-			numWindows++;
-			currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
-			currentEnd = currentStart + MCSConfiguration.windowSize;
-
-		}
-
-		return true;
-	}
-
-
-	public void insert(int val,int[] arr){
-		int i;
-
-		for(i = 0;i < arr.length-1;i++){
-			if(arr[i]>val)
-				break;
-		}
-
-		if(i >= arr.length) {
-			return;
-		}
-
-		for(int k=arr.length-2; k>=i; k--){
-			arr[k+1]=arr[k];
-		}
-		arr[i]=val;
-		this.currentMaxValue = arr[arr.length-1];
-		//System.out.println(Arrays.toString(arr));
-
-	}
-
-	public long kmer2long64(String kmer) {
-
-		char[] characters = kmer.toCharArray();
-
-		int returnedValue = 0x0000000000000000;
-
-		for(char character: characters) {
-
-			byte newChar = (byte) character;
-
-			returnedValue = (returnedValue | newChar) << 8;
-
-		}
-
-		return returnedValue;
-
-	}
-
-	public int kmer2int32(String inputKmer) {
-
-		char[] characters = inputKmer.toCharArray();
-
-		int returnedValue = 0x00000000;
-
-		for(char character: characters) {
-
-			returnedValue = returnedValue  << 2;
-
-			switch(character) {
-				case 'A': case 'a': break;
-				case 'C': case 'c': returnedValue |= 0x0000001; break;
-				case 'G': case 'g': returnedValue |= 0x0000002; break;
-				case 'T': case 't': returnedValue |= 0x0000003; break;
-				default: break;
-			}
-
-
-		}
-
-		return returnedValue;
-
-	}
-
 
 }

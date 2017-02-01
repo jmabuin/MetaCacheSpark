@@ -12,7 +12,6 @@ import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.SparkSession;
 
 /**
  * Created by chema on 1/13/17.
@@ -51,11 +50,11 @@ public class FilesysUtility implements Serializable {
 	 * @param fileName The file name to find
 	 * @return A string containing the full path of the found file or an empty String if it has not been found
 	 */
-	public static ArrayList<String> findInHDFS(String path, String fileName, SparkSession sparkS) {
+	public static ArrayList<String> findInHDFS(String path, String fileName, JavaSparkContext jsc) {
 
 		try {
 			//JavaSparkContext javaSparkContext = new JavaSparkContext(sparkS.sparkContext());
-			FileSystem fs = FileSystem.get(sparkS.sparkContext().hadoopConfiguration());
+			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
 			ArrayList<String> returnedItems = new ArrayList<String>();
 
 			if(path == ""){
@@ -77,7 +76,7 @@ public class FilesysUtility implements Serializable {
 
 			}
 
-			fs.close();
+			//fs.close();
 
 			return returnedItems;
 
@@ -101,9 +100,9 @@ public class FilesysUtility implements Serializable {
 	 * @param fileName The file name to find
 	 * @return A string containing the full path of the found file or an empty String if it has not been found
 	 */
-	public static ArrayList<String> findInHDFS(String fileName, SparkSession sparkS) {
+	public static ArrayList<String> findInHDFS(String fileName, JavaSparkContext jsc) {
 
-		return findInHDFS("", fileName, sparkS);
+		return findInHDFS("", fileName, jsc);
 
 	}
 

@@ -9,10 +9,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SQLContext;
-import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.*;
 import scala.Function1;
 import scala.Tuple2;
 
@@ -39,20 +36,21 @@ public class Database implements Serializable{
 	private long maxLocsPerFeature_;
 	private short nextTargetId_;
 	private ArrayList<TargetProperty> targets_;
-	private Dataset<Row> features_;
+	private Dataset<Feature> features_;
+	private DataFrame featuresDataframe_;
 	private HashMap<String,Integer> sid2gid_;
 	private Taxonomy taxa_;
 	private TaxonomyParam taxonomyParam;
 	private int numPartitions = 1;
 	private String dbfile;
 
-	private SparkSession sparkS;
-	//private JavaSparkContext jsc;
+
+	private JavaSparkContext jsc;
 
 	public Database(Sketcher targetSketcher_, Sketcher querySketcher_, long targetWindowSize_, long targetWindowStride_,
 					long queryWindowSize_, long queryWindowStride_, long maxLocsPerFeature_, short nextTargetId_,
-					ArrayList<TargetProperty> targets_, Dataset<Row> features_, HashMap<String, Integer> sid2gid_,
-					Taxonomy taxa_, SparkSession sparkS, int numPartitions) {
+					ArrayList<TargetProperty> targets_, Dataset<Feature> features_, HashMap<String, Integer> sid2gid_,
+					Taxonomy taxa_, JavaSparkContext jsc, int numPartitions) {
 
 		this.targetSketcher_ = targetSketcher_;
 		this.querySketcher_ = querySketcher_;
@@ -67,12 +65,13 @@ public class Database implements Serializable{
 		this.sid2gid_ = sid2gid_;
 		this.taxa_ = taxa_;
 
-		this.sparkS = sparkS;
+		this.jsc = jsc;
 		this.numPartitions = numPartitions;
 	}
 
-	public Database(SparkSession sparkS, TaxonomyParam taxonomyParam, int numPartitions, String dbfile) {
-		this.sparkS = sparkS;
+
+	public Database(JavaSparkContext jsc, TaxonomyParam taxonomyParam, int numPartitions, String dbfile) {
+		this.jsc = jsc;
 		this.taxonomyParam = taxonomyParam;
 		this.numPartitions = numPartitions;
 		this.dbfile = dbfile;
@@ -80,8 +79,8 @@ public class Database implements Serializable{
 
 		this.targets_ = new ArrayList<TargetProperty>();
 		this.sid2gid_ = new HashMap<String,Integer>();
-	}
 
+	}
 
 	public Random getUrbg_() {
 		return urbg_;
@@ -163,11 +162,11 @@ public class Database implements Serializable{
 		this.targets_ = targets_;
 	}
 
-	public Dataset<Row> getFeatures_() {
+	public Dataset<Feature> getFeatures_() {
 		return features_;
 	}
 
-	public void setFeatures_(Dataset<Row> features_) {
+	public void setFeatures_(Dataset<Feature> features_) {
 		this.features_ = features_;
 	}
 
@@ -211,12 +210,12 @@ public class Database implements Serializable{
 		this.dbfile = dbfile;
 	}
 
-	public SparkSession getSparkS() {
-		return sparkS;
+	public JavaSparkContext getSparkS() {
+		return jsc;
 	}
 
-	public void setSparkS(SparkSession sparkS) {
-		this.sparkS = sparkS;
+	public void setSparkS(JavaSparkContext sparkS) {
+		this.jsc = sparkS;
 	}
 
 	/*
@@ -251,62 +250,36 @@ public class Database implements Serializable{
 		return this.targets_.size();
 	}
 
-	public void buildDatabase(SparkSession sparkS, String infiles, HashMap<String, Long> sequ2taxid) {
-
-
-	}
 
 	public void buildDatabase(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
-		try{
-			LOG.info("Starting to build database from "+ infiles +" ...");
-			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
-
-			//JavaPairRDD<String,String> inputData = javaSparkContext.wholeTextFiles(infiles, this.numPartitions);
-			JavaPairRDD<String,String> inputData = this.sparkS.sparkContext().wholeTextFiles(infiles, this.numPartitions).toJavaRDD().mapToPair(
-					new PairFunction<Tuple2<String, String>, String, String>() {
-						public Tuple2<String, String> call(Tuple2<String, String> stringStringTuple2) throws Exception {
-							return stringStringTuple2;
-						}
-					});
+		try {
+			LOG.warn("Starting to build database from " + infiles + " ...");
+			//FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
 
 
-			LOG.info("Total files:"+ inputData.count() +" ...");
+			SQLContext sqlContext = new SQLContext(this.jsc);
+
+			JavaPairRDD<String,String> inputData = this.jsc.wholeTextFiles(infiles).repartition(this.numPartitions);
+
+
+			//LOG.warn("Total files:"+ inputData.count() +" ...");
 
 			JavaRDD<Sequence> databaseSequencesRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
 
-			JavaRDD<Feature> databaseRDD = databaseSequencesRDD.map(new Sketcher()).flatMap(new FlatMapFunction<Iterator<Sketch>, Feature>() {
-				@Override
-				public Iterator<Feature> call(Iterator<Sketch> sketchIterator) throws Exception {
+			JavaRDD<Feature> databaseRDD = databaseSequencesRDD.map(new Sketcher()).flatMap(new Sketch2Features());
 
-					ArrayList<Feature> returnedValues = new ArrayList<Feature>();
+			this.featuresDataframe_ = sqlContext.createDataFrame(databaseRDD, Feature.class);
+			Encoder<Feature> encoder = Encoders.bean(Feature.class);
+			Dataset<Feature> ds = new Dataset<Feature>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
 
-					while(sketchIterator.hasNext()) {
-						Sketch currentSketch = sketchIterator.next();
-
-						for(Feature currentFeature: currentSketch.getFeatures()) {
-							returnedValues.add(currentFeature);
-						}
-
-
-					}
-
-
-					return returnedValues.iterator();
-				}
-			});
-
-			Dataset<Row> datasetDB = sparkS.createDataFrame(databaseRDD, Feature.class);
-
-			this.features_ = datasetDB;
-			LOG.info("Database created ...");
-		}
-		catch(Exception e) {
-			LOG.error(e.getMessage());
+			this.features_ = ds;
+			LOG.warn(" Database created ...");
+		} catch (Exception e) {
+			LOG.error("[JMAbuin] ERROR! "+e.getMessage());
 			e.printStackTrace();
 			System.exit(1);
 		}
 	}
-
 
 
 	// These infilenames are where assembly_summary.txt found are
@@ -315,8 +288,9 @@ public class Database implements Serializable{
 		//gather all taxonomic mapping files that can be found in any
 		//of the input directories
 
-
 		HashMap<String, Long> map = new HashMap<String, Long>();
+
+		//String dir = infilenames.get(0);
 
 		//for(String newFile: mappingFilenames) {
 		for(String newFile: infilenames) {
@@ -333,7 +307,7 @@ public class Database implements Serializable{
 
 		try {
 			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
-			FileSystem fs = FileSystem.get(this.sparkS.sparkContext().hadoopConfiguration());
+			FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
 			FSDataInputStream inputStream = fs.open(new Path(mappingFile));
 
 			BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
@@ -414,6 +388,9 @@ public class Database implements Serializable{
 
 			}
 			//System.err.println("[JMAbuin] End of read_sequence_to_taxon_id_mapping");
+			d.close();
+			inputStream.close();
+			//fs.close();
 
 		}
 		catch (IOException e) {
@@ -499,7 +476,7 @@ public class Database implements Serializable{
 			LOG.info("Try to map sequences to taxa using '" + mappingFile);
 
 			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
-			FileSystem fs = FileSystem.get(this.sparkS.sparkContext().hadoopConfiguration());
+			FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
 			FSDataInputStream inputStream = fs.open(new Path(mappingFile));
 
 			BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
@@ -575,6 +552,7 @@ public class Database implements Serializable{
 
 			d.close();
 			inputStream.close();
+			//fs.close();
 		}
 
 		catch (IOException e) {
@@ -640,13 +618,13 @@ public class Database implements Serializable{
 
 			//JavaSparkContext javaSparkContext = new JavaSparkContext(sparkS.sparkContext());
 			//FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
-			FileSystem fs = FileSystem.get(this.sparkS.sparkContext().hadoopConfiguration());
+			FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
 
 			String path = fs.getHomeDirectory().toString();
 
 
-			this.features_.write().parquet(path+"/"+this.dbfile);
-			fs.close();
+			this.featuresDataframe_.write().parquet(path+"/"+this.dbfile);
+			//fs.close();
 
 			LOG.info("Database created at "+ path+"/"+this.dbfile);
 
