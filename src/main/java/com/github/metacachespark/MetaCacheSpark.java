@@ -38,8 +38,21 @@ public class MetaCacheSpark implements Serializable {
 			LOG.warn("End of program ...");
 
 			///ctx.close();
+		}
+		else if(newOptions.getMode() == MetaCacheOptions.Mode.QUERY) {
+			// Query mode entry point
+			SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Query");
 
+			//The ctx is created from scratch
+			JavaSparkContext ctx = new JavaSparkContext(sparkConf);
 
+			LOG.warn("Using old Spark version!! - " + ctx.version());
+			String queryArgs[] = newOptions.getOtherOptions();
+
+			//Build buildObject = new Build(buildArgs, sparkS);
+			//buildObject.buildDatabase();
+
+			LOG.info("End of program ...");
 		}
 		else {
 			System.out.println("Not recognized option");
