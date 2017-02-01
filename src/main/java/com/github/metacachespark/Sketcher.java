@@ -1,6 +1,7 @@
 package com.github.metacachespark;
 
 
+import org.apache.hadoop.util.hash.Hash;
 import org.apache.spark.api.java.function.Function;
 
 import java.util.ArrayList;
@@ -53,6 +54,7 @@ public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
 
 	}
 
+	@Override
 	public Iterator<Sketch> call(Sequence inputSequence) {
 
 		int currentStart = 0;
@@ -86,12 +88,12 @@ public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
 			for (int i = 0; i < currentWindow.length() - MCSConfiguration.kmerSize; i++) {
 
 				kmer = currentWindow.substring(i, i + MCSConfiguration.kmerSize);
-				reversed_kmer = HashFunctions.reverse_complement(kmer);
+				//reversed_kmer = HashFunctions.reverse_complement(kmer);
 
 				kmer32 = this.kmer2int32(kmer);
 
 				// Apply hash to current kmer
-				int hashValue = this.hash_(kmer32);
+				int hashValue = HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
 
 				resultSketch.insert(new Feature(hashValue,
 						inputSequence.getPartitionId(),
@@ -99,19 +101,6 @@ public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
 						inputSequence.getHeader(),
 						inputSequence.getTaxid()));
 
-
-
-				// Apply hash to reverse complement of the kmer
-				kmer32 = this.kmer2int32(reversed_kmer);
-
-				// Apply hash to current kmer
-				hashValue = this.hash_(kmer32);
-
-				resultSketch.insert(new Feature(hashValue,
-						inputSequence.getPartitionId(),
-						inputSequence.getFileId(),
-						inputSequence.getHeader(),
-						inputSequence.getTaxid()));
 			}
 
 			returnedValues.add(resultSketch);

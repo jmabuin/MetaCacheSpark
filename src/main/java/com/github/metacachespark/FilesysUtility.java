@@ -58,7 +58,7 @@ public class FilesysUtility implements Serializable {
 			FileSystem fs = FileSystem.get(sparkS.sparkContext().hadoopConfiguration());
 			ArrayList<String> returnedItems = new ArrayList<String>();
 
-			if(path == ""){
+			if(path.equals("")){
 				path = fs.getHomeDirectory().toString();
 
 			}
@@ -77,7 +77,7 @@ public class FilesysUtility implements Serializable {
 
 			}
 
-			fs.close();
+			//fs.close();
 
 			return returnedItems;
 
@@ -101,7 +101,7 @@ public class FilesysUtility implements Serializable {
 	 * @param fileName The file name to find
 	 * @return A string containing the full path of the found file or an empty String if it has not been found
 	 */
-	public static ArrayList<String> findInHDFS(String fileName, SparkSession sparkS) {
+	public static ArrayList<String> findInHDFS(String fileName,SparkSession sparkS) {
 
 		return findInHDFS("", fileName, sparkS);
 

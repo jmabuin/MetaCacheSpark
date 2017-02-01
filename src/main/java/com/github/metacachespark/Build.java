@@ -48,17 +48,18 @@ public class Build implements Serializable {
 
 	private Database db;
 	private SparkSession sparkS;
-	//private JavaSparkContext jsc;
 
 	public enum build_info {
 		silent, moderate, verbose
 	};
 
+
 	public Build(String[] args, SparkSession sparkS) {
 
 		param = new BuildOptions(args);
 
-		this.sparkS =sparkS;
+		this.sparkS = sparkS;
+
 		this.db = new Database(this.sparkS, this.param.getTaxonomyParam(), this.param.getNumPartitions(), this.param.getDbfile());
 
 		//configure sketching scheme
@@ -74,9 +75,7 @@ public class Build implements Serializable {
 		add_to_database(db, param); // next function
 		*/
 
-
 	}
-
 
 
 	public void buildDatabase() {
@@ -153,7 +152,7 @@ public class Build implements Serializable {
 
 			br.close();
 			inputStream.close();
-			fs.close();
+			//fs.close();
 
 			LOG.info("Done.");
 		}
@@ -207,7 +206,7 @@ public class Build implements Serializable {
 
 			br.close();
 			inputStream.close();
-			fs.close();
+			//fs.close();
 
 			LOG.info("Done.");
 		}
@@ -281,7 +280,7 @@ public class Build implements Serializable {
 
 			br.close();
 			inputStream.close();
-			fs.close();
+			//fs.close();
 			LOG.info(tax.taxon_count() + " taxa read.");
 		}
 		catch (IOException e) {
@@ -299,7 +298,7 @@ public class Build implements Serializable {
 
 	public void add_to_database(Database db) {
 
-
+		LOG.info("Beginning add to database");
 		if(this.param.getMaxLocationsPerFeatureValue() > 0){
 			db.setMaxLocsPerFeature_((long)this.param.getMaxLocationsPerFeatureValue());
 		}
@@ -307,7 +306,6 @@ public class Build implements Serializable {
 		if(this.param.getMaxLoadFactorValue() > 0) {
 			//db.max_load_factor(param.maxLoadFactor);
 		}
-
 
 		if(!this.param.getTaxonomyParam().getPath().isEmpty()) {
 			this.load_taxonomy_into_database(this.db);
@@ -342,10 +340,12 @@ public class Build implements Serializable {
 
 				System.err.println("[JMAbuin] "+currentFile);
 			}*/
+
 			this.add_targets_to_database(db, db.make_sequence_to_taxon_id_map(
 					this.param.getTaxonomyParam().getMappingPreFiles(),
 					inFilesTaxonIdMap),
 					build_info.moderate);
+
 
 			db.try_to_rank_unranked_targets();
 
