@@ -1,6 +1,6 @@
 #include "com_github_metacachespark_HashFunctions.h"
 
-unsigned long make_reverse_complement64C(unsigned long s, unsigned char k) {
+inline unsigned long make_reverse_complement64C(unsigned long s, unsigned char k) {
     s = ((s >> 2)  & 0x3333333333333333ul) | ((s & 0x3333333333333333ul) << 2);
     s = ((s >> 4)  & 0x0F0F0F0F0F0F0F0Ful) | ((s & 0x0F0F0F0F0F0F0F0Ful) << 4);
     s = ((s >> 8)  & 0x00FF00FF00FF00FFul) | ((s & 0x00FF00FF00FF00FFul) << 8);
@@ -10,12 +10,19 @@ unsigned long make_reverse_complement64C(unsigned long s, unsigned char k) {
 }
 
 //-------------------------------------------------------------------
-unsigned int make_reverse_complement32C(unsigned int s, unsigned char k) {
+inline unsigned int make_reverse_complement32C(unsigned int s, unsigned char k) {
     s = ((s >> 2)  & 0x33333333u) | ((s & 0x33333333u) << 2);
     s = ((s >> 4)  & 0x0F0F0F0Fu) | ((s & 0x0F0F0F0Fu) << 4);
     s = ((s >> 8)  & 0x00FF00FFu) | ((s & 0x00FF00FFu) << 8);
     s = ((s >> 16) & 0x0000FFFFu) | ((s & 0x0000FFFFu) << 16);
     return ((unsigned int)(-1) - s) >> (8 * sizeof(s) - (k << 1));
+}
+
+inline unsigned int thomas_mueller_hash(unsigned int x) {
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x);
+    return x;
 }
 
 JNIEXPORT jlong JNICALL Java_com_github_metacachespark_HashFunctions_make_1reverse_1complement64 (JNIEnv *env, jclass thisObj, jlong s, jint k) {
@@ -37,4 +44,9 @@ JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_make_1revers
 
 }
 
+JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_thomas_1mueller_1hash32  (JNIEnv *env, jclass thisObj, jint x) {
 
+    unsigned int newX = (unsigned int) x;
+
+    return thomas_mueller_hash(newX);
+}
