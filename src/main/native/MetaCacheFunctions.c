@@ -46,9 +46,112 @@ inline unsigned int kmer2uint32C(const char *input) {
         }
 
     }
-
+//fprintf(stderr,"[JMAbuin] Kmer. Done %s %u %s\n",input,kmer, __func__);
     return kmer;
 
+
+}
+
+inline unsigned int make_canonical32C(unsigned int s, unsigned char k) {
+	unsigned int revcom = make_reverse_complement32C(s, k);
+	//fprintf(stderr,"[JMAbuin] Canonical. Done %u %u %s\n",s,revcom, __func__);
+
+	return s < revcom ? s : revcom;
+}
+
+inline unsigned long make_canonical64C(unsigned long s, unsigned char k) {
+	unsigned long revcom = make_reverse_complement64C(s, k);
+	return s < revcom ? s : revcom;
+}
+
+inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerSize) {
+
+    unsigned int *sketchValues = (unsigned int *)malloc(sizeof(unsigned int) * sketchSize);
+
+    int i = 0, j, k;
+    char kmerStr[kmerSize+1];
+    kmerStr[kmerSize] = '\0';
+
+    unsigned int kmer32;
+    unsigned int hashValue;
+
+    //char kmersStr[strlen(window) - kmerSize][kmerSize+1];
+    //unsigned int kmersU[strlen(window) - kmerSize];
+
+    // Initialize array
+    for (i = 0; i< sketchSize; i++) {
+
+        sketchValues[i] = 0xFFFFFFFF;
+    }
+
+    // We compute the k-mers
+    for (i = 0; i < (strlen(window) - kmerSize); i++) {
+
+        // Get the corresponding K-mer
+        strncpy(kmerStr,window+i, kmerSize);
+
+        // Get canonical form
+    	kmer32 = make_canonical32C(kmer2uint32C(kmerStr), 16);
+
+    	// Apply hash to current kmer
+    	hashValue = thomas_mueller_hash(kmer32);//HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
+
+        // Insert into array if needed
+        if(hashValue < sketchValues[sketchSize-1]) {
+
+            for(j = 0 ; j < sketchSize ; j++){
+                if(hashValue < sketchValues[j])
+                    break;
+            }
+
+            // We dont need this IF. It is checked before
+            //if(j < sketchSize) {
+
+                for(k = sketchSize - 2; k>=j; k--){
+                    sketchValues[k+1] = sketchValues[k];
+                }
+
+                sketchValues[j] = hashValue;
+            //}
+
+ 	    }
+    }
+
+/*
+    for (i = 0; i < (strlen(window) - kmerSize); i++) {
+
+            // Get the corresponding K-mer
+            strncpy(kmersStr[i],window+i, kmerSize);
+
+    }
+
+    for(i = 0; i < (strlen(window) - kmerSize); i++) {
+        kmersU[i] = thomas_mueller_hash(make_canonical32C(kmer2uint32C(kmersStr[i]), 16));
+    }
+
+    for(i = 0; i < (strlen(window) - kmerSize); i++) {
+            if(kmersU[i] < sketchValues[sketchSize-1]) {
+
+                        for(j = 0 ; j < sketchSize ; j++){
+                            if(kmersU[i] < sketchValues[j])
+                                break;
+                        }
+
+                        // We dont need this IF. It is checked before
+                        //if(j < sketchSize) {
+
+                            for(k = sketchSize - 2; k>=j; k--){
+                                sketchValues[k+1] = sketchValues[k];
+                            }
+
+                            sketchValues[j] = kmersU[i];
+                        //}
+
+             	    }
+
+    }
+*/
+    return sketchValues;
 
 }
 
@@ -84,5 +187,18 @@ JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_kmer2uint32 
     const char *newInput = (*env)->GetStringUTFChars(env, input, 0);
 
     return kmer2uint32C(newInput);
+
+}
+
+JNIEXPORT jintArray JNICALL Java_com_github_metacachespark_HashFunctions_window2sketch32 (JNIEnv *env, jclass thisObj, jstring window, jint sketchSize, jint kmerSize) {
+
+    const char *windowInput = (*env)->GetStringUTFChars(env, window, 0);
+    jintArray iarr = (*env)->NewIntArray(env, sketchSize);
+
+    //fprintf(stderr,"[JMAbuin] Antes de w2s %s\n", __func__);
+    int *returnValues = (int *)window2sketch(windowInput, sketchSize, kmerSize);
+    //fprintf(stderr,"[JMAbuin] Despois de w2s %s\n",__func__);
+    (*env)->SetIntArrayRegion(env, iarr, 0, sketchSize, returnValues);
+    return iarr;
 
 }

@@ -39,6 +39,6 @@ public class HashFunctions implements Serializable {
 	public static native int make_reverse_complement32(int s, int k);
 	public static native int thomas_mueller_hash32(int x);
 	public static native int kmer2uint32(String s);
-	public static native int[] window2sketch32(String window);
+	public static native int[] window2sketch32(String window, int sketchSize, int kmerSize);
 
 }

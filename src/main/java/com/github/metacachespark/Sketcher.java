@@ -83,8 +83,19 @@ public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
 			kmer = "";
 			kmer32 = 0;
 
+			// We compute the k-mers
+			int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
+
+			for(int newValue: sketchValues) {
+				resultSketch.insert(new Feature(newValue,
+						inputSequence.getPartitionId(),
+						inputSequence.getFileId(),
+						inputSequence.getHeader(),
+						inputSequence.getTaxid()));
+			}
 
 			// We compute the k-mers
+			/*
 			for (int i = 0; i < currentWindow.length() - MCSConfiguration.kmerSize; i++) {
 
 				kmer = currentWindow.substring(i, i + MCSConfiguration.kmerSize);
@@ -102,6 +113,7 @@ public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
 						inputSequence.getTaxid()));
 
 			}
+			*/
 
 			returnedValues.add(resultSketch);
 

@@ -298,6 +298,8 @@ public class Build implements Serializable {
 	public void add_to_database(Database db) {
 
 		LOG.info("Beginning add to database");
+		long startTime = System.nanoTime();
+
 		if(this.param.getMaxLocationsPerFeatureValue() > 0){
 			db.setMaxLocsPerFeature_((long)this.param.getMaxLocationsPerFeatureValue());
 		}
@@ -357,7 +359,8 @@ public class Build implements Serializable {
 
 			db.write_database();
 
-			LOG.info("Total build time: ");
+			long elapsedTime = System.nanoTime() - startTime;
+			LOG.warn("Total build time: " + elapsedTime);
 
 		}
 
