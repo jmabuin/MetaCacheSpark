@@ -10,13 +10,13 @@ import java.io.Serializable;
  */
 public class HashFunctions implements Serializable {
 
-	static {
-		try {
-			NativeUtils.loadLibraryFromJar("/libmetacache.so");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
+            static {
+                try {
+                    NativeUtils.loadLibraryFromJar("/libmetacache.so");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
 
 	public static int thomas_mueller_hash(int x) {
 		return thomas_mueller_hash32(x);
@@ -38,5 +38,7 @@ public class HashFunctions implements Serializable {
 	public static native long make_reverse_complement64(long s, int k);
 	public static native int make_reverse_complement32(int s, int k);
 	public static native int thomas_mueller_hash32(int x);
+	public static native int kmer2uint32(String s);
+	public static native int[] window2sketch32(String window);
 
 }

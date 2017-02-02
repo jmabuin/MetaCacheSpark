@@ -31,6 +31,22 @@ JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_make_1revers
 JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_thomas_1mueller_1hash32
   (JNIEnv *, jclass, jint);
 
+/*
+ * Class:     com_github_metacachespark_HashFunctions
+ * Method:    kmer2uint32
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_kmer2uint32
+  (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     com_github_metacachespark_HashFunctions
+ * Method:    window2sketch32
+ * Signature: (Ljava/lang/String;)[I
+ */
+JNIEXPORT jintArray JNICALL Java_com_github_metacachespark_HashFunctions_window2sketch32
+  (JNIEnv *, jclass, jstring);
+
 #ifdef __cplusplus
 }
 #endif

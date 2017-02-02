@@ -1,4 +1,5 @@
 #include "com_github_metacachespark_HashFunctions.h"
+#include <string.h>
 
 inline unsigned long make_reverse_complement64C(unsigned long s, unsigned char k) {
     s = ((s >> 2)  & 0x3333333333333333ul) | ((s & 0x3333333333333333ul) << 2);
@@ -25,6 +26,33 @@ inline unsigned int thomas_mueller_hash(unsigned int x) {
     return x;
 }
 
+
+inline unsigned int kmer2uint32C(const char *input) {
+
+
+    int i = 0;
+    unsigned int kmer = 0x00000000u;
+
+    for(i=0; i< strlen(input);i++) {
+
+        kmer <<= 2;
+
+        switch(input[i]) {
+            case 'A': case 'a': break;
+            case 'C': case 'c': kmer |= 1; break;
+            case 'G': case 'g': kmer |= 2; break;
+            case 'T': case 't': kmer |= 3; break;
+            default: break;
+        }
+
+    }
+
+    return kmer;
+
+
+}
+
+
 JNIEXPORT jlong JNICALL Java_com_github_metacachespark_HashFunctions_make_1reverse_1complement64 (JNIEnv *env, jclass thisObj, jlong s, jint k) {
 
     unsigned long newS = (unsigned long) s;
@@ -49,4 +77,12 @@ JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_thomas_1muel
     unsigned int newX = (unsigned int) x;
 
     return thomas_mueller_hash(newX);
+}
+
+JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_kmer2uint32 (JNIEnv *env, jclass thisObj, jstring input) {
+
+    const char *newInput = (*env)->GetStringUTFChars(env, input, 0);
+
+    return kmer2uint32C(newInput);
+
 }

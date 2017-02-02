@@ -90,7 +90,7 @@ public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
 				kmer = currentWindow.substring(i, i + MCSConfiguration.kmerSize);
 				//reversed_kmer = HashFunctions.reverse_complement(kmer);
 
-				kmer32 = this.kmer2int32(kmer);
+				kmer32 = HashFunctions.kmer2uint32(kmer);//this.kmer2int32(kmer);
 
 				// Apply hash to current kmer
 				int hashValue = HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
