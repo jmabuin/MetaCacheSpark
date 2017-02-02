@@ -1,6 +1,6 @@
 package com.github.metacachespark;
 
-//import cz.adamh.utils.NativeUtils;
+import cz.adamh.utils.NativeUtils;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -9,7 +9,7 @@ import java.io.Serializable;
  * Created by chema on 1/16/17.
  */
 public class HashFunctions implements Serializable {
-/*
+
 	static {
 		try {
 			NativeUtils.loadLibraryFromJar("/libmetacache.so");
@@ -17,12 +17,9 @@ public class HashFunctions implements Serializable {
 			e.printStackTrace();
 		}
 	}
-*/
+
 	public static int thomas_mueller_hash(int x) {
-		x = ((x >> 16) ^ x) * 0x45d9f3b;
-		x = ((x >> 16) ^ x) * 0x45d9f3b;
-		x = ((x >> 16) ^ x);
-		return x;
+		return thomas_mueller_hash32(x);
 	}
 
 
