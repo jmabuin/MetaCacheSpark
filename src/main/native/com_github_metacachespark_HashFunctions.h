@@ -10,7 +10,7 @@ extern "C" {
 /*
  * Class:     com_github_metacachespark_HashFunctions
  * Method:    make_reverse_complement64
- * Signature: (JI)I
+ * Signature: (JI)J
  */
 JNIEXPORT jlong JNICALL Java_com_github_metacachespark_HashFunctions_make_1reverse_1complement64
   (JNIEnv *, jclass, jlong, jint);
@@ -22,6 +22,14 @@ JNIEXPORT jlong JNICALL Java_com_github_metacachespark_HashFunctions_make_1rever
  */
 JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_make_1reverse_1complement32
   (JNIEnv *, jclass, jint, jint);
+
+/*
+ * Class:     com_github_metacachespark_HashFunctions
+ * Method:    thomas_mueller_hash32
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_thomas_1mueller_1hash32
+  (JNIEnv *, jclass, jint);
 
 #ifdef __cplusplus
 }
