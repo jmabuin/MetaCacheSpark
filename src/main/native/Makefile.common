@@ -19,6 +19,6 @@ endif
 
 #JAR_FILES = $(LIBS_DIR)/commons-cli-1.2.jar:$(LIBS_DIR)/spark-assembly-1.6.1-hadoop2.6.0.jar
 
-METACACHE_FLAGS = -c -g -Wall -Wno-unused-function -O2 -fPIC $(JAVA_HOME_INCLUDES)
+METACACHE_FLAGS = -c -g -Wall -Wno-unused-function -O3 -fPIC $(JAVA_HOME_INCLUDES)
 LIBMETACACHE_FLAGS = -shared -o
 LIBMETACACHE_LIBS =
