@@ -19,10 +19,7 @@ public class HashFunctions implements Serializable {
         }
 
 	public static int thomas_mueller_hash(int x) {
-		x = ((x >> 16) ^ x) * 0x45d9f3b;
-		x = ((x >> 16) ^ x) * 0x45d9f3b;
-		x = ((x >> 16) ^ x);
-		return x;
+		return thomas_mueller_hash32(x);
 	}
 
 
