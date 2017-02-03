@@ -260,20 +260,26 @@ public class Database implements Serializable{
 			SQLContext sqlContext = new SQLContext(this.jsc);
 
 			JavaPairRDD<String,String> inputData = this.jsc.wholeTextFiles(infiles).repartition(this.numPartitions);
-
+			//LOG.warn("The number of input files is: " + inputData.count() + " in " + inputData.getNumPartitions() + " partitions");
 
 			//LOG.warn("Total files:"+ inputData.count() +" ...");
 
+			/*
 			JavaRDD<Sequence> databaseSequencesRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
 
 			JavaRDD<Feature> databaseRDD = databaseSequencesRDD.map(new Sketcher()).flatMap(new Sketch2Features());
+*/
+
+			JavaRDD<Feature> databaseRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true).cache();
+			//LOG.warn("The number of partitions for processed data is: "+databaseRDD.getNumPartitions());
 
 			this.featuresDataframe_ = sqlContext.createDataFrame(databaseRDD, Feature.class);
 			Encoder<Feature> encoder = Encoders.bean(Feature.class);
 			Dataset<Feature> ds = new Dataset<Feature>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
 
 			this.features_ = ds;
-			LOG.warn(" Database created ...");
+			LOG.warn("Database created ...");
+			LOG.warn("Number of items into database: " + ds.count());
 		} catch (Exception e) {
 			LOG.error("[JMAbuin] ERROR! "+e.getMessage());
 			e.printStackTrace();

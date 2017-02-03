@@ -52,6 +52,31 @@ inline unsigned int kmer2uint32C(const char *input) {
 
 }
 
+inline unsigned int kmer2uint32C_IO(const char *input, unsigned int *kmer, int len) {
+
+
+    int i = 0;
+    //unsigned int kmer = 0x00000000u;
+
+    for(i=0; i< len;i++) {
+
+        *kmer <<= 2;
+
+        switch(input[i]) {
+            case 'A': case 'a': break;
+            case 'C': case 'c': *kmer |= 1; break;
+            case 'G': case 'g': *kmer |= 2; break;
+            case 'T': case 't': *kmer |= 3; break;
+            default: break;
+        }
+
+    }
+//fprintf(stderr,"[JMAbuin] Kmer. Done %s %u %s\n",input,kmer, __func__);
+    return *kmer;
+
+
+}
+
 inline unsigned int make_canonical32C(unsigned int s, unsigned char k) {
 	unsigned int revcom = make_reverse_complement32C(s, k);
 	//fprintf(stderr,"[JMAbuin] Canonical. Done %u %u %s\n",s,revcom, __func__);
@@ -72,8 +97,9 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
     char kmerStr[kmerSize+1];
     kmerStr[kmerSize] = '\0';
 
-    unsigned int kmer32;
+    unsigned int kmer32 = 0x00000000u;
     unsigned int hashValue;
+    const char *windowTMP = window;
 
     //char kmersStr[strlen(window) - kmerSize][kmerSize+1];
     //unsigned int kmersU[strlen(window) - kmerSize];
@@ -85,16 +111,20 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
     }
 
     // We compute the k-mers
+    int tmpLen = kmerSize;
+
     for (i = 0; i < (strlen(window) - kmerSize); i++) {
 
         // Get the corresponding K-mer
-        strncpy(kmerStr,window+i, kmerSize);
+        //strncpy(kmerStr,window+i, kmerSize);
 
         // Get canonical form
-    	kmer32 = make_canonical32C(kmer2uint32C(kmerStr), 16);
+    	//kmer32 = make_canonical32C(kmer2uint32C(kmerStr), 16);
+
+        kmer2uint32C_IO(windowTMP, &kmer32, tmpLen);
 
     	// Apply hash to current kmer
-    	hashValue = thomas_mueller_hash(kmer32);//HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
+    	hashValue = thomas_mueller_hash(make_canonical32C(kmer32,16));//HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
 
         // Insert into array if needed
         if(hashValue < sketchValues[sketchSize-1]) {
@@ -115,6 +145,10 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
             //}
 
  	    }
+
+        windowTMP+=tmpLen;
+ 	    tmpLen = 1;
+
     }
 
 /*
