@@ -27,7 +27,7 @@ import scala.Tuple2;
 import java.util.*;
 
 
-public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<String, String>>, Iterator<Feature>> {
+public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<String, String>>, Iterator<Sequence>> {
 
 	private HashMap<String, Long> sequ2taxid;
 	private Build.build_info infoMode;
@@ -42,7 +42,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 	}
 
 	@Override
-	public Iterator<Feature> call(Integer partitionId, Iterator<Tuple2<String, String>> arg0) {
+	public Iterator<Sequence> call(Integer partitionId, Iterator<Tuple2<String, String>> arg0) {
 		//LOG.warn("[JMAbuin] Starting Call function");
 		String header = "";
 		String data = "";
@@ -62,8 +62,12 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		long endTime;
 
 		while(arg0.hasNext()) {
-			initTime = System.nanoTime();
+			//initTime = System.nanoTime();
 			currentInputData = arg0.next();
+
+			if(!currentInputData._2().startsWith(">")) {
+				continue;
+			}
 
 			header = "";
 			data = "";
@@ -73,31 +77,25 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 			//LOG.warn("[JMAbuin] parsing "+currentInput);
 			currentLine = 0;
 			isFastaFile = false;
-			sequences.clear();
+			//sequences.clear();
 
 			// We could do str.replace("\n",""); ??
 			//data = data.replace("\n", "");
 
 			for (String newLine : currentInput.split("\n")) {
 
-				if(!isFastaFile) {
-					if (newLine.startsWith(">")) {
-						header = newLine.substring(1);
-						LOG.info("Found header "+ header+" in file: "+currentFile);
-						isFastaFile = true;
+				if (newLine.startsWith(">")) {
+
+					if(!header.isEmpty()) {
+						sequences.add(new Sequence(data, partitionId, fileId, currentFile, header, -1));
 					}
+
+					header = newLine.substring(1);
+					data = "";
 				}
 				else {
 
-					if (newLine.startsWith(">")) {
-						sequences.add(new Sequence(data, partitionId, fileId, currentFile, header, -1));
-						header = newLine.substring(1);
-						data = "";
-						LOG.info("Found header "+ header+" in file: "+currentFile);
-					}
-					else {
-						data = data + newLine;
-					}
+					data = data + newLine;
 
 				}
 
@@ -105,13 +103,14 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 			}
 
-			if((!data.isEmpty()) && (!header.isEmpty())) {
+			if ((!data.isEmpty()) && (!header.isEmpty())) {
 				sequences.add(new Sequence(data, partitionId, fileId, currentFile, header, -1));
 
 			}
 
 			//if(isFastaFile) {
-			for(Sequence currentSequence: sequences) {
+
+			for (Sequence currentSequence : sequences) {
 				//LOG.info("Processing file: "+ currentFile);
 
 				String seqId = SequenceReader.extract_sequence_id(currentSequence.getHeader());
@@ -119,8 +118,8 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 
 				//make sure sequence id is not empty,
 				//use entire header if neccessary
-				if(seqId.isEmpty()) {
-					if(!fileIdentifier.isEmpty()) {
+				if (seqId.isEmpty()) {
+					if (!fileIdentifier.isEmpty()) {
 						seqId = fileIdentifier;
 					} else {
 						seqId = currentSequence.getHeader();
@@ -131,29 +130,31 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 				//look up taxon id
 				int taxid = 0;
 
-				if(!sequ2taxid.isEmpty()) {
+				if (!sequ2taxid.isEmpty()) {
 					Long it = sequ2taxid.get(seqId);
-					if(it != null) {
+					if (it != null) {
 						taxid = it.intValue();
 					} else {
 						it = sequ2taxid.get(fileIdentifier);
-						if(it != null) {
+						if (it != null) {
 							taxid = it.intValue();
 						}
 					}
 				}
 				//no valid taxid assigned -> try to find one in annotation
-				if(taxid > 0) {
-					if(infoMode == Build.build_info.verbose)
+				if (taxid > 0) {
+					if (infoMode == Build.build_info.verbose)
 						LOG.info("[" + seqId + ":" + taxid + "] ");
-				}
-				else {
+				} else {
 					taxid = SequenceReader.extract_taxon_id(currentSequence.getHeader()).intValue();
-					if(infoMode == Build.build_info.verbose)
+					if (infoMode == Build.build_info.verbose)
 						LOG.info("[" + seqId + "] ");
 				}
 
+				currentSequence.setTaxid(taxid);
+			}
 
+/*
 				int currentStart = 0;
 				int currentEnd = MCSConfiguration.windowSize;
 
@@ -216,8 +217,14 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		LOG.warn("Partition " + partitionId + " - Number of files: " + fileId);
 
 		return returnedValues.iterator();
+*/
 
+
+		}
+
+		return sequences.iterator();
 	}
+
 
 }
 /*

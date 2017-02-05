@@ -26,8 +26,12 @@ public class MetaCacheSpark implements Serializable {
 
 			SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Build");
 
-			//The ctx is created from scratch
+			sparkConf.set("spark.sql.parquet.mergeSchema", "false");
+			sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
+
+			//The ctx is created from the previous config
 			JavaSparkContext ctx = new JavaSparkContext(sparkConf);
+			ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
 
 			LOG.warn("Using old Spark version!! - " + ctx.version());
 

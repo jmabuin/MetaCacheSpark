@@ -255,31 +255,68 @@ public class Database implements Serializable{
 		try {
 			LOG.warn("Starting to build database from " + infiles + " ...");
 			//FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
-
+			long initTime = System.nanoTime();
+			long endTime;
 
 			SQLContext sqlContext = new SQLContext(this.jsc);
 
-			JavaPairRDD<String,String> inputData = this.jsc.wholeTextFiles(infiles).repartition(this.numPartitions);
+			JavaPairRDD<String,String> inputData;
+			JavaRDD<Feature> databaseRDD;
+
+/*			if(this.numPartitions == 1) {
+				inputData = this.jsc.wholeTextFiles(infiles).cache();
+			}
+			else {
+				inputData = this.jsc.wholeTextFiles(infiles, this.numPartitions);
+			}
+
+
 			//LOG.warn("The number of input files is: " + inputData.count() + " in " + inputData.getNumPartitions() + " partitions");
 
-			//LOG.warn("Total files:"+ inputData.count() +" ...");
+			LOG.warn("Total files:"+ inputData.count() +" ...");
+			endTime = System.nanoTime();
+			LOG.warn("Time in wholeTextFiles: "+ ((endTime - initTime)/1e9));
+			initTime = System.nanoTime();
 
-			/*
 			JavaRDD<Sequence> databaseSequencesRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
 
-			JavaRDD<Feature> databaseRDD = databaseSequencesRDD.map(new Sketcher()).flatMap(new Sketch2Features());
+			LOG.warn("Total sequences:"+ databaseSequencesRDD.count() +" ...");
+			endTime = System.nanoTime();
+			LOG.warn("Time in sequences: "+ ((endTime - initTime)/1e9));
+			initTime = System.nanoTime();
+
+			JavaRDD<Feature> databaseRDD = databaseSequencesRDD.flatMap(new Sketcher()).cache();//.flatMap(new Sketch2Features());
+			LOG.warn("Total features:"+ databaseSequencesRDD.count() +" ...");
+			endTime = System.nanoTime();
+			LOG.warn("Time in features: "+ ((endTime - initTime)/1e9));
+
+			//JavaRDD<Feature> databaseRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true).cache();
 */
 
-			JavaRDD<Feature> databaseRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true).cache();
-			//LOG.warn("The number of partitions for processed data is: "+databaseRDD.getNumPartitions());
 
+			if(this.numPartitions == 1) {
+				databaseRDD = this.jsc.wholeTextFiles(infiles)
+						.flatMap(new Fasta2Features(sequ2taxid, infoMode)).cache();
+			}
+			else {
+
+				databaseRDD = this.jsc.wholeTextFiles(infiles, this.numPartitions)
+						.flatMap(new Fasta2Features(sequ2taxid, infoMode)).cache();
+			}
+
+			initTime = System.nanoTime();
 			this.featuresDataframe_ = sqlContext.createDataFrame(databaseRDD, Feature.class);
 			Encoder<Feature> encoder = Encoders.bean(Feature.class);
 			Dataset<Feature> ds = new Dataset<Feature>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
 
 			this.features_ = ds;
+			endTime = System.nanoTime();
+			LOG.warn("Time in create dataset: "+ ((endTime - initTime)/1e9));
 			LOG.warn("Database created ...");
 			LOG.warn("Number of items into database: " + ds.count());
+
+
+
 		} catch (Exception e) {
 			LOG.error("[JMAbuin] ERROR! "+e.getMessage());
 			e.printStackTrace();
@@ -628,8 +665,9 @@ public class Database implements Serializable{
 
 			String path = fs.getHomeDirectory().toString();
 
-
+			long startTime = System.nanoTime();
 			this.featuresDataframe_.write().parquet(path+"/"+this.dbfile);
+			LOG.warn("Time in write parquet database is: "+ (System.nanoTime() - startTime)/10e9);
 			//fs.close();
 
 			LOG.info("Database created at "+ path+"/"+this.dbfile);

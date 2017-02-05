@@ -1,7 +1,10 @@
 package com.github.metacachespark;
 
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.util.hash.Hash;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 
 import java.util.ArrayList;
@@ -10,9 +13,9 @@ import java.util.Iterator;
 /**
  * Created by chema on 1/16/17.
  */
-public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
+public class Sketcher implements FlatMapFunction<Sequence,Feature> {
 
-
+	private static final Log LOG = LogFactory.getLog(Sketcher.class);
 	private short k_;
 	private int sketchSize_;
 
@@ -29,40 +32,15 @@ public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
 	}
 
 
-	public int kmer2int32(String inputKmer) {
-
-		char[] characters = inputKmer.toCharArray();
-
-		int returnedValue = 0x00000000;
-
-		for(char character: characters) {
-
-			returnedValue = returnedValue  << 2;
-
-			switch(character) {
-				case 'A': case 'a': break;
-				case 'C': case 'c': returnedValue |= 0x0000001; break;
-				case 'G': case 'g': returnedValue |= 0x0000002; break;
-				case 'T': case 't': returnedValue |= 0x0000003; break;
-				default: break;
-			}
-
-
-		}
-
-		return returnedValue;
-
-	}
-
 	@Override
-	public Iterator<Sketch> call(Sequence inputSequence) {
+	public Iterable<Feature> call(Sequence inputSequence) {
 
 		int currentStart = 0;
 		int currentEnd = MCSConfiguration.windowSize;
 
-		String data = inputSequence.getData();
 
-		ArrayList<Sketch> returnedValues = new ArrayList<Sketch>();
+
+		ArrayList<Feature> returnedValues = new ArrayList<Feature>();
 
 		String currentWindow = "";
 		int numWindows = 0;
@@ -71,51 +49,34 @@ public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
 		String reversed_kmer;
 		int kmer32;
 
-
+		long initTime = System.nanoTime();
+		long endTime;
 
 		// We iterate over windows (with overlap)
-		while (currentEnd < data.length()) {
-			Sketch resultSketch = new Sketch();
+		while (currentEnd < inputSequence.getData().length()) {
+			//Sketch resultSketch = new Sketch();
 
-			currentWindow = data.substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
+			currentWindow = inputSequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
 
 			// Compute k-mers
 			kmer = "";
 			kmer32 = 0;
 
-			// We compute the k-mers
+			// We compute the k-mers. In C
 			int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
 
 			for(int newValue: sketchValues) {
-				resultSketch.insert(new Feature(newValue,
-						inputSequence.getPartitionId(),
-						inputSequence.getFileId(),
-						inputSequence.getHeader(),
-						inputSequence.getTaxid()));
+				//resultSketch.insert(new Feature(newValue,
+				//		partitionId, fileId, header, taxid));
+
+				returnedValues.add(new Feature(newValue, inputSequence.getPartitionId(), inputSequence.getFileId(), inputSequence.getHeader(), inputSequence.getTaxid()));
+
 			}
 
 			// We compute the k-mers
-			/*
-			for (int i = 0; i < currentWindow.length() - MCSConfiguration.kmerSize; i++) {
 
-				kmer = currentWindow.substring(i, i + MCSConfiguration.kmerSize);
-				//reversed_kmer = HashFunctions.reverse_complement(kmer);
 
-				kmer32 = HashFunctions.kmer2uint32(kmer);//this.kmer2int32(kmer);
-
-				// Apply hash to current kmer
-				int hashValue = HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
-
-				resultSketch.insert(new Feature(hashValue,
-						inputSequence.getPartitionId(),
-						inputSequence.getFileId(),
-						inputSequence.getHeader(),
-						inputSequence.getTaxid()));
-
-			}
-			*/
-
-			returnedValues.add(resultSketch);
+			//returnedValuesS.add(resultSketch);
 
 
 			numWindows++;
@@ -124,9 +85,15 @@ public class Sketcher implements Function<Sequence,Iterator<Sketch>> {
 
 		}
 
-		return returnedValues.iterator();
 
+		endTime = System.nanoTime();
+		LOG.warn("Time for file "+inputSequence.getCurrentFile()+" is: " + ((endTime - initTime)/1e9));
+
+		return returnedValues;
 	}
+
+
+
 
 
 }

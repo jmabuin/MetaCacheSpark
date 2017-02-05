@@ -362,7 +362,7 @@ public class Build implements Serializable {
 			db.write_database();
 
 			long elapsedTime = System.nanoTime() - startTime;
-			LOG.warn("Total build time: " + elapsedTime);
+			LOG.warn("Total build time: " + (double)elapsedTime/1e9);
 
 		}
 
