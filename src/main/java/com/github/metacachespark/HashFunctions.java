@@ -40,5 +40,6 @@ public class HashFunctions implements Serializable {
 	public static native int thomas_mueller_hash32(int x);
 	public static native int kmer2uint32(String s);
 	public static native int[] window2sketch32(String window, int sketchSize, int kmerSize);
+	public static native int[] sequence2features(String sequence, int windowSize,  int sketchSize, int kmerSize);
 
 }

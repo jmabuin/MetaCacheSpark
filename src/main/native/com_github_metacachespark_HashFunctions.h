@@ -47,6 +47,8 @@ JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_kmer2uint32
 JNIEXPORT jintArray JNICALL Java_com_github_metacachespark_HashFunctions_window2sketch32
   (JNIEnv *, jclass, jstring, jint, jint);
 
+JNIEXPORT jintArray JNICALL Java_com_github_metacachespark_HashFunctions_sequence2features
+  (JNIEnv *, jclass, jstring, jint, jint, jint);
 #ifdef __cplusplus
 }
 #endif

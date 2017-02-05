@@ -304,14 +304,14 @@ public class Database implements Serializable{
 						.flatMap(new Fasta2Features(sequ2taxid, infoMode)).cache();
 			}
 
-			initTime = System.nanoTime();
+
 			this.featuresDataframe_ = sqlContext.createDataFrame(databaseRDD, Feature.class);
 			Encoder<Feature> encoder = Encoders.bean(Feature.class);
 			Dataset<Feature> ds = new Dataset<Feature>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
 
 			this.features_ = ds;
 			endTime = System.nanoTime();
-			LOG.warn("Time in create dataset: "+ ((endTime - initTime)/1e9));
+			LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
 			LOG.warn("Database created ...");
 			LOG.warn("Number of items into database: " + ds.count());
 
