@@ -10,6 +10,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.*;
+import org.apache.spark.storage.StorageLevel;
 import scala.Function1;
 import scala.Tuple2;
 
@@ -263,45 +264,15 @@ public class Database implements Serializable{
 			JavaPairRDD<String,String> inputData;
 			JavaRDD<Feature> databaseRDD;
 
-/*			if(this.numPartitions == 1) {
-				inputData = this.jsc.wholeTextFiles(infiles).cache();
-			}
-			else {
-				inputData = this.jsc.wholeTextFiles(infiles, this.numPartitions);
-			}
-
-
-			//LOG.warn("The number of input files is: " + inputData.count() + " in " + inputData.getNumPartitions() + " partitions");
-
-			LOG.warn("Total files:"+ inputData.count() +" ...");
-			endTime = System.nanoTime();
-			LOG.warn("Time in wholeTextFiles: "+ ((endTime - initTime)/1e9));
-			initTime = System.nanoTime();
-
-			JavaRDD<Sequence> databaseSequencesRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true);
-
-			LOG.warn("Total sequences:"+ databaseSequencesRDD.count() +" ...");
-			endTime = System.nanoTime();
-			LOG.warn("Time in sequences: "+ ((endTime - initTime)/1e9));
-			initTime = System.nanoTime();
-
-			JavaRDD<Feature> databaseRDD = databaseSequencesRDD.flatMap(new Sketcher()).cache();//.flatMap(new Sketch2Features());
-			LOG.warn("Total features:"+ databaseSequencesRDD.count() +" ...");
-			endTime = System.nanoTime();
-			LOG.warn("Time in features: "+ ((endTime - initTime)/1e9));
-
-			//JavaRDD<Feature> databaseRDD = inputData.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true).cache();
-*/
-
 
 			if(this.numPartitions == 1) {
 				databaseRDD = this.jsc.wholeTextFiles(infiles)
-						.flatMap(new Fasta2Features(sequ2taxid, infoMode)).cache();
+						.flatMap(new Fasta2Features(sequ2taxid, infoMode)).persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
 			}
 			else {
 
 				databaseRDD = this.jsc.wholeTextFiles(infiles, this.numPartitions)
-						.flatMap(new Fasta2Features(sequ2taxid, infoMode)).cache();
+						.flatMap(new Fasta2Features(sequ2taxid, infoMode)).persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
 			}
 
 
@@ -313,7 +284,7 @@ public class Database implements Serializable{
 			endTime = System.nanoTime();
 			LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
 			LOG.warn("Database created ...");
-			LOG.warn("Number of items into database: " + ds.count());
+			LOG.warn("Number of items into database: " + String.valueOf(ds.count()));
 
 
 
