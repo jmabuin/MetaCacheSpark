@@ -9,12 +9,12 @@ public class Sequence implements Serializable {
 
     private String data;
     private int partitionId;
-    private long fileId;
+    private int fileId;
     private String currentFile;
     private String header;
     private int taxid;
 
-    public Sequence(String data, int partitionId, long fileId, String currentFile, String header, int taxid) {
+    public Sequence(String data, int partitionId, int fileId, String currentFile, String header, int taxid) {
         this.data = data;
         this.partitionId = partitionId;
         this.fileId = fileId;
@@ -39,11 +39,11 @@ public class Sequence implements Serializable {
         this.partitionId = partitionId;
     }
 
-    public long getFileId() {
+    public int getFileId() {
         return fileId;
     }
 
-    public void setFileId(long fileId) {
+    public void setFileId(int fileId) {
         this.fileId = fileId;
     }
 
