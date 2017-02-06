@@ -16,13 +16,9 @@
  */
 package com.github.metacachespark;
 
-//import org.apache.spark.api.java.function.Function2;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
-import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
 
 import java.util.*;
@@ -34,7 +30,7 @@ public class Fasta2Features implements FlatMapFunction<Tuple2<String, String>,Fe
 	private Build.build_info infoMode;
 
 	private static final Log LOG = LogFactory.getLog(Fasta2Features.class);
-	private int currentMaxValue = Integer.MAX_VALUE;
+	//private int currentMaxValue = Integer.MAX_VALUE;
 
 	public Fasta2Features(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
 		//LOG.warn("[JMAbuin] Creating FastaSequenceReader object ");
@@ -45,21 +41,22 @@ public class Fasta2Features implements FlatMapFunction<Tuple2<String, String>,Fe
 	@Override
 	public Iterable<Feature> call(Tuple2<String, String> arg0) {
 		//LOG.warn("[JMAbuin] Starting Call function");
-		String header = "";
+		//String header = "";
+		StringBuffer header = new StringBuffer();
 		StringBuffer data = new StringBuffer();
 
 		String currentInput = arg0._2();
 		String currentFile = arg0._1();
 
-		long fileId = 0;
+		int fileId = 0;
 		ArrayList<Feature> returnedValues = new ArrayList<Feature>();
 		ArrayList<Sequence> sequences = new ArrayList<Sequence>();
 		boolean isFastaFile;
 
 		//long currentLine = 0;
 		//Tuple2<String, String> currentInputData;
-		long initTime = System.nanoTime();
-		long endTime;
+		//long initTime = System.nanoTime();
+		//long endTime;
 		//int currentWindow = 0;
 		int currentfeature = 0;
 
@@ -70,7 +67,7 @@ public class Fasta2Features implements FlatMapFunction<Tuple2<String, String>,Fe
 		}
 
 		//currentLine = 0;
-		isFastaFile = false;
+		//isFastaFile = false;
 		//sequences.clear();
 
 
@@ -78,11 +75,12 @@ public class Fasta2Features implements FlatMapFunction<Tuple2<String, String>,Fe
 
 			if (newLine.startsWith(">")) {
 
-				if(!header.isEmpty()) {
-					sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header, -1));
+				if(!header.toString().isEmpty()) {
+					sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header.toString(), -1));
 				}
 
-				header = newLine.substring(1);
+				header.delete(0,header.length());
+				header.append(newLine.substring(1));
 				//data = "";
 				data.delete(0,data.length());
 			}
@@ -97,12 +95,12 @@ public class Fasta2Features implements FlatMapFunction<Tuple2<String, String>,Fe
 
 		}
 
-		if ((!data.toString().isEmpty()) && (!header.isEmpty())) {
-			sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header, -1));
+		if ((!data.toString().isEmpty()) && (!header.toString().isEmpty())) {
+			sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header.toString(), -1));
 
 		}
-		endTime = System.nanoTime();
-		LOG.warn(currentFile+" Time used in build sequence data: "+(endTime-initTime)/1e9);
+		//endTime = System.nanoTime();
+		//LOG.warn(currentFile+" Time used in build sequence data: "+(endTime-initTime)/1e9);
 		//if(isFastaFile) {
 
 		for (Sequence currentSequence : sequences) {
@@ -189,10 +187,9 @@ public class Fasta2Features implements FlatMapFunction<Tuple2<String, String>,Fe
 				int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
 
 				for(int newValue: sketchValues) {
-					//resultSketch.insert(new Feature(newValue,
-					//		partitionId, fileId, header, taxid));
 
-					returnedValues.add(new Feature(newValue, currentSequence.getPartitionId(), currentSequence.getFileId(), currentSequence.getHeader(), currentSequence.getTaxid()));
+					//returnedValues.add(new Feature(newValue, currentSequence.getPartitionId(), currentSequence.getFileId(), currentSequence.getHeader(), currentSequence.getTaxid()));
+					returnedValues.add(new Feature(newValue, currentSequence.getPartitionId(), currentSequence.getFileId(), numWindows));
 
 				}
 
@@ -210,8 +207,8 @@ public class Fasta2Features implements FlatMapFunction<Tuple2<String, String>,Fe
 
 		}
 
-		endTime = System.nanoTime();
-		LOG.warn("Time for file "+currentFile+" is: " + ((endTime - initTime)/1e9));
+		//endTime = System.nanoTime();
+		//LOG.warn("Time for file "+currentFile+" is: " + ((endTime - initTime)/1e9));
 		return returnedValues;
 	}
 

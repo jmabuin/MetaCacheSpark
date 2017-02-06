@@ -51,7 +51,7 @@ public class FastaSequenceReader implements Function2<Integer, Iterator<Tuple2<S
 		String currentInput = "";
 		String currentFile = "";
 
-		long fileId = 0;
+		int fileId = 0;
 		ArrayList<Feature> returnedValues = new ArrayList<Feature>();
 		ArrayList<Sequence> sequences = new ArrayList<Sequence>();
 		boolean isFastaFile;

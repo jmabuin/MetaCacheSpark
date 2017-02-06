@@ -9,16 +9,17 @@ public class Feature implements Serializable {
 
     private int key;
     private int partitionId;
-    private long fileId;
-    private String header;
-    private int taxid;
+    private int fileId;
+    private int windowId;
+    //private String header;
+    //private int taxid;
 
-    public Feature(int key, int partitionId, long fileId, String header, int taxid) {
+    public Feature(int key, int partitionId, int fileId, int windowId) {
         this.key = key;
         this.partitionId = partitionId;
         this.fileId = fileId;
-        this.header = header;
-        this.taxid = taxid;
+        //this.header = header;
+        //this.taxid = taxid;
     }
 
     public Feature() {
@@ -26,8 +27,9 @@ public class Feature implements Serializable {
         this.key = Integer.MAX_VALUE;
         this.partitionId = -1;
         this.fileId = -1;
-        this.header = "";
-        this.taxid = -1;
+        this.windowId = -1;
+        //this.header = "";
+        //this.taxid = -1;
 
     }
 
@@ -47,14 +49,14 @@ public class Feature implements Serializable {
         this.partitionId = partitionId;
     }
 
-    public long getFileId() {
+    public int getFileId() {
         return fileId;
     }
 
-    public void setFileId(long fileId) {
+    public void setFileId(int fileId) {
         this.fileId = fileId;
     }
-
+/*
     public String getHeader() {
         return header;
     }
@@ -69,5 +71,5 @@ public class Feature implements Serializable {
 
     public void setTaxid(int taxid) {
         this.taxid = taxid;
-    }
+    }*/
 }
