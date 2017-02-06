@@ -28,6 +28,14 @@ public class MetaCacheSpark implements Serializable {
 
 			sparkConf.set("spark.sql.parquet.mergeSchema", "false");
 			sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
+			//sparkConf.set("spark.memory.useLegacyMode","true");
+
+			// Kryo serializer
+			sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
+
+			Class[] serializedClasses = {Feature.class, Sketch.class};
+			sparkConf.registerKryoClasses(serializedClasses);
+
 
 			//The ctx is created from the previous config
 			JavaSparkContext ctx = new JavaSparkContext(sparkConf);
