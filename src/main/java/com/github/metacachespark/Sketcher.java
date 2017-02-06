@@ -69,7 +69,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Feature> {
 				//resultSketch.insert(new Feature(newValue,
 				//		partitionId, fileId, header, taxid));
 
-				returnedValues.add(new Feature(newValue, inputSequence.getPartitionId(), inputSequence.getFileId(), inputSequence.getHeader(), inputSequence.getTaxid()));
+				returnedValues.add(new Feature(newValue, inputSequence.getPartitionId(), inputSequence.getFileId(), numWindows));
 
 			}
 
