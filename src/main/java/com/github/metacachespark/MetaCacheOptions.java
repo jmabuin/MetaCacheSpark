@@ -31,6 +31,14 @@ public class MetaCacheOptions implements Serializable {
 
 	public enum Mode { HELP, QUERY, BUILD, ADD, INFO, ANNOTATE}
 
+	public enum pairing_mode { none, files, sequences} // Pairing of queries
+
+	public enum align_mode {none, semi_global} // Alignment mode
+
+	public enum map_view_mode { none, mapped_only, all} // How to show mapping
+
+	public enum taxon_print_mode { name_only, id_only, id_name} // how taxon formatting will be done
+
 	private Mode mode;
 
 	private String correctUse =
