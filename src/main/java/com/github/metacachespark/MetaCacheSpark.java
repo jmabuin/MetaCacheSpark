@@ -52,19 +52,29 @@ public class MetaCacheSpark implements Serializable {
 			///ctx.close();
 		}
 		else if(newOptions.getMode() == MetaCacheOptions.Mode.QUERY) {
-			// Query mode entry point
 			SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Query");
 
-			//The ctx is created from scratch
+			sparkConf.set("spark.sql.parquet.mergeSchema", "false");
+			sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
+			//sparkConf.set("spark.memory.useLegacyMode","true");
+
+			// Kryo serializer
+			sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
+
+			Class[] serializedClasses = {Feature.class, Sketch.class};
+			sparkConf.registerKryoClasses(serializedClasses);
+
+
+			//The ctx is created from the previous config
 			JavaSparkContext ctx = new JavaSparkContext(sparkConf);
+			ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
 
 			LOG.warn("Using old Spark version!! - " + ctx.version());
+
+			// Get arguments and do my stuff
 			String queryArgs[] = newOptions.getOtherOptions();
 
-			//Build buildObject = new Build(buildArgs, sparkS);
-			//buildObject.buildDatabase();
-
-			LOG.info("End of program ...");
+			LOG.warn("End of program ...");
 		}
 		else {
 			System.out.println("Not recognized option");
