@@ -73,6 +73,7 @@ public class MetaCacheSpark implements Serializable {
 
 			// Get arguments and do my stuff
 			String queryArgs[] = newOptions.getOtherOptions();
+			Query queryObject = new Query(queryArgs, ctx);
 
 			LOG.warn("End of program ...");
 		}
