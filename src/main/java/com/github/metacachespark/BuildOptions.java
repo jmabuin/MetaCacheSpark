@@ -60,7 +60,7 @@ public class BuildOptions implements Serializable {
 
 			if (cmd.hasOption('s') || cmd.hasOption("sketchlen")) {
 				//Case of sketchlen
-				this.sketchlenValue = Integer.parseInt(cmd.getOptionValue("index"));
+				this.sketchlenValue = Integer.parseInt(cmd.getOptionValue("sketchlen"));
 
 			}
 
