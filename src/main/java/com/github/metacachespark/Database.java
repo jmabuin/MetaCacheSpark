@@ -47,6 +47,7 @@ public class Database implements Serializable{
 
 
 	private JavaSparkContext jsc;
+	private SQLContext sqlContext;
 
 	public Database(Sketcher targetSketcher_, Sketcher querySketcher_, long targetWindowSize_, long targetWindowStride_,
 					long queryWindowSize_, long queryWindowStride_, long maxLocsPerFeature_, short nextTargetId_,
@@ -77,10 +78,21 @@ public class Database implements Serializable{
 		this.numPartitions = numPartitions;
 		this.dbfile = dbfile;
 
+		this.sqlContext = new SQLContext(this.jsc);
 
 		this.targets_ = new ArrayList<TargetProperty>();
 		this.sid2gid_ = new HashMap<String,Integer>();
 
+	}
+
+	public Database(JavaSparkContext jsc, String dbFile) {
+
+		this.jsc = jsc;
+		this.dbfile = dbFile;
+
+		this.sqlContext = new SQLContext(this.jsc);
+
+		this.loadFromFile();
 	}
 
 	public Random getUrbg_() {
@@ -259,7 +271,7 @@ public class Database implements Serializable{
 			long initTime = System.nanoTime();
 			long endTime;
 
-			SQLContext sqlContext = new SQLContext(this.jsc);
+			//SQLContext sqlContext = new SQLContext(this.jsc);
 
 			JavaPairRDD<String,String> inputData;
 			JavaRDD<Feature> databaseRDD;
@@ -276,15 +288,15 @@ public class Database implements Serializable{
 			}
 
 
-			this.featuresDataframe_ = sqlContext.createDataFrame(databaseRDD, Feature.class);
-			Encoder<Feature> encoder = Encoders.bean(Feature.class);
-			Dataset<Feature> ds = new Dataset<Feature>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
+			this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Feature.class);
+			//Encoder<Feature> encoder = Encoders.bean(Feature.class);
+			//Dataset<Feature> ds = new Dataset<Feature>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
 
-			this.features_ = ds;
+			//this.features_ = ds;
 			endTime = System.nanoTime();
 			LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
 			LOG.warn("Database created ...");
-			LOG.warn("Number of items into database: " + String.valueOf(ds.count()));
+			LOG.warn("Number of items into database: " + String.valueOf(this.featuresDataframe_.count()));
 
 
 
@@ -657,5 +669,19 @@ public class Database implements Serializable{
 
 
 	}
+
+	public void loadFromFile() {
+
+		this.featuresDataframe_ = this.sqlContext.read().parquet(this.dbfile).cache();
+
+		this.featuresDataframe_.registerTempTable("parquetFeatures");
+
+
+		DataFrame result = this.sqlContext.sql("select * from parquetFeatures where partitionId=0 and fileId = 0");
+
+		LOG.warn("Number of items with partitionID=0 and gileId = 0 is: "+result.count());
+
+	}
+
 
 }
