@@ -25,7 +25,7 @@ public class Query implements Serializable {
 
         this.jsc = jsc;
 
-        this.db = new Database(jsc, this.param.getDbfile());
+        this.db = new Database(jsc, this.param.getDbfile(), this.param);
 
 
     }

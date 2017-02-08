@@ -5,6 +5,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.Serializable;
+import java.util.Arrays;
 
 /**
  * Created by jabuinmo on 07.02.17.
@@ -73,7 +74,7 @@ public class QueryOptions implements Serializable {
      */
     private String dbfile;
     //std::vector<std::string> infiles;
-    private String infiles;
+    private String[] infiles;
     private String outfile;
 
     private String[] otherOptions;
@@ -193,8 +194,8 @@ public class QueryOptions implements Serializable {
             // Get and parse the rest of the arguments
             this.otherOptions = cmd.getArgs(); //With this we get the rest of the arguments
 
-            // Check if the numbe rof arguments is correct. This is, dbname and infiles
-            if (this.otherOptions.length != 3) {
+            // Check if the number of arguments is correct. This is, dbname, outfile and infiles
+            if (this.otherOptions.length < 3) {
                 LOG.error("["+this.getClass().getName()+"] No database, input data and output file name have been found. Aborting.");
 
                 for (String tmpString : this.otherOptions) {
@@ -207,8 +208,9 @@ public class QueryOptions implements Serializable {
             else {
 
                 this.dbfile 	= this.otherOptions[0];
-                this.infiles 	= this.otherOptions[1];
-                this.outfile    = this.otherOptions[2];
+                this.outfile    = this.otherOptions[1];
+                //this.infiles 	= this.otherOptions[2:this.otherOptions.length];
+                this.infiles = Arrays.copyOfRange(this.otherOptions, 2, this.otherOptions.length);
 
             }
 
@@ -583,11 +585,11 @@ public class QueryOptions implements Serializable {
         this.dbfile = dbfile;
     }
 
-    public String getInfiles() {
+    public String[] getInfiles() {
         return infiles;
     }
 
-    public void setInfiles(String infiles) {
+    public void setInfiles(String[] infiles) {
         this.infiles = infiles;
     }
 

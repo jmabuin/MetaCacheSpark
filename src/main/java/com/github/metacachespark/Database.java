@@ -14,10 +14,7 @@ import org.apache.spark.storage.StorageLevel;
 import scala.Function1;
 import scala.Tuple2;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Serializable;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -45,6 +42,7 @@ public class Database implements Serializable{
 	private int numPartitions = 1;
 	private String dbfile;
 
+	private QueryOptions paramsQuery;
 
 	private JavaSparkContext jsc;
 	private SQLContext sqlContext;
@@ -85,14 +83,28 @@ public class Database implements Serializable{
 
 	}
 
-	public Database(JavaSparkContext jsc, String dbFile) {
+	public Database(JavaSparkContext jsc, String dbFile, QueryOptions params) {
 
 		this.jsc = jsc;
 		this.dbfile = dbFile;
 
 		this.sqlContext = new SQLContext(this.jsc);
 
+		this.paramsQuery = params;
+
+		this.queryWindowSize_ = params.getWinlen();
+		this.queryWindowStride_ = params.getWinstride();
+
+/*
+    if(param.showDBproperties) {
+        print_properties(db);
+        std::cout << '\n';
+    }
+*/
+
+
 		this.loadFromFile();
+
 	}
 
 	public Random getUrbg_() {
@@ -681,6 +693,151 @@ public class Database implements Serializable{
 
 		LOG.warn("Number of items with partitionID=0 and gileId = 0 is: "+result.count());
 
+	}
+
+
+	public void query() {
+
+
+		StringBuffer outfile = new StringBuffer();
+
+		//process files / file pairs separately
+		if(this.paramsQuery.isSplitOutput()) {
+			//std::string outfile;
+			//process each input file pair separately
+			if(this.paramsQuery.getPairing() == MetaCacheOptions.pairing_mode.files && this.paramsQuery.getInfiles().length > 1) {
+				for(int i = 0; i < this.paramsQuery.getInfiles().length; i += 2) {
+					String f1 = this.paramsQuery.getInfiles()[i];
+					String f2 = this.paramsQuery.getInfiles()[i+1];
+
+					if(!this.paramsQuery.getOutfile().isEmpty()) {
+						outfile.delete(0,outfile.length());
+
+						int index1 = f1.lastIndexOf(File.separator);
+						String fileName1 = f1.substring(index1 + 1);
+
+						int index2 = f2.lastIndexOf(File.separator);
+						String fileName2 = f1.substring(index2 + 1);
+
+						outfile.append(this.paramsQuery.getOutfile());
+						outfile.append("_");
+						outfile.append(fileName1);
+						outfile.append("_");
+						outfile.append(fileName2);
+
+					}
+
+					//process_input_files(db, param, std::vector<std::string>{f1,f2}, outfile);
+					String[] currentInput = {f1, f2};
+					this.process_input_files(currentInput, outfile.toString());
+				}
+			}
+			//process each input file separately
+			else {
+				for(String f : this.paramsQuery.getInfiles()) {
+					if(!this.paramsQuery.getOutfile().isEmpty()) {
+						outfile.delete(0,outfile.length());
+						outfile.append(this.paramsQuery.getOutfile());
+						outfile.append("_");
+
+						int index = f.lastIndexOf(File.separator);
+						String fileName = f.substring(index + 1);
+
+						outfile.append(fileName);
+						outfile.append(".txt");
+
+					}
+					//process_input_files(db, param, std::vector<std::string>{f}, outfile);
+					String[] currentInput = {f};
+					this.process_input_files(currentInput, outfile.toString());
+				}
+			}
+		}
+		//process all input files at once
+		else {
+			outfile.delete(0,outfile.length());
+			outfile.append(this.paramsQuery.getOutfile());
+
+			//process_input_files(db, param, param.infiles, param.outfile);
+			this.process_input_files(this.paramsQuery.getInfiles(), outfile.toString());
+		}
+	}
+
+
+	public void process_input_files(String[] inputfiles, String outputfile) {
+
+		// classify_sequences(db, param, infilenames, os);
+		this.classify_sequences(inputfiles, outputfile);
+
+	}
+
+	public void classify_sequences(String[] infilenames, String outfilename) {
+
+		if(this.paramsQuery.getPairing() == MetaCacheOptions.pairing_mode.files) {
+			classify_on_file_pairs(infilenames, outfilename);
+		}
+		else {
+			classify_per_file(infilenames, outfilename);
+		}
+	}
+
+	public void classify_on_file_pairs(String[] infilenames, String outfilename) {
+
+
+		//pair up reads from two consecutive files in the list
+		for(int i = 0; i < infilenames.length; i += 2) {
+        	String fname1 = infilenames[i];
+			String fname2 = infilenames[i+1];
+
+/*
+			classify_pairs(queue, db, param,
+						*make_sequence_reader(fname1),
+                           *make_sequence_reader(fname2),
+						os, stats);
+*/
+		}
+
+	}
+
+	public void classify_per_file(String[] infilenames, String outfilename) {
+
+
+		//pair up reads from two consecutive files in the list
+		for(int i = 0; i < infilenames.length; i ++) {
+			String fname = infilenames[i];
+
+/*
+			if(param.pairing == pairing_mode::sequences) {
+				classify_pairs(queue, db, param, *reader, *reader, os, stats);
+			} else {
+				classify(queue, db, param, *reader, os, stats);
+			}
+*/
+		}
+
+	}
+
+
+	public void classify(String filename, String outputfilename) {
+
+		JavaPairRDD<Long, String> inputData = this.loadFastq(filename);
+
+
+	}
+
+	/**
+	 * Function to load a FASTQ file from HDFS into a JavaPairRDD<Long, String>
+	 * @param pathToFastq The path to the FASTQ file
+	 * @return A JavaPairRDD containing <Long Read ID, String Read>
+	 */
+	public JavaPairRDD<Long, String> loadFastq(String pathToFastq) {
+		JavaRDD<String> fastqLines = this.jsc.textFile(pathToFastq);
+
+		// Determine which FASTQ record the line belongs to.
+		JavaPairRDD<Long, Tuple2<String, Long>> fastqLinesByRecordNum = fastqLines.zipWithIndex().mapToPair(new FASTQRecordGrouper());
+
+		// Group group the lines which belongs to the same record, and concatenate them into a record.
+		return fastqLinesByRecordNum.groupByKey().mapValues(new FASTQRecordCreator());
 	}
 
 
