@@ -1,4 +1,6 @@
-package com.github.jmabuin.metacachespark;
+package com.github.jmabuin.metacachespark.database;
+import com.github.jmabuin.metacachespark.IOSerialize;
+
 import java.io.*;
 
 /**

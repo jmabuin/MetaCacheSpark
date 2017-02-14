@@ -24,15 +24,15 @@ import scala.Tuple2;
 import java.util.*;
 
 
-public class Fasta2Features implements FlatMapFunction<Tuple2<String, String>,Location> {
+public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Location> {
 
 	private HashMap<String, Long> sequ2taxid;
 	private Build.build_info infoMode;
 
-	private static final Log LOG = LogFactory.getLog(Fasta2Features.class);
+	private static final Log LOG = LogFactory.getLog(FastaSketcher.class);
 	//private int currentMaxValue = Integer.MAX_VALUE;
 
-	public Fasta2Features(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
+	public FastaSketcher(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
 		//LOG.warn("[JMAbuin] Creating FastaSequenceReader object ");
 		super();
 		this.sequ2taxid = sequ2taxid;
@@ -160,7 +160,7 @@ public class Fasta2Features implements FlatMapFunction<Tuple2<String, String>,Lo
 				for(int newValue: sketchValues) {
 
 					//returnedValues.add(new Location(newValue, currentSequence.getPartitionId(), currentSequence.getFileId(), currentSequence.getHeader(), currentSequence.getTaxid()));
-					returnedValues.add(new Location(newValue, currentSequence.getPartitionId(), currentSequence.getFileId(), numWindows));
+					returnedValues.add(new Location(newValue, currentSequence.getTaxid(), numWindows));
 
 				}
 

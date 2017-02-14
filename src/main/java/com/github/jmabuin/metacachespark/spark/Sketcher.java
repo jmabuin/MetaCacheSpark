@@ -67,7 +67,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 				//resultSketch.insert(new Location(newValue,
 				//		partitionId, fileId, header, taxid));
 
-				returnedValues.add(new Location(newValue, inputSequence.getPartitionId(), inputSequence.getFileId(), numWindows));
+				returnedValues.add(new Location(newValue, inputSequence.getTaxid(), numWindows));
 
 			}
 

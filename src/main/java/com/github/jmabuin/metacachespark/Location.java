@@ -7,16 +7,15 @@ import java.io.Serializable;
 public class Location implements Serializable {
 
     private int key;
-    private int partitionId;
-    private int fileId;
+    private int targetId;
     private int windowId;
-    //private String header;
-    //private int taxid;
 
-    public Location(int key, int partitionId, int fileId, int windowId) {
+
+    public Location(int key, int targetId, int windowId) {
         this.key = key;
-        this.partitionId = partitionId;
-        this.fileId = fileId;
+        this.targetId = targetId;
+        this.windowId = windowId;
+
         //this.header = header;
         //this.taxid = taxid;
     }
@@ -24,8 +23,7 @@ public class Location implements Serializable {
     public Location() {
 
         this.key = Integer.MAX_VALUE;
-        this.partitionId = -1;
-        this.fileId = -1;
+        this.targetId = -1;
         this.windowId = -1;
         //this.header = "";
         //this.taxid = -1;
@@ -40,22 +38,24 @@ public class Location implements Serializable {
         this.key = key;
     }
 
-    public int getPartitionId() {
-        return partitionId;
-    }
+	public int getTargetId() {
+		return this.targetId;
+	}
 
-    public void setPartitionId(int partitionId) {
-        this.partitionId = partitionId;
-    }
+	public void setTargetId(int targetId) {
+    	this.targetId = targetId;
+	}
 
-    public int getFileId() {
-        return fileId;
-    }
+	public int getWindowId() {
+		return windowId;
+	}
 
-    public void setFileId(int fileId) {
-        this.fileId = fileId;
-    }
-/*
+	public void setWindowId(int windowId) {
+		this.windowId = windowId;
+	}
+
+
+    /*
     public String getHeader() {
         return header;
     }

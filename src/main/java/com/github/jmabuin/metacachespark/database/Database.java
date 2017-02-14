@@ -1,9 +1,11 @@
-package com.github.jmabuin.metacachespark;
+package com.github.jmabuin.metacachespark.database;
+import com.github.jmabuin.metacachespark.*;
 import com.github.jmabuin.metacachespark.io.FastaInputFormat;
 import com.github.jmabuin.metacachespark.io.FastqInputFormat;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import com.github.jmabuin.metacachespark.options.QueryOptions;
-import com.github.jmabuin.metacachespark.spark.Fasta2Features;
+import com.github.jmabuin.metacachespark.spark.FastaSketcher;
+import com.github.jmabuin.metacachespark.spark.FastaSketcher4Query;
 import com.github.jmabuin.metacachespark.spark.Sketcher;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -11,6 +13,7 @@ import org.apache.hadoop.fs.*;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
 
@@ -42,7 +45,6 @@ public class Database implements Serializable{
 	private int numPartitions = 1;
 	private String dbfile;
 
-	private MetaCacheOptions.InputFormat inputFormat;
 
 	private QueryOptions paramsQuery;
 
@@ -252,14 +254,18 @@ public class Database implements Serializable{
 		}
 		 */
 	public Taxon taxon_of_target(Long id) {
-		return taxa_.getTaxa_().get((int)targets_.get((int)id.longValue()).getTax());
+		return taxa_.getTaxa_().get(targets_.get((int)id.longValue()).getTax());
+	}
+
+	public long taxon_id_of_target(Long id) {
+		return taxa_.getTaxa_().get(targets_.get((int)id.longValue()).getTax()).getTaxonId();
 	}
 
 	public void update_lineages(TargetProperty gp)
 	{
 		if(gp.getTax() > 0) {
 			gp.setFull_lineage(taxa_.lineage(gp.getTax()));
-			gp.setRanked_lineage(taxa_.ranks(gp.getTax()));
+			gp.setRanked_lineage(taxa_.ranks((Long)gp.getTax()));
 		}
 	}
 
@@ -293,7 +299,7 @@ public class Database implements Serializable{
 
 			if(this.numPartitions == 1) {
 				databaseRDD = this.jsc.wholeTextFiles(infiles)
-						.flatMap(new Fasta2Features(sequ2taxid, infoMode)).persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
+						.flatMap(new FastaSketcher(sequ2taxid, infoMode)).persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
 				//databaseRDD = this.jsc.wholeTextFiles(infiles)
 				//		.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true).flatMap(new Sketcher())
 				//		.persist(StorageLevel.MEMORY_AND_DISK_SER());
@@ -301,7 +307,7 @@ public class Database implements Serializable{
 			else {
 
 				databaseRDD = this.jsc.wholeTextFiles(infiles, this.numPartitions)
-						.flatMap(new Fasta2Features(sequ2taxid, infoMode)).persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
+						.flatMap(new FastaSketcher(sequ2taxid, infoMode)).persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
 				//databaseRDD = this.jsc.wholeTextFiles(infiles, this.numPartitions)
 				//		.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true).flatMap(new Sketcher())
 				//		.persist(StorageLevel.MEMORY_AND_DISK_SER());
@@ -489,6 +495,10 @@ public class Database implements Serializable{
 	public void rank_target(int tid, long taxid) {
 		targets_.get(tid).setTax(taxid);
 		update_lineages(targets_.get(tid));
+	}
+
+	public Long[] ranks_of_target(int id)  {
+		return targets_.get(id).getRanked_lineage();
 	}
 
 	//public void try_to_rank_unranked_targets(database& db, const build_param& param)
@@ -704,167 +714,154 @@ public class Database implements Serializable{
 	}
 
 
-	public void query() {
+	public TreeMap<Location, Integer> matches(Sketch query) {
+		TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
+		accumulate_matches(query, res);
+		return res;
+	}
 
 
-		StringBuffer outfile = new StringBuffer();
+	public void	accumulate_matches(Sketch query, TreeMap<Location, Integer> res) {
 
-		//process files / file pairs separately
-		if(this.paramsQuery.isSplitOutput()) {
-			//std::string outfile;
-			//process each input file pair separately
-			if(this.paramsQuery.getPairing() == MetaCacheOptions.pairing_mode.files && this.paramsQuery.getInfiles().length > 1) {
-				for(int i = 0; i < this.paramsQuery.getInfiles().length; i += 2) {
-					String f1 = this.paramsQuery.getInfiles()[i];
-					String f2 = this.paramsQuery.getInfiles()[i+1];
+		List<Location> obtainedLocations = null;
 
-					if(!this.paramsQuery.getOutfile().isEmpty()) {
-						outfile.delete(0,outfile.length());
+		// Made queries
+		//for(Sketch currentLocation: query) {
 
-						int index1 = f1.lastIndexOf(File.separator);
-						String fileName1 = f1.substring(index1 + 1);
+			for(int i:query.getFeatures()){
+				String queryString = "select * from parquetFeatures where key="+i;
 
-						int index2 = f2.lastIndexOf(File.separator);
-						String fileName2 = f1.substring(index2 + 1);
+				DataFrame result = this.sqlContext.sql(queryString);
 
-						outfile.append(this.paramsQuery.getOutfile());
-						outfile.append("_");
-						outfile.append(fileName1);
-						outfile.append("_");
-						outfile.append(fileName2);
+				obtainedLocations = result.javaRDD().map(new Function<Row, Location>() {
+					public Location call(Row row) {
+
+						return new Location(row.getInt(0), row.getInt(1), row.getInt(2));
 
 					}
-
-					//process_input_files(db, param, std::vector<std::string>{f1,f2}, outfile);
-					String[] currentInput = {f1, f2};
-					this.process_input_files(currentInput, outfile.toString());
-				}
+				}).collect();
 			}
-			//process each input file separately
-			else {
-				for(String f : this.paramsQuery.getInfiles()) {
-					if(!this.paramsQuery.getOutfile().isEmpty()) {
-						outfile.delete(0,outfile.length());
-						outfile.append(this.paramsQuery.getOutfile());
-						outfile.append("_");
 
-						int index = f.lastIndexOf(File.separator);
-						String fileName = f.substring(index + 1);
 
-						outfile.append(fileName);
-						outfile.append(".txt");
+			if(obtainedLocations != null) {
+				for(Location obtainedLocation: obtainedLocations) {
 
+					if(res.containsKey(obtainedLocation)) {
+						res.put(obtainedLocation, res.get(obtainedLocation) +1);
 					}
-					//process_input_files(db, param, std::vector<std::string>{f}, outfile);
-					String[] currentInput = {f};
-					this.process_input_files(currentInput, outfile.toString());
+					else {
+						res.put(obtainedLocation, 1);
+					}
+
 				}
 			}
-		}
-		//process all input files at once
-		else {
-			outfile.delete(0,outfile.length());
-			outfile.append(this.paramsQuery.getOutfile());
-
-			//process_input_files(db, param, param.infiles, param.outfile);
-			this.process_input_files(this.paramsQuery.getInfiles(), outfile.toString());
-		}
-	}
 
 
-	public void process_input_files(String[] inputfiles, String outputfile) {
-
-		// classify_sequences(db, param, infilenames, os);
-		this.classify_sequences(inputfiles, outputfile);
+		//}
 
 	}
 
-	public void classify_sequences(String[] infilenames, String outfilename) {
-
-		if(this.paramsQuery.getPairing() == MetaCacheOptions.pairing_mode.files) {
-			classify_on_file_pairs(infilenames, outfilename);
-		}
-		else {
-			classify_per_file(infilenames, outfilename);
-		}
+	public static long invalid_target_id() {
+		return max_target_count();
 	}
 
-	public void classify_on_file_pairs(String[] infilenames, String outfilename) {
 
-
-		//pair up reads from two consecutive files in the list
-		for(int i = 0; i < infilenames.length; i += 2) {
-        	String fname1 = infilenames[i];
-			String fname2 = infilenames[i+1];
-
-/*
-			classify_pairs(queue, db, param,
-						*make_sequence_reader(fname1),
-                           *make_sequence_reader(fname2),
-						os, stats);
-*/
-		}
-
+	public static long max_target_count() {
+		return Integer.MAX_VALUE;
 	}
 
-	public void classify_per_file(String[] infilenames, String outfilename) {
+	public static long max_windows_per_target() {
+		return Integer.MAX_VALUE;
+	}
 
+	public boolean empty() {
+		return features_.count() == 0;
+	}
 
-		//pair up reads from two consecutive files in the list
-		for(int i = 0; i < infilenames.length; i ++) {
-			String fname = infilenames[i];
+	public Taxon taxon_with_id(long id) {
+		return taxa_.getTaxa_().get(id);
+	}
 
+	public Long[] ranks(Taxon tax)  {
+		return this.taxa_.ranks((Long)tax.getTaxonId());
+	}
+	public Classification ground_truth(String header) {
+		//try to extract query id and find the corresponding target in database
+		long tid = this.target_id_of_sequence(SequenceReader.extract_ncbi_accession_version_number(header));
 
+		//not found yet
+		if(!this.is_valid((int)tid)) {
+			tid = this.target_id_of_sequence(SequenceReader.extract_ncbi_accession_number(header));
+			//not found yet
 
-/*
-			if(param.pairing == pairing_mode::sequences) {
-				classify_pairs(queue, db, param, *reader, *reader, os, stats);
-			} else {
-				classify(queue, db, param, *reader, os, stats);
+		}
+
+		long taxid = SequenceReader.extract_taxon_id(header);
+
+		//if target known and in db
+		if(this.is_valid((int)tid)) {
+			//if taxid could not be determined solely from header, use the one
+			//from the target in the db
+			if(taxid < 1) this.taxon_id_of_target(tid);
+
+			return new Classification (tid, taxid > 0 ? this.taxon_with_id(taxid) : null );
+		}
+
+		return new Classification (taxid > 0 ? this.taxon_with_id(taxid) : null );
+	}
+
+	//public Long[] ranks_of_target(long id) {
+	//	return targets_.get((int)id).getRanked_lineage();
+	//}
+
+	public long[] ranks_of_target_basic(long id) {
+		Long data[] = targets_.get((int)id).getRanked_lineage();
+
+		long returnedData[] = new long[data.length];
+
+		for(int i = 0; i< data.length; i++){
+			returnedData[i] = data[i].longValue();
+		}
+
+		return returnedData;
+	}
+
+	public Taxon ranked_lca_of_targets(int ta, int tb) {
+		return taxa_.lca(ranks_of_target_basic(ta), ranks_of_target_basic(tb));
+	}
+
+	public Taxonomy.Rank lowest_common_rank(Classification a, Classification b) {
+
+		if(a.sequence_level() && b.sequence_level() &&
+				a.target() == b.target()) return Taxonomy.Rank.Sequence;
+
+		if(a.has_taxon() && b.has_taxon()) {
+			return this.ranked_lca(a.tax(), b.tax()).getRank();
+		}
+
+		return Taxonomy.Rank.none;
+	}
+
+	public Taxon ranked_lca(Taxon ta, Taxon tb) {
+		return taxa_.ranked_lca(ta, tb);
+	}
+
+	public boolean covers(Taxon t) {
+		return covers_taxon(t.getTaxonId());
+	}
+
+	public boolean covers_taxon(long id) {
+
+		for(TargetProperty g : targets_) {
+			for(long taxid : g.getFull_lineage()) {
+				if(taxid == id) return true;
 			}
-*/
 		}
-
+		return false;
 	}
 
-
-	public void classify(String filename, String outputfilename) {
-
-		JavaPairRDD<String, String> inputData = this.loadSequencesFromFile(filename);
-
-		JavaRDD<Location> featuresRDD;
-
-		if(this.inputFormat == MetaCacheOptions.InputFormat.FASTA) {
-			//featuresRDD = inputData.mapPartitions(new Fasta2Features());
-		}
-		else if (this.inputFormat == MetaCacheOptions.InputFormat.FASTA) {
-			//featuresRDD = inputData.mapPartitions(new Fasta2Features());
-		}
-
-
-
+	public String sequence_id_of_target(long tid) {
+		return targets_.get((int)tid).getIdentifier();
 	}
-
-	/**
-	 * Function to load a FASTQ file from HDFS into a JavaPairRDD<Long, String>
-	 * @param pathToFile The path to the FASTQ file
-	 * @return A JavaPairRDD containing <Long Read ID, String Read>
-	 */
-	public JavaPairRDD<String, String> loadSequencesFromFile(String pathToFile) {
-		JavaPairRDD<String,String> reads;
-
-		if (pathToFile.endsWith(".fastq") || pathToFile.endsWith(".fq") || pathToFile.endsWith(".fnq")) {
-			reads = this.jsc.newAPIHadoopFile(pathToFile, FastqInputFormat.class, String.class, String.class, this.jsc.hadoopConfiguration());
-			this.inputFormat = MetaCacheOptions.InputFormat.FASTQ;
-		}
-		else {
-			reads = this.jsc.newAPIHadoopFile(pathToFile, FastaInputFormat.class, String.class, String.class, this.jsc.hadoopConfiguration());
-			this.inputFormat = MetaCacheOptions.InputFormat.FASTA;
-		}
-
-		return reads;
-
-	}
-
 
 }

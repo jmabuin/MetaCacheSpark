@@ -16,6 +16,8 @@
  */
 package com.github.jmabuin.metacachespark;
 
+import com.github.jmabuin.metacachespark.database.Database;
+import com.github.jmabuin.metacachespark.database.Taxonomy;
 import com.github.jmabuin.metacachespark.options.BuildOptions;
 import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
@@ -94,7 +96,7 @@ public class Build implements Serializable {
 	}
 
 
-	public Taxonomy make_taxonomic_hierarchy(String taxNodesFile,String taxNamesFile, String mergeTaxFile ) {
+	public Taxonomy make_taxonomic_hierarchy(String taxNodesFile, String taxNamesFile, String mergeTaxFile ) {
 
 		//using taxon_id = taxonomy::taxon_id;
 

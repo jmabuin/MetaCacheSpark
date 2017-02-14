@@ -1,5 +1,5 @@
 package com.github.jmabuin.metacachespark.options;
-import com.github.jmabuin.metacachespark.Taxonomy;
+import com.github.jmabuin.metacachespark.database.Taxonomy;
 import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;

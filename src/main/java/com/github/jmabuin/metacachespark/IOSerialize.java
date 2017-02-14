@@ -1,4 +1,7 @@
 package com.github.jmabuin.metacachespark;
+import com.github.jmabuin.metacachespark.database.Taxon;
+import com.github.jmabuin.metacachespark.database.Taxonomy;
+
 import java.io.*;
 
 /**

@@ -15,7 +15,7 @@
  * see <http://www.gnu.org/licenses/>.
  */
 
-package com.github.jmabuin.metacachespark;
+package com.github.jmabuin.metacachespark.database;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -87,9 +87,9 @@ public class Taxonomy implements Serializable {
 	}
 
 
-	public int num_ranks = Rank.none.ordinal(); // +1?
+	public static int num_ranks = Rank.none.ordinal(); // +1?
 
-	public Rank next_main_rank(Rank r) {
+	public static Rank next_main_rank(Rank r) {
 		switch(r) {
 			case Sequence:     	return Rank.Species;
 			case Form:         	return Rank.Species;
@@ -327,7 +327,7 @@ public class Taxonomy implements Serializable {
 
 	}
 
-	public Long[] ranks(Taxon tax) {
+	public long[] ranks(Taxon tax) {
 		return this.ranks(tax.getTaxonId());
 	}
 
@@ -421,4 +421,75 @@ public class Taxonomy implements Serializable {
 		return lowest_rank(tax.getTaxonId());
 	}
 
+	public static long lca_id(ArrayList<Long> lina,ArrayList<Long> linb) {
+		for(long ta : lina) {
+			for(long tb : linb) {
+				if(ta == tb) return ta;
+			}
+		}
+
+		return 0;
+	}
+
+	public Taxon pos (long id) {
+		if(id < 1) return noTaxon_;
+		Taxon it = taxa_.get(id);
+		return (it != null) ? it : noTaxon_;
+
+	}
+
+	public Taxon lca(ArrayList<Long> lina, ArrayList<Long> linb) {
+		return this.pos(lca_id(lina,linb));
+	}
+
+	public Taxon lca(long lina[], long linb[]) {
+		return this.pos(ranked_lca_id(lina,linb));
+	}
+
+	public static long ranked_lca_id( long lina[],long linb[]) {
+
+		for(int i = 0; i < Rank.root.ordinal(); ++i) {
+			if((lina[i] > 0) && (lina[i] == linb[i])) return lina[i];
+		}
+
+		return 0;
+	}
+
+	public Taxon ranked_lca(Taxon a, Taxon b) {
+		return ranked_lca(a.getTaxonId(), b.getTaxonId());
+	}
+
+	public Taxon ranked_lca(long a, long b) {
+		return this.pos(ranked_lca_id(ranks(a), ranks(b) ));
+	}
+
+	public long[] ranks(long id) {
+
+		long[] lin = new long[this.getNum_ranks()];
+
+
+		for(long x : lin) {
+			x = 0;
+		}
+
+		while(id != 0) {
+
+			Taxon it = taxa_.get(id);
+
+			if(it != null) {
+				if(it.getRank() != Rank.none) {
+					lin[it.getRank().ordinal()] = it.getTaxonId();
+				}
+				if(it.getParentId() != id) {
+					id = it.getParentId();
+				} else {
+					id = 0;
+				}
+			} else {
+				id = 0;
+			}
+		}
+
+		return lin;
+	}
 }

@@ -6,29 +6,51 @@ import java.io.Serializable;
  */
 public class Sketch implements Serializable {
 
-    private Location[] features;
-    private int maxFeature = Integer.MAX_VALUE;
+    private int[] features;
+    private String header;
+    private String sequence;
+    //private int maxFeature = Integer.MAX_VALUE;
 
     public Sketch() {
 
-        this.features = new Location[MCSConfiguration.sketchSize];
+        this.features = new int[MCSConfiguration.sketchSize];
 
-        for(int i = 0; i< this.features.length; i++) {
-            this.features[i] = new Location();
-            //currentFeature.setKey(this.maxFeature);
-        }
 
     }
 
-    public Location[] getFeatures() {
+	public Sketch(String header, String sequence, int[] features) {
+
+		this.features = features;
+		this.header = header;
+		this.sequence = sequence;
+
+	}
+
+    public int[] getFeatures() {
         return features;
     }
 
-    public void setFeatures(Location[] features) {
+    public void setFeatures(int[] features) {
         this.features = features;
     }
 
-    public boolean insert(Location feature) {
+	public String getHeader() {
+		return header;
+	}
+
+	public void setHeader(String header) {
+		this.header = header;
+	}
+
+	public String getSequence() {
+		return sequence;
+	}
+
+	public void setSequence(String sequence) {
+		this.sequence = sequence;
+	}
+
+    /*public boolean insert(Location feature) {
 
         if(feature.getKey() > this.maxFeature) {
             return false;
@@ -56,7 +78,7 @@ public class Sketch implements Serializable {
 
         }
 
-    }
+    }*/
 
 
 }
