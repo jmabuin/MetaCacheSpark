@@ -10,7 +10,6 @@ public class Location implements Serializable {
     private int targetId;
     private int windowId;
 
-
     public Location(int key, int targetId, int windowId) {
         this.key = key;
         this.targetId = targetId;

@@ -18,17 +18,17 @@ package com.github.jmabuin.metacachespark.spark;
 //import org.apache.spark.api.java.function.Function2;
 import com.github.jmabuin.metacachespark.Build;
 import com.github.jmabuin.metacachespark.Sequence;
-import com.github.jmabuin.metacachespark.SequenceReader;
+import com.github.jmabuin.metacachespark.io.SequenceReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
-import org.apache.spark.api.java.function.PairFunction;
 import scala.Tuple2;
 
 import java.util.*;
 
-
+/**
+ * Class to read FASTA files from HDFS and store results directly in a RDD of Sequence objects
+ */
 public class FastaSequenceReader extends SequenceReader implements Function2<Integer, Iterator<Tuple2<String, String>>, Iterator<Sequence>> {
 
 	private HashMap<String, Long> sequ2taxid;

@@ -1,24 +1,23 @@
 package com.github.jmabuin.metacachespark;
 
 
-import com.fasterxml.jackson.databind.deser.DataFormatReaders;
 import com.github.jmabuin.metacachespark.database.*;
 import com.github.jmabuin.metacachespark.io.FastaInputFormat;
 import com.github.jmabuin.metacachespark.io.FastqInputFormat;
+import com.github.jmabuin.metacachespark.io.SequenceData;
+import com.github.jmabuin.metacachespark.io.SequenceReader;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import com.github.jmabuin.metacachespark.options.QueryOptions;
 import com.github.jmabuin.metacachespark.spark.FastaSketcher4Query;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import scala.tools.cmd.Meta;
 
 import java.io.*;
 import java.util.HashMap;
@@ -424,6 +423,24 @@ public class Query implements Serializable {
 			}
 
 			// BUSCA //HERE CHEMA mais abaixo
+			if(this.param.isTestAlignment() && !cls.none()) {
+				SequenceOrigin origin = this.db.origin_of_target(tophits.target_id(0));
+
+				SequenceReader reader = new SequenceReader(origin.getFilename(), this.jsc);
+
+				for(int i = 0; i < origin.getIndex(); ++i) {
+					reader.next();
+				}
+
+				SequenceData finalSeq = reader.next();
+
+				if(finalSeq != null) {
+					String tgtSequ = finalSeq.getData();
+
+				}
+
+			}
+
 		}
 		catch(IOException e) {
 			LOG.error("IOException in function process_database_answer: "+ e.getMessage());
@@ -436,54 +453,6 @@ public class Query implements Serializable {
 
 /*
 
-
-		if(showMapping) {
-			//print query header and ground truth
-			if(param.showTopHits || param.showAllHits) {
-				//show first contiguous string only
-				auto l = header.find(' ');
-				if(l != std::string::npos) {
-					auto oit = std::ostream_iterator<char>{os, ""};
-					std::copy(header.begin(), header.begin() + l, oit);
-				}
-            else {
-					os << header;
-				}
-				os << param.outSeparator;
-
-				if(param.showGroundTruth) {
-					if(groundTruth.sequence_level()) {
-						show_ranks_of_target(os, db, groundTruth.target(),
-								param.showTaxaAs, param.lowestRank,
-								param.showLineage ? param.highestRank : param.lowestRank);
-					}
-					else if(groundTruth.has_taxon()) {
-						show_ranks(os, db, db.ranks(groundTruth.tax()),
-								param.showTaxaAs, param.lowestRank,
-								param.showLineage ? param.highestRank : param.lowestRank);
-					}
-					else {
-						os << "n/a";
-					}
-					os << param.outSeparator;
-				}
-			}
-
-			//print results
-			if(param.showAllHits) {
-				show_matches(os, db, hits, param.lowestRank);
-				os << param.outSeparator;
-			}
-			if(param.showTopHits) {
-				show_matches(os, db, tophits, param.lowestRank);
-				os << param.outSeparator;
-			}
-			if(param.showLocations) {
-				show_candidate_ranges(os, db, tophits);
-				os << param.outSeparator;
-			}
-			show_classification(os, db, param, cls);
-		}
 //HERE CHEMA
 		//optional alignment ------------------------------
 		if(param.testAlignment && !cls.none()) {

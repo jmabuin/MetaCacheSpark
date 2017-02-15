@@ -1,11 +1,8 @@
 package com.github.jmabuin.metacachespark.database;
 import com.github.jmabuin.metacachespark.*;
-import com.github.jmabuin.metacachespark.io.FastaInputFormat;
-import com.github.jmabuin.metacachespark.io.FastqInputFormat;
-import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
+import com.github.jmabuin.metacachespark.io.SequenceReader;
 import com.github.jmabuin.metacachespark.options.QueryOptions;
 import com.github.jmabuin.metacachespark.spark.FastaSketcher;
-import com.github.jmabuin.metacachespark.spark.FastaSketcher4Query;
 import com.github.jmabuin.metacachespark.spark.Sketcher;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -864,4 +861,7 @@ public class Database implements Serializable{
 		return targets_.get((int)tid).getIdentifier();
 	}
 
+	public SequenceOrigin origin_of_target(int id) {
+		return targets_.get(id).getOrigin();
+	}
 }

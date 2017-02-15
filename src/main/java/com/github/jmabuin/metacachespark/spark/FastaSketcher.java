@@ -16,6 +16,7 @@
  */
 package com.github.jmabuin.metacachespark.spark;
 import com.github.jmabuin.metacachespark.*;
+import com.github.jmabuin.metacachespark.io.SequenceReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;

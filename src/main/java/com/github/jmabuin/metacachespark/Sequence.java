@@ -1,4 +1,6 @@
 package com.github.jmabuin.metacachespark;
+import com.github.jmabuin.metacachespark.io.SequenceData;
+
 import java.io.Serializable;
 
 /**
@@ -6,28 +8,27 @@ import java.io.Serializable;
  */
 public class Sequence implements Serializable {
 
-    private String header;
-    private String data;
+    private SequenceData sequenceData;
     private int partitionId;
     private int fileId;
     private String fileName;
     private int taxid;
 
     public Sequence(String data, int partitionId, int fileId, String fileName, String header, int taxid) {
-        this.data = data;
+        this.sequenceData = new SequenceData(header, data, "");
+
         this.partitionId = partitionId;
         this.fileId = fileId;
         this.fileName = fileName;
-        this.header = header;
         this.taxid = taxid;
     }
 
     public String getData() {
-        return data;
+        return sequenceData.getData();
     }
 
     public void setData(String data) {
-        this.data = data;
+        this.sequenceData.setData(data);
     }
 
     public int getPartitionId() {
@@ -55,11 +56,19 @@ public class Sequence implements Serializable {
     }
 
     public String getHeader() {
-        return header;
+        return this.sequenceData.getHeader();
     }
 
     public void setHeader(String header) {
-        this.header = header;
+        this.sequenceData.setHeader(header);
+    }
+
+    public String getQuality() {
+        return this.sequenceData.getQuality();
+    }
+
+    public void setQuality(String quality) {
+        this.sequenceData.setQuality(quality);
     }
 
     public int getTaxid() {

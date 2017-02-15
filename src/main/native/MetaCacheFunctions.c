@@ -1,4 +1,4 @@
-#include "com_github_metacachespark_HashFunctions.h"
+#include "com_github_jmabuin_metacachespark_HashFunctions.h"
 #include <string.h>
 
 inline unsigned long make_reverse_complement64C(unsigned long s, unsigned char k) {
@@ -337,7 +337,7 @@ inline unsigned int *seq2feat(const char *sequence, int windowSize, int sketchSi
     return features;
 }
 
-JNIEXPORT jlong JNICALL Java_com_github_metacachespark_HashFunctions_make_1reverse_1complement64 (JNIEnv *env, jclass thisObj, jlong s, jint k) {
+JNIEXPORT jlong JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_make_1reverse_1complement64 (JNIEnv *env, jclass thisObj, jlong s, jint k) {
 
     unsigned long newS = (unsigned long) s;
     unsigned char newK = (unsigned char) k;
@@ -347,7 +347,7 @@ JNIEXPORT jlong JNICALL Java_com_github_metacachespark_HashFunctions_make_1rever
 
 }
 
-JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_make_1reverse_1complement32 (JNIEnv *env, jclass thisObj, jint s, jint k) {
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_make_1reverse_1complement32 (JNIEnv *env, jclass thisObj, jint s, jint k) {
 
     unsigned int newS = (unsigned int) s;
     unsigned char newK = (unsigned char) k;
@@ -356,14 +356,14 @@ JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_make_1revers
 
 }
 
-JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_thomas_1mueller_1hash32  (JNIEnv *env, jclass thisObj, jint x) {
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_thomas_1mueller_1hash32  (JNIEnv *env, jclass thisObj, jint x) {
 
     unsigned int newX = (unsigned int) x;
 
     return thomas_mueller_hash(newX);
 }
 
-JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_kmer2uint32 (JNIEnv *env, jclass thisObj, jstring input) {
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_kmer2uint32 (JNIEnv *env, jclass thisObj, jstring input) {
 
     const char *newInput = (*env)->GetStringUTFChars(env, input, 0);
 
@@ -371,7 +371,7 @@ JNIEXPORT jint JNICALL Java_com_github_metacachespark_HashFunctions_kmer2uint32 
 
 }
 
-JNIEXPORT jintArray JNICALL Java_com_github_metacachespark_HashFunctions_window2sketch32 (JNIEnv *env, jclass thisObj, jstring window, jint sketchSize, jint kmerSize) {
+JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_window2sketch32 (JNIEnv *env, jclass thisObj, jstring window, jint sketchSize, jint kmerSize) {
 
     const char *windowInput = (*env)->GetStringUTFChars(env, window, 0);
     jintArray iarr = (*env)->NewIntArray(env, sketchSize);
@@ -385,7 +385,7 @@ JNIEXPORT jintArray JNICALL Java_com_github_metacachespark_HashFunctions_window2
 }
 
 
-JNIEXPORT jintArray JNICALL Java_com_github_metacachespark_HashFunctions_sequence2features (JNIEnv *env, jclass thisObj, jstring sequence, jint windowSize, jint sketchSize, jint kmerSize) {
+JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_sequence2features (JNIEnv *env, jclass thisObj, jstring sequence, jint windowSize, jint sketchSize, jint kmerSize) {
     const char *sequenceInput = (*env)->GetStringUTFChars(env, sequence, 0);
     jintArray iarr = (*env)->NewIntArray(env, (strlen(sequenceInput) / (windowSize-sketchSize))*sketchSize);
 
