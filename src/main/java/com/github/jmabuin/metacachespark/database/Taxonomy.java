@@ -23,25 +23,25 @@ import java.util.Iterator;
 import java.util.Set;
 
 /**
- * Created by chema on 1/13/17.
+ * Class that represents a Taxonomy
+ * @author Jose M. Abuin
  */
 public class Taxonomy implements Serializable {
 
+	private HashMap<Long, Taxon> 	taxa_;			// This is where the Taxonomy items reside. <ID, Taxon>
+	private Taxon 					noTaxon_;		// Used to represent that there are no Taxons in the Taxonomy
 
-	//private ArrayList<Taxon> taxa_;
-	private HashMap<Long, Taxon> taxa_;
-	private Taxon noTaxon_;
 
-	/*
-	public Taxonomy() {
-		this.taxa_ = new ArrayList<Taxon>();
-	}
-	*/
-
+	/**
+	 * Builder. It initializes the HashMap
+	 */
 	public Taxonomy() {
 		this.taxa_ = new HashMap<Long, Taxon>();
 	}
 
+	/**
+	 * Enum type that represents a Rank
+	 */
 	public enum Rank {
 		Sequence,
 				Form,
@@ -68,11 +68,19 @@ public class Taxonomy implements Serializable {
 
 		private static Rank[] vals = values();
 
+		/**
+		 * Next method, that returns the next Rank in the correct order.
+		 * @return The next corresponding Rank
+		 */
 		public Rank next()
 		{
 			return vals[(this.ordinal()+1) % vals.length];
 		}
 
+		/**
+		 * Previous method, that returns the previous Rank in the correct order.
+		 * @return The previous corresponding Rank
+		 */
 		public Rank previous() {
 			if(this.ordinal() == 0) {
 				return vals[vals.length-1];
@@ -81,14 +89,18 @@ public class Taxonomy implements Serializable {
 				return vals[this.ordinal()-1];
 			}
 
-
 		}
 
 	}
 
-
+	// Variable to store the number of total Ranks
 	public static int num_ranks = Rank.none.ordinal(); // +1?
 
+	/**
+	 * This function gets the Rank that follows the one given as argument
+	 * @param r The Rank from we want to know the next one
+	 * @return The corresponding next Rank
+	 */
 	public static Rank next_main_rank(Rank r) {
 		switch(r) {
 			case Sequence:     	return Rank.Species;
@@ -117,6 +129,11 @@ public class Taxonomy implements Serializable {
 		}
 	}
 
+	/**
+	 * This function gets the previous Rank to the one given as argument
+	 * @param r The Rank we want to know the previous one
+	 * @return The previous Rank
+	 */
 	public Rank prev_main_rank(Rank r) {
 		switch(r) {
 			case Sequence:     return Rank.none;
@@ -153,7 +170,11 @@ public class Taxonomy implements Serializable {
 		return r.ordinal() > 0 ? (Rank.values()[r.ordinal() - 1]) : r;
 	}
 
-	//---------------------------------------------------------------
+	/**
+	 * Function that, given a Rank name, returns the corresponding Rank
+	 * @param name A String representing the Rank name
+	 * @return The corresponding Rank
+	 */
 	public static Rank rank_from_name(String name) {
 		if(name.equals("sequence"))      return Rank.Sequence;
 		if(name.equals("genome"))        return Rank.Sequence;
@@ -184,77 +205,95 @@ public class Taxonomy implements Serializable {
 		return Rank.none;
 	}
 
-
-	//---------------------------------------------------------------
+	/**
+	 * Function that, given a Rank, returns a String representing its name
+	 * @param r The Rank
+	 * @return The Rank name
+	 */
 	public static String rank_name(Rank r) {
 
 		return r.name();
 
 	}
-/*
-	public ArrayList<Taxon> getTaxa_() {
-		return taxa_;
-	}
-*/
 
+	/**
+	 * Function that returns the HashMap of <ID, Taxon>
+	 * @return The HashMap containing the pairs ID, Taxon
+	 */
 	public HashMap<Long, Taxon> getTaxa_() {
 		return this.taxa_;
 	}
 
+	/**
+	 * Function that checks if our HashMap is empty
+	 * @return True if the HashMap is empty, False otherwise
+	 */
 	public boolean empty() {
 		return taxa_.isEmpty();
 	}
-/*
-	public void setTaxa_(ArrayList<Taxon> taxa_) {
-		this.taxa_ = taxa_;
-	}
-*/
 
+	/**
+	 * Seter for the HasMap of Taxons
+	 * @param taxa_ The new HashMap
+	 */
 	public void setTaxa_(HashMap<Long, Taxon> taxa_) {
 		this.taxa_ = taxa_;
 	}
 
+	/**
+	 * Getter fot the noTaxon_ variable
+	 * @return A Taxon representing the noTaxon_ variable
+	 */
 	public Taxon getNoTaxon_() {
 		return noTaxon_;
 	}
 
+	/**
+	 * Setter for the noTaxon_ variable
+	 * @param noTaxon_ The new noTaxon_
+	 */
 	public void setNoTaxon_(Taxon noTaxon_) {
 		this.noTaxon_ = noTaxon_;
 	}
 
+	/**
+	 * Function that returns the number of Ranks
+	 * @return the number of Ranks
+	 */
 	public int getNum_ranks() {
 		return num_ranks;
 	}
 
+	/**
+	 * Setter for the number of Ranks. This function shouldn't exist
+	 * @param num_ranks The new number of Ranks
+	 */
 	public void setNum_ranks(int num_ranks) {
 		this.num_ranks = num_ranks;
 	}
 
+
+	/**
+	 * Function that returns the lineage from the Taxon passed as argument to its parents
+	 * @param tax The Taxon we want to know the lineage
+	 * @return An ArrayList containing the IDs of the Taxons that compose the Taxon lineage.
+	 */
 	public ArrayList<Long> lineage(Taxon tax) {
 		return this.lineage(tax.getTaxonId());
 	}
 
+	/**
+	 * Function that returns the lineage from the Taxon passed as argument to its parents
+	 * @param id A Long variable that represents the Taxon id from the Taxon we want to know the lineage
+	 * @return An ArrayList containing the IDs of the Taxons that compose the Taxon lineage.
+	 */
 	public ArrayList<Long> lineage(Long id) {
 
 		ArrayList<Long> lin = new ArrayList<Long>();
 		Taxon currentTaxon = null;
 
 		while(id != 0) {
-			/*
-			boolean foundTaxon = false;
 
-			Iterator<Taxon> taxonIterator = this.taxa_.values().iterator();
-
-			while(taxonIterator.hasNext()) {
-				currentTaxon = taxonIterator.next();
-
-				if(currentTaxon.getTaxonId() == id) {
-					foundTaxon = true;
-					break;
-				}
-
-			}
-			*/
 			currentTaxon = this.taxa_.get(id);
 			if (currentTaxon != null) {
 
@@ -276,6 +315,11 @@ public class Taxonomy implements Serializable {
 		return lin;
 	}
 
+	/**
+	 * This function acts equals to the lineage function, but it returns an Array instead of an ArrayList
+	 * @param id The Taxon id
+	 * @return An Array containing the IDs of the Taxons that compose the Taxon lineage.
+	 */
 	public Long[] ranks(Long id) {
 
 		Long[] lin = new Long[Rank.none.ordinal()];
@@ -287,23 +331,7 @@ public class Taxonomy implements Serializable {
 		Taxon currentTaxon = null;
 
 		while(id != (long)0) {
-/*
-			boolean foundTaxon = false;
 
-			Iterator<Taxon> taxonIterator = this.taxa_.iterator();
-
-			while(taxonIterator.hasNext()) {
-				currentTaxon = taxonIterator.next();
-
-				if(currentTaxon.getTaxonId() == id) {
-					foundTaxon = true;
-					break;
-				}
-
-			}
-
-			if (foundTaxon) {
-*/
 			currentTaxon = this.taxa_.get(id);
 			if(currentTaxon != null) {
 				if(currentTaxon.getRank() != Rank.none) {
@@ -327,32 +355,59 @@ public class Taxonomy implements Serializable {
 
 	}
 
+	/**
+	 * This function acts equals to the lineage function, but it returns an Array instead of an ArrayList
+	 * @param tax The Taxon
+	 * @return An Array containing the IDs of the Taxons that compose the Taxon lineage.
+	 */
 	public long[] ranks(Taxon tax) {
 		return this.ranks(tax.getTaxonId());
 	}
 
+	/**
+	 * Function that adds a new pair of <ID, Taxon> to the HashMap
+	 * @param taxonId the Taxon ID
+	 * @param parentId The new Taxon parent ID
+	 * @param taxonName The Taxon name
+	 * @param rankName The Taxon Rank name
+	 */
 	public void emplace(long taxonId, long parentId, String taxonName, String rankName) {
 
 		this.emplace(taxonId, parentId, taxonName, rank_from_name(rankName) );
 
 	}
 
+	/**
+	 * Function that adds a new pair of <ID, Taxon> to the HashMap
+	 * @param taxonId the Taxon ID
+	 * @param parentId The new Taxon parent ID
+	 * @param taxonName The Taxon name
+	 * @param rank The Taxon Rank
+	 */
 	public void emplace(long taxonId, long parentId, String taxonName, Rank rank) {
 
 		this.taxa_.put(taxonId,new Taxon(taxonId, parentId, taxonName, rank));
 
 	}
 
+	/**
+	 * Function that returns the number of items in the HashMap
+	 * @return The number of items in the HashMap
+	 */
 	public long taxon_count() {
 		return taxa_.size();
 	}
 
+	/**
+	 * Function that tries to rank all unranked Taxons in the Taxonomy
+	 */
 	public void rank_all_unranked() {
 		for(Taxon tax : taxa_.values()) {
 
 			if(tax.getRank() == Rank.none) {
-				//System.err.println("Ranking unranked: "+tax.getTaxonId());
+
 				Rank lr = this.lowest_rank(tax);
+
 				if(lr != Rank.none) {
 					if (lr.compareTo(Rank.subSpecies) > 0) {
 						lr = lr.previous();
@@ -364,63 +419,66 @@ public class Taxonomy implements Serializable {
 		}
 	}
 
+	/**
+	 * Function that gets the most closer parent that is ranked
+	 * @param id The Taxon id
+	 * @return The most closer parent ranked
+	 */
 	public Rank	lowest_rank(long id) {
 
 		Taxon currentTaxon = null;
-		//int currentTaxonIndex = -1;
 
 		while(id != (long)0) {
-			//System.err.println("Current taxon id: "+id);
 
-			/*
-			boolean foundTaxon = false;
-
-			Iterator<Taxon> taxonIterator = this.taxa_.iterator();
-
-			while(taxonIterator.hasNext()) {
-				currentTaxon = taxonIterator.next();
-
-				if(currentTaxon.getTaxonId() == id) {
-					foundTaxon = true;
-					break;
-				}
-
-			}
-			*/
-
-			//currentTaxonIndex = this.taxa_.indexOf(new Taxon(id));
+			// Gets the Taxon corresponding to the ID
 			currentTaxon = this.taxa_.get(id);
 
-			//if (foundTaxon) {
+			// If the Taxon exists in the HashMap
 			if(currentTaxon != null) {
-				//currentTaxon = this.taxa_.get(currentTaxonIndex);
-				//System.err.println("Found taxon "+id);
+
+				// If the Taxon is not the none Taxon, returns
 				if(currentTaxon.getRank() != Rank.none) {
 					return currentTaxon.getRank();
 				}
+
+				// If the Taxon has a parent Id, we look in the father
 				if(currentTaxon.getParentId() != id){
 					//System.err.println("Current taxon id: "+id+ " and parent is "+currentTaxon.getParentId());
 					id = currentTaxon.getParentId();
 				}
+				// Otherwise we can not get the lowest rank and id is 0 to break the loop
 				else {
 					id = (long) 0;
 				}
 
 			}
+			// Otherwise we can not get the lowest rank and id is 0 to break the loop
 			else {
 				id = (long) 0;
 			}
 
 		}
 
+		// If we got here, we have to return the none Rank
 		return Rank.none;
 
 	}
 
+	/**
+	 * Function that gets the most closer parent that is ranked
+	 * @param tax The Taxon
+	 * @return The most closer parent ranked
+	 */
 	public Rank	lowest_rank(Taxon tax) {
 		return lowest_rank(tax.getTaxonId());
 	}
 
+	/**
+	 * Checks if two lineages contains the same taxon ID
+	 * @param lina ArrayList representing IDs from lineage A
+	 * @param linb ArrayList representing IDs from lineage B
+	 * @return A long value that corresponds with the ID of the Taxons if the same ID exists in the two lineages. 0 otherwise
+	 */
 	public static long lca_id(ArrayList<Long> lina,ArrayList<Long> linb) {
 		for(long ta : lina) {
 			for(long tb : linb) {
@@ -431,6 +489,11 @@ public class Taxonomy implements Serializable {
 		return 0;
 	}
 
+	/**
+	 * Funtion that returns a Taxon given an ID
+	 * @param id The ID we are looking for
+	 * @return The Taxon if it exists, noTaxon_ otherwise
+	 */
 	public Taxon pos (long id) {
 		if(id < 1) return noTaxon_;
 		Taxon it = taxa_.get(id);
@@ -438,14 +501,32 @@ public class Taxonomy implements Serializable {
 
 	}
 
+	/**
+	 * Function that returns the Taxon that belongs to two lineages
+	 * @param lina An ArrayList of Long items representing lineage A
+	 * @param linb An ArrayList of Long items representing lineage B
+	 * @return	The Taxon
+	 */
 	public Taxon lca(ArrayList<Long> lina, ArrayList<Long> linb) {
 		return this.pos(lca_id(lina,linb));
 	}
 
+	/**
+	 * Function that returns the Taxon that belongs to two lineages
+	 * @param lina An Array of long items representing lineage A
+	 * @param linb An Array of long items representing lineage B
+	 * @return	The Taxon
+	 */
 	public Taxon lca(long lina[], long linb[]) {
 		return this.pos(ranked_lca_id(lina,linb));
 	}
 
+	/**
+	 * Function that checks if two lineages contains a similar Ranked Taxon
+	 * @param lina An Array of Ranks
+	 * @param linb An Array of Ranks
+	 * @return The Taxon ID that is present in the two arrays or 0 if there is no an equal Taxon or one of them is unranked
+	 */
 	public static long ranked_lca_id( long lina[],long linb[]) {
 
 		for(int i = 0; i < Rank.root.ordinal(); ++i) {
@@ -455,14 +536,31 @@ public class Taxonomy implements Serializable {
 		return 0;
 	}
 
+	/**
+	 * Function that returns a common Ranked ancestor of two Taxons
+	 * @param a The Taxon a
+	 * @param b The Taxon b
+	 * @return The common ranked ancestor
+	 */
 	public Taxon ranked_lca(Taxon a, Taxon b) {
 		return ranked_lca(a.getTaxonId(), b.getTaxonId());
 	}
 
+	/**
+	 * Function that, given two Taxon IDs, obtains its Ranks and checks if they have a common ancestor
+	 * @param a ID of Taxon a
+	 * @param b ID of Taxon b
+	 * @return The common ranked ancestor
+	 */
 	public Taxon ranked_lca(long a, long b) {
 		return this.pos(ranked_lca_id(ranks(a), ranks(b) ));
 	}
 
+	/**
+	 * Function that returns the Ranks of the ancestors of a current Taxon ID
+	 * @param id The Taxon ID
+	 * @return An Array containing the Ranks of the ancestors
+	 */
 	public long[] ranks(long id) {
 
 		long[] lin = new long[this.getNum_ranks()];

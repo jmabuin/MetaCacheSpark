@@ -74,6 +74,7 @@ public class MetaCacheSpark implements Serializable {
 			//String queryArgs[] = newOptions.getOtherOptions();
 			Query queryObject = new Query(newOptions.getQueryOptions(), ctx);
 
+
 			LOG.warn("End of program ...");
 		}
 		else {

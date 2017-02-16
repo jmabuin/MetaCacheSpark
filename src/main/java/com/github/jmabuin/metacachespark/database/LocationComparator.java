@@ -5,11 +5,12 @@ import com.github.jmabuin.metacachespark.Location;
 import java.util.Comparator;
 
 /**
- * Created by chema on 2/10/17.
+ * This class is used to compare two locations and, in this way, a TreeMap can be used to store hits in query mode in database
+ * @author Jose M. Abuin
  */
 public class LocationComparator implements Comparator<Location>{
 
-
+	@Override
 	public int compare(Location L1, Location L2) {
 
 		if(L1.getTargetId() < L2.getTargetId()) {

@@ -172,12 +172,8 @@ public class Query implements Serializable {
             String fname1 = infilenames[i];
             String fname2 = infilenames[i+1];
 
-/*
-			classify_pairs(queue, db, param,
-						*make_sequence_reader(fname1),
-                           *make_sequence_reader(fname2),
-						os, stats);
-*/
+            this.classify_pairs(fname1, fname2, d, stats);
+
         }
 
     }
@@ -189,14 +185,15 @@ public class Query implements Serializable {
         for(int i = 0; i < infilenames.length; i ++) {
             String fname = infilenames[i];
 
-
+			this.classify(fname, d, stats);
+/*
             if(this.param.getPairing() == MetaCacheOptions.pairing_mode.sequences){
-
+				this.classify_pairs();
 			}
 			else {
             	this.classify(fname, d, stats);
 			}
-
+*/
 /*
 			if(param.pairing == pairing_mode::sequences) {
 				classify_pairs(queue, db, param, *reader, *reader, os, stats);
@@ -266,8 +263,6 @@ public class Query implements Serializable {
 
 			this.process_database_answer(currentSketch.getHeader(), currentSketch.getSequence(), "", matches, d, stats);
 		}
-
-
 
     }
 
