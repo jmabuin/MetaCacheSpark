@@ -105,7 +105,7 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
     int j = 0;
     int k = 0;
 
-    int K = kmerSize ;
+    int K = kmerSize;
     int J = 0;
     int len = kmerSize;
 
@@ -138,62 +138,70 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
     // We compute the k-mers
     int tmpLen = kmerSize;
 
-    for (i = 0, J = 0; (i < (strlen(window) - kmerSize)) && (J < K); i++, J++) {
+    //fprintf(stderr,"[JMAbuin] starting sketch fuction for window: %s\n", window);
 
-        // Get the corresponding K-mer
-        //strncpy(kmerStr,window+i, kmerSize);
+    //for (i = 0, J = 0; (i < (strlen(window) - kmerSize)) && (J < K); i++, J++) {
+    for (i = 0; i < (strlen(window) - kmerSize) && K>0; i++) {
+        //while(K>0) {
+            // Get the corresponding K-mer
+            //strncpy(kmerStr,window+i, kmerSize);
 
-        // Get canonical form
-        //kmer2uint32C_IO(windowTMP, &kmer32, tmpLen);
+            // Get canonical form
+            //kmer2uint32C_IO(windowTMP, &kmer32, tmpLen);
 
-        kmer32 <<= 2;
-        ambig <<= 1;
+            kmer32 <<= 2;
+            ambig <<= 1;
 
-        switch(windowTMP[i]) {
-            case 'A': case 'a': break;
-            case 'C': case 'c': kmer32 |= 1; break;
-            case 'G': case 'g': kmer32 |= 2; break;
-            case 'T': case 't': kmer32 |= 3; break;
-            default: ambig |= 1; break;
-        }
+            switch(windowTMP[i]) {
+                case 'A': case 'a': break;
+                case 'C': case 'c': kmer32 |= 1; break;
+                case 'G': case 'g': kmer32 |= 2; break;
+                case 'T': case 't': kmer32 |= 3; break;
+                default: ambig |= 1; break;
+            }
 
-        --K;
-        //make sure we load k letters at the beginning
-        if((K == 0) && (!ambig)) {
-            kmer32  &= kmerMsk;   //stamp out 2*k lower bits
-            ambig &= ambigMsk;  //stamp out k lower bits
+            //fprintf(stderr,"[JMAbuin] parsing new. kmer is %u - %d. ambig is %u %d and K is %d\n", kmer32, kmer32, ambig, ambig, K);
 
-            //do something with the kmer (and the ambiguous letters flag)
-            //consume(kmer, ambig);
+            --K;
+            //make sure we load k letters at the beginning
+            if((K == 0) && (!ambig)) {
+                kmer32  &= kmerMsk;   //stamp out 2*k lower bits
+                ambig &= ambigMsk;  //stamp out k lower bits
 
-            // Apply hash to current kmer
-            hashValue = thomas_mueller_hash(make_canonical32C(kmer32,16));//HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
+                //do something with the kmer (and the ambiguous letters flag)
+                //consume(kmer, ambig);
 
-            // Insert into array if needed
-            if(hashValue < sketchValues[sketchSize-1]) {
+                // Apply hash to current kmer
+                //fprintf(stderr,"[JMAbuin] received value: %u %d\n", kmer32, kmer32);
+                hashValue = thomas_mueller_hash(make_canonical32C(kmer32,16));//HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
+                //fprintf(stderr,"[JMAbuin] resulting value: %u %d\n", hashValue, hashValue);
 
-                for(j = 0 ; j < sketchSize ; j++){
-                    if(hashValue < sketchValues[j])
-                        break;
+                // Insert into array if needed
+                if(hashValue < sketchValues[sketchSize-1]) {
+
+                    for(j = 0 ; j < sketchSize ; j++){
+                        if(hashValue < sketchValues[j])
+                            break;
+                        }
+
+                    // We dont need this IF. It is checked before
+                    //if(j < sketchSize) {
+
+                    for(k = sketchSize - 2; k>=j; k--){
+                        sketchValues[k+1] = sketchValues[k];
                     }
 
-                // We dont need this IF. It is checked before
-                //if(j < sketchSize) {
+                    sketchValues[j] = hashValue;
+                    //}
 
-                for(k = sketchSize - 2; k>=j; k--){
-                    sketchValues[k+1] = sketchValues[k];
-                }
+                    }
 
-                sketchValues[j] = hashValue;
-                //}
+                windowTMP+=tmpLen;
+                tmpLen = 1;
 
-             	}
-
-            windowTMP+=tmpLen;
-            tmpLen = 1;
-
-            ++K; //we want only one letter next time
-        }
+                ++K; //we want only one letter next time
+            }
+        //}
 
     }
 
@@ -377,8 +385,17 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions
     jintArray iarr = (*env)->NewIntArray(env, sketchSize);
 
     //fprintf(stderr,"[JMAbuin] Antes de w2s %s\n", __func__);
+
+
     int *returnValues = (int *)window2sketch(windowInput, sketchSize, kmerSize);
-    //fprintf(stderr,"[JMAbuin] Despois de w2s %s\n",__func__);
+
+    /*fprintf(stderr,"[JMAbuin] Despois de w2s %s\n",__func__);
+    int i = 0;
+
+    for(i = 0; i< sketchSize; i++) {
+        fprintf(stderr,"[JMAbuin] Despois de w2s %u %d, %s\n",returnValues[i],returnValues[i],__func__);
+    }*/
+
     (*env)->SetIntArrayRegion(env, iarr, 0, sketchSize, returnValues);
     return iarr;
 
@@ -391,6 +408,7 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions
 
     int *returnValues = (int *)seq2feat(sequenceInput, windowSize, sketchSize, kmerSize);
     //fprintf(stderr,"[JMAbuin] Before prepairing data to return\n");
+
     (*env)->SetIntArrayRegion(env, iarr, 0, (strlen(sequenceInput) / (windowSize-sketchSize))*sketchSize, returnValues);
 
     //fprintf(stderr,"[JMAbuin] After prepairing data to return\n");

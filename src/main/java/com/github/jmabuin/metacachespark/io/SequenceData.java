@@ -18,11 +18,13 @@
 
 package com.github.jmabuin.metacachespark.io;
 
+import java.io.Serializable;
+
 /**
  * This class encapsulates the data from a Sequence
  * @author Jose M. Abuin
  */
-public class SequenceData {
+public class SequenceData implements Serializable {
 	private String header;	// The sequence header
 	private String data;	// the sequence data
 	private String quality; // The sequence quality (Only in the FASTQ case)

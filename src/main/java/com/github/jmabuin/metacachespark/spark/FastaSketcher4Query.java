@@ -16,6 +16,7 @@
  */
 package com.github.jmabuin.metacachespark.spark;
 import com.github.jmabuin.metacachespark.*;
+import com.github.jmabuin.metacachespark.io.SequenceData;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -134,5 +135,6 @@ public class FastaSketcher4Query implements FlatMapFunction<Tuple2<String, Strin
 		//LOG.warn("Time for file "+currentFile+" is: " + ((endTime - initTime)/1e9));
 		return returnedValues;
 	}
+
 
 }

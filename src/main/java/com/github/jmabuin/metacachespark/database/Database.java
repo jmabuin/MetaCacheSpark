@@ -20,6 +20,7 @@ import com.github.jmabuin.metacachespark.*;
 import com.github.jmabuin.metacachespark.io.SequenceReader;
 import com.github.jmabuin.metacachespark.options.QueryOptions;
 import com.github.jmabuin.metacachespark.spark.FastaSketcher;
+import com.github.jmabuin.metacachespark.spark.Row2Location;
 import com.github.jmabuin.metacachespark.spark.Sketcher;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -38,7 +39,7 @@ import java.util.*;
  * Main class for the Database construction and storage in HDFS (Build mode), and also to load it from HDFS (Query mode)
  * @author Jose M. Abuin
  */
-public class Database implements Serializable{
+public class Database {
 
 	private static final Log LOG = LogFactory.getLog(Database.class);
 
@@ -320,22 +321,89 @@ public class Database implements Serializable{
 
 			if(this.numPartitions == 1) {
 				databaseRDD = this.jsc.wholeTextFiles(infiles)
-						.flatMap(new FastaSketcher(sequ2taxid, infoMode)).persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
-				//databaseRDD = this.jsc.wholeTextFiles(infiles)
-				//		.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true).flatMap(new Sketcher())
-				//		.persist(StorageLevel.MEMORY_AND_DISK_SER());
+						.flatMap(new FastaSketcher(sequ2taxid, infoMode));//.persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
+
+				this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class).persist(StorageLevel.MEMORY_AND_DISK_SER());;
 			}
 			else {
 
 				databaseRDD = this.jsc.wholeTextFiles(infiles, this.numPartitions)
-						.flatMap(new FastaSketcher(sequ2taxid, infoMode)).persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
-				//databaseRDD = this.jsc.wholeTextFiles(infiles, this.numPartitions)
-				//		.mapPartitionsWithIndex(new FastaSequenceReader(sequ2taxid, infoMode), true).flatMap(new Sketcher())
-				//		.persist(StorageLevel.MEMORY_AND_DISK_SER());
+						.flatMap(new FastaSketcher(sequ2taxid, infoMode));//.persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
+
+				this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class).persist(StorageLevel.MEMORY_AND_DISK_SER());;
 			}
 
 
-			this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class);
+			//this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class);
+			//Encoder<Location> encoder = Encoders.bean(Location.class);
+			//Dataset<Location> ds = new Dataset<Location>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
+
+			//this.features_ = ds;
+			endTime = System.nanoTime();
+			LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
+			LOG.warn("Database created ...");
+			LOG.warn("Number of items into database: " + String.valueOf(this.featuresDataframe_.count()));
+
+
+
+		} catch (Exception e) {
+			LOG.error("[JMAbuin] ERROR! "+e.getMessage());
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+
+
+	public void buildDatabaseMulti(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+		try {
+
+			//FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+			long initTime = System.nanoTime();
+			long endTime;
+
+			JavaPairRDD<String,String> inputData;
+			JavaRDD<Location> databaseRDD = null;
+
+			for(String currentDir: infiles) {
+				LOG.warn("Starting to build database from " + currentDir + " ...");
+
+				if(databaseRDD == null) {
+					if(numPartitions == 1) {
+						databaseRDD = this.jsc.wholeTextFiles(currentDir)
+								.flatMap(new FastaSketcher(sequ2taxid, infoMode));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+					}
+					else {
+						databaseRDD = this.jsc.wholeTextFiles(currentDir, numPartitions)
+								.flatMap(new FastaSketcher(sequ2taxid, infoMode));
+					}
+
+				}
+				else {
+					if (numPartitions == 1) {
+						databaseRDD = this.jsc.wholeTextFiles(currentDir)
+								.flatMap(new FastaSketcher(sequ2taxid, infoMode)).union(databaseRDD);//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+
+					}
+					else {
+						databaseRDD = this.jsc.wholeTextFiles(currentDir, numPartitions)
+								.flatMap(new FastaSketcher(sequ2taxid, infoMode)).union(databaseRDD);
+					}
+				}
+			}
+
+			if(this.numPartitions != 1) {
+				//databaseRDD = databaseRDD.repartition(numPartitions);
+				this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class).repartition(numPartitions)
+					.persist(StorageLevel.MEMORY_AND_DISK_SER());
+			}
+			else {
+				this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class)
+						.persist(StorageLevel.MEMORY_AND_DISK_SER());;
+			}
+
+
+			//this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class);
+
 			//Encoder<Location> encoder = Encoders.bean(Location.class);
 			//Dataset<Location> ds = new Dataset<Location>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
 
@@ -728,9 +796,9 @@ public class Database implements Serializable{
 		this.featuresDataframe_.registerTempTable("parquetFeatures");
 
 
-		DataFrame result = this.sqlContext.sql("select * from parquetFeatures where partitionId=0 and fileId = 0");
+		//DataFrame result = this.sqlContext.sql("select * from parquetFeatures where partitionId=0 and fileId = 0");
 
-		LOG.warn("Number of items with partitionID=0 and gileId = 0 is: "+result.count());
+		//LOG.warn("Number of items with partitionID=0 and gileId = 0 is: "+result.count());
 
 	}
 
@@ -743,40 +811,47 @@ public class Database implements Serializable{
 
 
 	public void	accumulate_matches(Sketch query, TreeMap<Location, Integer> res) {
+		try {
+			List<Location> obtainedLocations = new ArrayList<Location>();
 
-		List<Location> obtainedLocations = null;
+			// Made queries
+			//for(Sketch currentLocation: query) {
 
-		// Made queries
-		//for(Sketch currentLocation: query) {
+			for (int i : query.getFeatures()) {
+				//String queryString = "select * from parquetFeatures where key=" + i;
 
-			for(int i:query.getFeatures()){
-				String queryString = "select * from parquetFeatures where key="+i;
+				JavaRDD<Location> result = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location());
 
-				DataFrame result = this.sqlContext.sql(queryString);
+				LOG.warn("[JMAbuin] Number of matches: " + result.collect().size());
 
-				obtainedLocations = result.javaRDD().map(new Function<Row, Location>() {
-					public Location call(Row row) {
+				obtainedLocations.addAll(result.collect());
+				//DataFrame result = this.sqlContext.sql(queryString);
+				//obtainedLocations.addAll(result.javaRDD().map(new Row2Location()).collect());
 
-						return new Location(row.getInt(0), row.getInt(1), row.getInt(2));
+
+
+
+				if (obtainedLocations != null) {
+					for (Location obtainedLocation : obtainedLocations) {
+
+						if (res.containsKey(obtainedLocation)) {
+							res.put(obtainedLocation, res.get(obtainedLocation) + 1);
+						} else {
+							res.put(obtainedLocation, 1);
+						}
 
 					}
-				}).collect();
-			}
-
-
-			if(obtainedLocations != null) {
-				for(Location obtainedLocation: obtainedLocations) {
-
-					if(res.containsKey(obtainedLocation)) {
-						res.put(obtainedLocation, res.get(obtainedLocation) +1);
-					}
-					else {
-						res.put(obtainedLocation, 1);
-					}
-
 				}
+
 			}
 
+
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+			LOG.error("General error in accumulate_matches: "+e.getMessage());
+			System.exit(1);
+		}
 
 		//}
 

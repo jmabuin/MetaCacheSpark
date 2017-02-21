@@ -374,7 +374,17 @@ public class Build implements Serializable {
 	// add to database with spark
 	public void add_targets_to_database(Database db, HashMap<String, Long> sequ2taxid, build_info infoMode) {
 
-		db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
+		ArrayList<String> inputDirs = FilesysUtility.directories_in_directory_hdfs(this.param.getInfiles(), this.jsc);
+
+		LOG.warn("JMAbuin: Number of subdirs: " + inputDirs.size());
+
+		if(inputDirs.isEmpty()) {
+			db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
+		}
+		else {
+			db.buildDatabaseMulti(inputDirs, sequ2taxid, infoMode);
+		}
+
 
 
 	}

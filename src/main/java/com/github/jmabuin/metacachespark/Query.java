@@ -2,10 +2,7 @@ package com.github.jmabuin.metacachespark;
 
 
 import com.github.jmabuin.metacachespark.database.*;
-import com.github.jmabuin.metacachespark.io.FastaInputFormat;
-import com.github.jmabuin.metacachespark.io.FastqInputFormat;
-import com.github.jmabuin.metacachespark.io.SequenceData;
-import com.github.jmabuin.metacachespark.io.SequenceReader;
+import com.github.jmabuin.metacachespark.io.*;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import com.github.jmabuin.metacachespark.options.QueryOptions;
 import com.github.jmabuin.metacachespark.spark.FastaSketcher4Query;
@@ -20,10 +17,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 /**
  * Created by jabuinmo on 07.02.17.
@@ -50,6 +44,8 @@ public class Query implements Serializable {
         this.db = new Database(jsc, this.param.getDbfile(), this.param);
 
 		this.hits = new HashMap<Location, Integer>();
+
+		this.query();
     }
 
     public void query() {
@@ -139,12 +135,12 @@ public class Query implements Serializable {
 		}
 		catch (IOException e) {
 			e.printStackTrace();
-			LOG.error("I/O Error accessing HDFS in read_sequence_to_taxon_id_mapping: "+e.getMessage());
+			LOG.error("I/O Error accessing HDFS in process_input_files: "+e.getMessage());
 			System.exit(1);
 		}
 		catch (Exception e) {
 			e.printStackTrace();
-			LOG.error("General error accessing HDFS in read_sequence_to_taxon_id_mapping: "+e.getMessage());
+			LOG.error("General error accessing HDFS in process_input_files: "+e.getMessage());
 			System.exit(1);
 		}
 
@@ -153,15 +149,23 @@ public class Query implements Serializable {
     }
 
     public void classify_sequences(String[] infilenames, BufferedWriter d) {
+		try {
+			ClassificationStatistics stats = new ClassificationStatistics();
 
-    	ClassificationStatistics stats = new ClassificationStatistics();
+			if(this.param.getPairing() == MetaCacheOptions.pairing_mode.files) {
+				classify_on_file_pairs(infilenames, d, stats);
+			}
+			else {
+				classify_per_file(infilenames, d, stats);
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			LOG.error("General error in classify_sequences: "+e.getMessage());
+			System.exit(1);
+		}
 
-        if(this.param.getPairing() == MetaCacheOptions.pairing_mode.files) {
-            classify_on_file_pairs(infilenames, d, stats);
-        }
-        else {
-            classify_per_file(infilenames, d, stats);
-        }
+
     }
 
     public void classify_on_file_pairs(String[] infilenames, BufferedWriter d, ClassificationStatistics stats) {
@@ -181,11 +185,12 @@ public class Query implements Serializable {
     public void classify_per_file(String[] infilenames, BufferedWriter d, ClassificationStatistics stats) {
 
 
-        //pair up reads from two consecutive files in the list
-        for(int i = 0; i < infilenames.length; i ++) {
-            String fname = infilenames[i];
+    	try {
+			//pair up reads from two consecutive files in the list
+			for(int i = 0; i < infilenames.length; i ++) {
+				String fname = infilenames[i];
 
-			this.classify(fname, d, stats);
+				this.classify(fname, d, stats);
 /*
             if(this.param.getPairing() == MetaCacheOptions.pairing_mode.sequences){
 				this.classify_pairs();
@@ -201,7 +206,15 @@ public class Query implements Serializable {
 				classify(queue, db, param, *reader, os, stats);
 			}
 */
-        }
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			LOG.error("General error in classify_per_file: "+e.getMessage());
+			System.exit(1);
+		}
+
+
 
     }
 
@@ -243,7 +256,45 @@ public class Query implements Serializable {
 
 	}
 
-    public void classify(String filename, BufferedWriter d, ClassificationStatistics stats) {
+	public void classify(String filename, BufferedWriter d, ClassificationStatistics stats) {
+		try {
+			SequenceFileReader seqReader = new SequenceFileReader(filename, this.jsc);
+
+			ArrayList<Sketch> locations = new ArrayList<Sketch>();
+			TreeMap<Location, Integer> matches;
+
+			SequenceData data = seqReader.next();
+
+			LOG.warn("[JMAbuin] Starting to process input");
+
+			while(data != null) {
+				LOG.warn("[JMAbuin] Processing sequence " + data.getHeader());
+				locations = seqReader.getSketch(data);
+
+				for(Sketch currentSketch: locations) {
+					matches = this.db.matches(currentSketch);
+
+					this.process_database_answer(currentSketch.getHeader(), currentSketch.getSequence(), "", matches, d, stats);
+
+					matches.clear();
+				}
+
+				locations.clear();
+				data = seqReader.next();
+			}
+
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			LOG.error("General error in classify: "+e.getMessage());
+			System.exit(1);
+		}
+
+
+
+	}
+
+    public void classify_using_RDD(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
         JavaPairRDD<String, String> inputData = this.loadSequencesFromFile(filename);
 
@@ -421,7 +472,7 @@ public class Query implements Serializable {
 			if(this.param.isTestAlignment() && !cls.none()) {
 				SequenceOrigin origin = this.db.origin_of_target(tophits.target_id(0));
 
-				SequenceReader reader = new SequenceReader(origin.getFilename(), this.jsc);
+				SequenceFileReader reader = new SequenceFileReader(origin.getFilename(), this.jsc);
 
 				for(int i = 0; i < origin.getIndex(); ++i) {
 					reader.next();
