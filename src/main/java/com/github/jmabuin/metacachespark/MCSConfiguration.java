@@ -10,5 +10,7 @@ public class MCSConfiguration {
 	public static int kmerSize = 16;
 	public static int sketchSize = 16;
 
+	public static int winstride = 113;
+
 
 }

@@ -19,9 +19,7 @@ package com.github.jmabuin.metacachespark.database;
 import com.github.jmabuin.metacachespark.*;
 import com.github.jmabuin.metacachespark.io.SequenceReader;
 import com.github.jmabuin.metacachespark.options.QueryOptions;
-import com.github.jmabuin.metacachespark.spark.FastaSketcher;
-import com.github.jmabuin.metacachespark.spark.Row2Location;
-import com.github.jmabuin.metacachespark.spark.Sketcher;
+import com.github.jmabuin.metacachespark.spark.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.*;
@@ -61,6 +59,7 @@ public class Database {
 	private int numPartitions = 1;
 	private String dbfile;
 
+	private JavaRDD<Sequence> inputSequences;
 
 	private QueryOptions paramsQuery;
 
@@ -115,6 +114,15 @@ public class Database {
 		this.queryWindowSize_ = params.getWinlen();
 		this.queryWindowStride_ = params.getWinstride();
 
+		if(this.queryWindowStride_ == 0) {
+			this.queryWindowStride_ = MCSConfiguration.winstride;
+		}
+
+		if(this.targetWindowStride_ == 0) {
+			this.targetWindowStride_ = MCSConfiguration.winstride;
+		}
+
+
 /*
     if(param.showDBproperties) {
         print_properties(db);
@@ -125,6 +133,7 @@ public class Database {
 
 		this.loadFromFile();
 
+		this.readTaxonomy();
 	}
 
 	public Random getUrbg_() {
@@ -330,7 +339,7 @@ public class Database {
 				databaseRDD = this.jsc.wholeTextFiles(infiles, this.numPartitions)
 						.flatMap(new FastaSketcher(sequ2taxid, infoMode));//.persist(StorageLevel.MEMORY_AND_DISK_SER());//.cache();
 
-				this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class).persist(StorageLevel.MEMORY_AND_DISK_SER());;
+				this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class).persist(StorageLevel.MEMORY_AND_DISK_SER());
 			}
 
 
@@ -422,6 +431,163 @@ public class Database {
 		}
 	}
 
+	public void buildDatabaseMulti2(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+		try {
+
+			//FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+			long initTime = System.nanoTime();
+			long endTime;
+
+			JavaPairRDD<String,String> inputData;
+			//JavaRDD<Sequence> inputSequences = null;
+			JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
+
+			inputSequences = null;
+
+			for(String currentDir: infiles) {
+				LOG.warn("Starting to build database from " + currentDir + " ...");
+
+				if(databaseRDD == null) {
+					if(numPartitions == 1) {
+						databaseRDD = this.jsc.wholeTextFiles(currentDir)
+								.flatMapToPair(new FastaSketcher2(sequ2taxid, infoMode));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+					}
+					else {
+						databaseRDD = this.jsc.wholeTextFiles(currentDir, numPartitions)
+								.flatMapToPair(new FastaSketcher2(sequ2taxid, infoMode));
+					}
+
+				}
+				else {
+
+					if(numPartitions == 1) {
+						databaseRDD = this.jsc.wholeTextFiles(currentDir)
+								.flatMapToPair(new FastaSketcher2(sequ2taxid, infoMode))
+								.union(databaseRDD);
+					}
+					else {
+						databaseRDD = this.jsc.wholeTextFiles(currentDir, numPartitions)
+								.flatMapToPair(new FastaSketcher2(sequ2taxid, infoMode))
+								.union(databaseRDD);
+					}
+
+				}
+			}
+
+			databaseRDD.persist(StorageLevel.MEMORY_AND_DISK_SER());
+
+			JavaRDD<TargetProperty> targetPropertiesJavaRDD = databaseRDD.map(current -> current._1());
+
+			this.targets_ = new ArrayList<TargetProperty>(targetPropertiesJavaRDD.collect());
+
+			//inputSequences.unpersist();
+
+			JavaRDD<Location> locationJavaRDD = databaseRDD.flatMap(current -> current._2);
+
+			if(this.numPartitions != 1) {
+				//databaseRDD = databaseRDD.repartition(numPartitions);
+
+				this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class).repartition(numPartitions);
+						//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+			}
+			else {
+				this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class);
+						//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+			}
+
+
+			//this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class);
+
+			//Encoder<Location> encoder = Encoders.bean(Location.class);
+			//Dataset<Location> ds = new Dataset<Location>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
+
+			//this.features_ = ds;
+			endTime = System.nanoTime();
+			LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
+			LOG.warn("Database created ...");
+			LOG.warn("Number of items into database: " + String.valueOf(this.featuresDataframe_.count()));
+
+
+
+		} catch (Exception e) {
+			LOG.error("[JMAbuin] ERROR! "+e.getMessage());
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
+
+	public void writeTaxonomy() {
+
+		String taxonomyDestination = this.dbfile+"_taxonomy";
+
+		this.taxa_.write(taxonomyDestination, this.jsc);
+
+	}
+
+	public void readTaxonomy() {
+
+		String taxonomyDestination = this.dbfile+"_taxonomy";
+
+		this.taxa_ = new Taxonomy();
+
+		this.taxa_.read(taxonomyDestination, this.jsc);
+
+	}
+
+	public void writeTargets() {
+
+		String targetsDestination = this.dbfile+"_targets";
+
+		//this.targets_ = new ArrayList<TargetProperty>(inputSequences.map(new Sequence2TargetProperty()).collect());
+
+
+		// Try to open the filesystem (HDFS) and sequence file
+		try {
+			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+			FSDataOutputStream outputStream = fs.create(new Path(targetsDestination));
+
+			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputStream));
+
+			// Write data
+			bw.write(this.targets_.size());
+			bw.newLine();
+
+			StringBuffer currentLine = new StringBuffer();
+
+			for(TargetProperty currentEntry: this.targets_) {
+
+				currentLine.append(currentEntry.getIdentifier());
+				currentLine.append(":");
+
+				currentLine.append(currentEntry.getTax());
+				currentLine.append(":");
+				currentLine.append(currentEntry.getOrigin().getFilename());
+				currentLine.append(":");
+				currentLine.append(currentEntry.getOrigin().getIndex());
+				bw.write(currentLine.toString());
+				bw.newLine();
+
+				currentLine.delete(0, currentLine.toString().length());
+
+			}
+
+			bw.close();
+			outputStream.close();
+
+		}
+		catch (IOException e) {
+			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writing targets.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+		catch (Exception e) {
+			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writing targets.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+
+
+	}
 
 	// These infilenames are where assembly_summary.txt found are
 	public HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,ArrayList<String> infilenames) {
@@ -622,6 +788,11 @@ public class Database {
 
 			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 			FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+
+			if(!fs.isFile(new Path(mappingFile))) {
+				return;
+			}
+
 			FSDataInputStream inputStream = fs.open(new Path(mappingFile));
 
 			BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
@@ -702,11 +873,11 @@ public class Database {
 
 		catch (IOException e) {
 			LOG.error("I/O Error accessing HDFS in rank_targets_post_process: "+e.getMessage());
-			System.exit(1);
+			//System.exit(1);
 		}
 		catch (Exception e) {
 			LOG.error("General error accessing HDFS in rank_targets_post_process: "+e.getMessage());
-			System.exit(1);
+			//System.exit(1);
 		}
 
 	}
@@ -770,7 +941,8 @@ public class Database {
 			long startTime = System.nanoTime();
 			this.featuresDataframe_.write().parquet(path+"/"+this.dbfile);
 			LOG.warn("Time in write parquet database is: "+ (System.nanoTime() - startTime)/10e9);
-			//fs.close();
+
+			//this.featuresDataframe_.unpersist();
 
 			LOG.info("Database created at "+ path+"/"+this.dbfile);
 

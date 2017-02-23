@@ -363,6 +363,8 @@ public class Build implements Serializable {
 
 			LOG.warn("Total build time before writing: " + (System.nanoTime() - startTime)/1e9);
 			db.write_database();
+			db.writeTaxonomy();
+			db.writeTargets();
 
 			long elapsedTime = System.nanoTime() - startTime;
 			LOG.warn("Total build time: " + (double)elapsedTime/1e9);
@@ -382,7 +384,8 @@ public class Build implements Serializable {
 			db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
 		}
 		else {
-			db.buildDatabaseMulti(inputDirs, sequ2taxid, infoMode);
+			//db.buildDatabaseMulti(inputDirs, sequ2taxid, infoMode);
+			db.buildDatabaseMulti2(inputDirs, sequ2taxid, infoMode);
 		}
 
 

@@ -106,7 +106,7 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
     int k = 0;
 
     int K = kmerSize;
-    int J = 0;
+    //int J = 0;
     int len = kmerSize;
 
     //char kmerStr[kmerSize+1];
@@ -220,7 +220,7 @@ inline unsigned int *seq2feat(const char *sequence, int windowSize, int sketchSi
     int currentWindow = 0;
 
     int K = kmerSize ;
-    int J = 0;
+    //int J = 0;
     int len = kmerSize;
 
     // (strlen(sequenceInput) / (windowSize-sketchSize))*sketchSize
@@ -284,9 +284,9 @@ inline unsigned int *seq2feat(const char *sequence, int windowSize, int sketchSi
 
         // Iterate over current window
         // i: iterate over window chars
-        // J: first 16 chars, then one per iteration
-        for (i = 0, J = 0; (i < (windowSize - kmerSize)) && (J < K); i++, J++) {
-
+        // K: first 16 chars, then one per iteration
+        //for (i = 0, J = 0; (i < (windowSize - kmerSize)) && (J < K); i++, J++) {
+        for (i = 0; i < (windowSize - kmerSize) && K>0; i++) {
             kmer32 <<= 2;
             ambig <<= 1;
 

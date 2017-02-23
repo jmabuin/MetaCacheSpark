@@ -85,7 +85,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 
 
 		endTime = System.nanoTime();
-		LOG.warn("Time for file "+inputSequence.getFileName()+" is: " + ((endTime - initTime)/1e9));
+		//LOG.warn("Time for file "+inputSequence.getFileName()+" is: " + ((endTime - initTime)/1e9));
 
 		return returnedValues;
 	}

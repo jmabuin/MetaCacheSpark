@@ -27,17 +27,16 @@ import java.io.Serializable;
 public class Sequence implements Serializable {
 
     private SequenceData sequenceData;
-    private int partitionId;
-    private int fileId;
-    private String fileName;
+    private SequenceOrigin sequenceOrigin;
     private int taxid;
+    private String identifier;
 
-    public Sequence(String data, int partitionId, int fileId, String fileName, String header, int taxid) {
+    public Sequence(String data, String identifier, String fileName, int index, String header, int taxid) {
         this.sequenceData = new SequenceData(header, data, "");
 
-        this.partitionId = partitionId;
-        this.fileId = fileId;
-        this.fileName = fileName;
+        this.identifier = identifier;
+        this.sequenceOrigin = new SequenceOrigin(fileName,index);
+        this.identifier = identifier;
         this.taxid = taxid;
     }
 
@@ -49,28 +48,12 @@ public class Sequence implements Serializable {
         this.sequenceData.setData(data);
     }
 
-    public int getPartitionId() {
-        return partitionId;
-    }
-
-    public void setPartitionId(int partitionId) {
-        this.partitionId = partitionId;
-    }
-
-    public int getFileId() {
-        return fileId;
-    }
-
-    public void setFileId(int fileId) {
-        this.fileId = fileId;
-    }
-
     public String getFileName() {
-        return fileName;
+        return this.sequenceOrigin.getFilename();
     }
 
     public void setFileName(String fileName) {
-        this.fileName = fileName;
+        this.sequenceOrigin.setFilename(fileName);
     }
 
     public String getHeader() {
@@ -95,5 +78,29 @@ public class Sequence implements Serializable {
 
     public void setTaxid(int taxid) {
         this.taxid = taxid;
+    }
+
+    public SequenceData getSequenceData() {
+        return sequenceData;
+    }
+
+    public void setSequenceData(SequenceData sequenceData) {
+        this.sequenceData = sequenceData;
+    }
+
+    public SequenceOrigin getSequenceOrigin() {
+        return sequenceOrigin;
+    }
+
+    public void setSequenceOrigin(SequenceOrigin sequenceOrigin) {
+        this.sequenceOrigin = sequenceOrigin;
+    }
+
+    public String getIdentifier() {
+        return identifier;
+    }
+
+    public void setIdentifier(String identifier) {
+        this.identifier = identifier;
     }
 }

@@ -97,13 +97,13 @@ public class SequenceFileReader {
 			// Get a new FASTA record from file
 			try {
 				// We read lines until we found a new header or end of file
-				LOG.warn("[JMAbuin] Processing next sequence");
+				//LOG.warn("[JMAbuin] Processing next sequence");
 				for(String line; (line = this.br.readLine()) != null; ) {
 
 					// Case of first header in file
 					if((line.startsWith(">")) && (this.bufferHeader.toString().isEmpty())) {
 						this.bufferHeader.append(line.subSequence(1,line.length()));
-						LOG.warn("[JMAbuin] Header");
+						//LOG.warn("[JMAbuin] Header");
 					}
 					// Case of new header found after a new sequence data. We build the new SequenceData to return and store the new header
 					else if ((line.startsWith(">")) && (!this.bufferHeader.toString().isEmpty())) {

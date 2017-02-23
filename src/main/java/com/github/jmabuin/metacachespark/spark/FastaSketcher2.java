@@ -20,12 +20,13 @@ import com.github.jmabuin.metacachespark.io.SequenceReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
 import java.util.*;
 
 
-public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Location> {
+public class FastaSketcher2 implements PairFlatMapFunction<Tuple2<String, String>,TargetProperty, ArrayList<Location>> {
 
 	private HashMap<String, Long> sequ2taxid;
 	private Build.build_info infoMode;
@@ -33,7 +34,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 	private static final Log LOG = LogFactory.getLog(FastaSketcher.class);
 	//private int currentMaxValue = Integer.MAX_VALUE;
 
-	public FastaSketcher(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
+	public FastaSketcher2(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
 		//LOG.warn("[JMAbuin] Creating FastaSequenceReader object ");
 		super();
 		this.sequ2taxid = sequ2taxid;
@@ -41,7 +42,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 	}
 
 	@Override
-	public Iterable<Location> call(Tuple2<String, String> arg0) {
+	public Iterable<Tuple2<TargetProperty, ArrayList<Location>>> call(Tuple2<String, String> arg0) {
 		//LOG.warn("[JMAbuin] Starting Call function");
 		//String header = "";
 		StringBuffer header = new StringBuffer();
@@ -51,7 +52,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 		String currentFile = arg0._1();
 
 		int fileId = 0, currentIndexNumber = 0;
-		ArrayList<Location> returnedValues = new ArrayList<Location>();
+		ArrayList<Tuple2<TargetProperty, ArrayList<Location>>> returnedValues = new ArrayList<Tuple2<TargetProperty, ArrayList<Location>>>();
 		ArrayList<Sequence> sequences = new ArrayList<Sequence>();
 
 
@@ -145,7 +146,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 
 
 
-			//ArrayList<Location> returnedValues = new ArrayList<Location>();
+			ArrayList<Location> currentLocations = new ArrayList<Location>();
 
 			String currentWindow = "";
 			int numWindows = 0;
@@ -164,7 +165,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 				for(int newValue: sketchValues) {
 
 					//returnedValues.add(new Location(newValue, currentSequence.getPartitionId(), currentSequence.getFileId(), currentSequence.getHeader(), currentSequence.getTaxid()));
-					returnedValues.add(new Location(newValue, currentSequence.getTaxid(), numWindows));
+					currentLocations.add(new Location(newValue, currentSequence.getTaxid(), numWindows));
 
 				}
 
@@ -179,6 +180,9 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 				currentEnd = currentStart + MCSConfiguration.windowSize;
 
 			}
+
+			returnedValues.add(new Tuple2<TargetProperty, ArrayList<Location>>(new TargetProperty(seqId, currentIndexNumber, currentSequence.getSequenceOrigin()),
+					currentLocations));
 
 			currentIndexNumber++;
 		}

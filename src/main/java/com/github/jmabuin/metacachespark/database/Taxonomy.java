@@ -16,17 +16,25 @@
  */
 
 package com.github.jmabuin.metacachespark.database;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Set;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.spark.api.java.JavaSparkContext;
+
+import java.io.*;
+import java.util.*;
 
 /**
  * Class that represents a Taxonomy
  * @author Jose M. Abuin
  */
 public class Taxonomy implements Serializable {
+
+	private static final Log LOG = LogFactory.getLog(Taxonomy.class);
 
 	private HashMap<Long, Taxon> 	taxa_;			// This is where the Taxonomy items reside. <ID, Taxon>
 	private Taxon 					noTaxon_;		// Used to represent that there are no Taxons in the Taxonomy
@@ -590,4 +598,99 @@ public class Taxonomy implements Serializable {
 
 		return lin;
 	}
+
+
+	public void write(String fileName, JavaSparkContext jsc) {
+
+		// Try to open the filesystem (HDFS) and sequence file
+		try {
+			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+			FSDataOutputStream outputStream = fs.create(new Path(fileName));
+
+			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputStream));
+
+			// Write data
+			bw.write(this.getTaxa_().size());
+			bw.newLine();
+
+			StringBuffer currentLine = new StringBuffer();
+
+			for(Map.Entry<Long, Taxon> currentEntry: this.getTaxa_().entrySet()) {
+
+				currentLine.append(currentEntry.getKey());
+				currentLine.append(":");
+
+				currentLine.append(currentEntry.getValue().getTaxonId());
+				currentLine.append(":");
+				currentLine.append(currentEntry.getValue().getParentId());
+				currentLine.append(":");
+				currentLine.append(currentEntry.getValue().getTaxonName());
+				currentLine.append(":");
+				currentLine.append(currentEntry.getValue().getRank().name());
+				bw.write(currentLine.toString());
+				bw.newLine();
+
+				currentLine.delete(0, currentLine.toString().length());
+
+			}
+
+			bw.close();
+			outputStream.close();
+
+		}
+		catch (IOException e) {
+			LOG.error("Could not write file "+ fileName+ " because of IO error in Taxonomy.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+		catch (Exception e) {
+			LOG.error("Could not write file "+ fileName+ " because of IO error in Taxonomy.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+
+	}
+
+
+	public void read(String fileName, JavaSparkContext jsc) {
+
+		// Try to open the filesystem (HDFS) and sequence file
+		try {
+			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+			FSDataInputStream inputStream = fs.open(new Path(fileName));
+
+			BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
+
+			// read data
+			long numberItems = Long.parseLong(br.readLine());
+
+			String currentLine;
+
+			while((currentLine = br.readLine()) != null) {
+
+				String parts[] = currentLine.split(":");
+
+				this.taxa_.put(Long.parseLong(parts[0]), new Taxon(Long.parseLong(parts[1]), Long.parseLong(parts[2])
+						, parts[3], Taxonomy.rank_from_name(parts[4])));
+
+			}
+
+
+			br.close();
+			inputStream.close();
+
+		}
+		catch (IOException e) {
+			LOG.error("Could not write file "+ fileName+ " because of IO error in Taxonomy.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+		catch (Exception e) {
+			LOG.error("Could not write file "+ fileName+ " because of IO error in Taxonomy.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+
+	}
+
 }

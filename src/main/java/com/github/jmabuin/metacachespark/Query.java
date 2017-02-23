@@ -7,6 +7,7 @@ import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import com.github.jmabuin.metacachespark.options.QueryOptions;
 import com.github.jmabuin.metacachespark.spark.FastaSketcher4Query;
 
+import com.typesafe.config.ConfigException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -19,9 +20,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import java.io.*;
 import java.util.*;
 
-/**
- * Created by jabuinmo on 07.02.17.
- */
+
 public class Query implements Serializable {
 
     private static final Log LOG = LogFactory.getLog(Query.class);
@@ -293,7 +292,7 @@ public class Query implements Serializable {
 
 
 	}
-
+/*
     public void classify_using_RDD(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
         JavaPairRDD<String, String> inputData = this.loadSequencesFromFile(filename);
@@ -307,7 +306,15 @@ public class Query implements Serializable {
             //featuresRDD = inputData.mapPartitions(new FastaSketcher());
         }
 
-        List<Sketch> locations = featuresRDD.collect();
+		List<Sketch> locations = null;
+
+		locations = featuresRDD.collect();
+
+		if (locations == null) {
+			LOG.warn("locations is null in " + this.getClass().getName());
+			return;
+		}
+
 
         for(Sketch currentSketch: locations) {
 			TreeMap<Location, Integer> matches = this.db.matches(currentSketch);
@@ -316,7 +323,7 @@ public class Query implements Serializable {
 		}
 
     }
-
+*/
     /**
      * Function to load a FASTQ file from HDFS into a JavaPairRDD<Long, String>
      * @param pathToFile The path to the FASTQ file

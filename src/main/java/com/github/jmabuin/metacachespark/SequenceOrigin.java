@@ -1,8 +1,11 @@
 package com.github.jmabuin.metacachespark;
+
+import java.io.Serializable;
+
 /**
  * Created by chema on 1/19/17.
  */
-public class SequenceOrigin {
+public class SequenceOrigin implements Serializable {
 
 
 	private String filename = "";

@@ -21,6 +21,7 @@ import com.github.jmabuin.metacachespark.Sequence;
 import com.github.jmabuin.metacachespark.io.SequenceReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function2;
 import scala.Tuple2;
 
@@ -29,7 +30,7 @@ import java.util.*;
 /**
  * Class to read FASTA files from HDFS and store results directly in a RDD of Sequence objects
  */
-public class FastaSequenceReader extends SequenceReader implements Function2<Integer, Iterator<Tuple2<String, String>>, Iterator<Sequence>> {
+public class FastaSequenceReader extends SequenceReader implements FlatMapFunction<Tuple2<String, String>, Sequence> {
 
 	private HashMap<String, Long> sequ2taxid;
 	private Build.build_info infoMode;
@@ -45,7 +46,7 @@ public class FastaSequenceReader extends SequenceReader implements Function2<Int
 	}
 
 	@Override
-	public Iterator<Sequence> call(Integer partitionId, Iterator<Tuple2<String, String>> arg0) {
+	public Iterable<Sequence> call(Tuple2<String, String> arg0) {
 		StringBuffer header = new StringBuffer();
 		StringBuffer data = new StringBuffer();
 
@@ -58,17 +59,17 @@ public class FastaSequenceReader extends SequenceReader implements Function2<Int
 
 		Tuple2<String, String> currentItem;
 
-		while(arg0.hasNext()) {
+		//while(arg0.hasNext()) {
 
 			currentInput.delete(0, currentInput.length());
 			currentFile.delete(0, currentFile.length());
 
-			currentItem = arg0.next();
-			currentInput.append(currentItem._2());
-			currentFile.append(currentItem._1());
+			//currentItem = arg0.next();
+			currentInput.append(arg0._2());
+			currentFile.append(arg0._1());
 
 			if(!currentInput.toString().startsWith(">")) {
-				return returnedValues.iterator();
+				return returnedValues;
 			}
 
 			for (String newLine : currentInput.toString().split("\n")) {
@@ -76,7 +77,8 @@ public class FastaSequenceReader extends SequenceReader implements Function2<Int
 				if (newLine.startsWith(">")) {
 
 					if(!header.toString().isEmpty()) {
-						returnedValues.add(new Sequence(data.toString(), 0, fileId, currentFile.toString(), header.toString(), -1));
+						//returnedValues.add(new Sequence(data.toString(), 0, fileId, currentFile.toString(), header.toString(), -1));
+						returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1, header.toString(), -1));
 					}
 
 					header.delete(0,header.length());
@@ -96,16 +98,18 @@ public class FastaSequenceReader extends SequenceReader implements Function2<Int
 			}
 
 			if ((!data.toString().isEmpty()) && (!header.toString().isEmpty())) {
-				returnedValues.add(new Sequence(data.toString(), 0, fileId, currentFile.toString(), header.toString(), -1));
-
+				//returnedValues.add(new Sequence(data.toString(), 0, fileId, currentFile.toString(), header.toString(), -1));
+				returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1, header.toString(), -1));
 			}
+
+			int currentIndexNumber = 0;
 
 			for (Sequence currentSequence : returnedValues) {
 				//LOG.info("Processing file: "+ currentFile);
 
 
-				String seqId = this.extract_sequence_id(currentSequence.getHeader());
-				String fileIdentifier = this.extract_sequence_id(currentSequence.getFileName());
+				String seqId = SequenceReader.extract_sequence_id(currentSequence.getHeader());
+				String fileIdentifier = SequenceReader.extract_sequence_id(currentSequence.getFileName());
 
 				//make sure sequence id is not empty,
 				//use entire header if neccessary
@@ -143,12 +147,16 @@ public class FastaSequenceReader extends SequenceReader implements Function2<Int
 				}
 
 				currentSequence.setTaxid(taxid);
+				currentSequence.getSequenceOrigin().setIndex(currentIndexNumber);
+				currentSequence.setIdentifier(seqId);
 
+				currentIndexNumber++;
 			}
 
-		}
 
-		return returnedValues.iterator();
+		//}
+
+		return returnedValues;
 	}
 
 
