@@ -381,7 +381,7 @@ public class Build implements Serializable {
 		LOG.warn("JMAbuin: Number of subdirs: " + inputDirs.size());
 
 		if(inputDirs.isEmpty()) {
-			db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
+			db.buildDatabase2(this.param.getInfiles(), sequ2taxid, infoMode);
 		}
 		else {
 			//db.buildDatabaseMulti(inputDirs, sequ2taxid, infoMode);

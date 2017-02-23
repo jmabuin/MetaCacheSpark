@@ -53,6 +53,8 @@ public class Database {
 	private ArrayList<TargetProperty> targets_;
 	private Dataset<Location> features_;
 	private DataFrame featuresDataframe_;
+	private DataFrame targetPropertiesDataframe_;
+	private JavaRDD<TargetProperty> targetPropertiesJavaRDD;
 	private HashMap<String,Integer> sid2gid_;
 	private Taxonomy taxa_;
 	private TaxonomyParam taxonomyParam;
@@ -134,6 +136,8 @@ public class Database {
 		this.loadFromFile();
 
 		this.readTaxonomy();
+
+		this.readTargets();
 	}
 
 	public Random getUrbg_() {
@@ -362,6 +366,76 @@ public class Database {
 		}
 	}
 
+	public void buildDatabase2(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+		try {
+			LOG.warn("Starting to build database from " + infiles + " ...");
+			//FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+			long initTime = System.nanoTime();
+			long endTime;
+
+			//SQLContext sqlContext = new SQLContext(this.jsc);
+
+			JavaPairRDD<String,String> inputData;
+			JavaRDD<Sequence> sequences;
+
+			JavaRDD<Location> locationJavaRDD;
+			//JavaRDD<TargetProperty> targetPropertyJavaRDD;
+
+
+			if(numPartitions == 1) {
+
+				sequences = this.jsc.wholeTextFiles(infiles)
+						.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
+						.persist(StorageLevel.MEMORY_AND_DISK_SER());
+
+			}
+			else {
+				sequences = this.jsc.wholeTextFiles(infiles, numPartitions)
+						.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
+						.persist(StorageLevel.MEMORY_AND_DISK_SER());
+			}
+
+			locationJavaRDD = sequences
+					.flatMap(new Sketcher());//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+
+			this.targetPropertiesJavaRDD = sequences
+					.map(new Sequence2TargetProperty());
+
+			this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class);
+			//this.targetPropertiesDataframe_ = this.sqlContext.createDataFrame(targetPropertyJavaRDD, TargetProperty.class);
+			/*
+			if(this.numPartitions != 1) {
+				//databaseRDD = databaseRDD.repartition(numPartitions);
+
+				this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class).repartition(numPartitions);
+				this.targetPropertiesDataframe_ = this.sqlContext.createDataFrame(targetPropertiesJavaRDD, TargetProperty.class).repartition(numPartitions);//targetPropertiesJavaRDD
+				//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+			}
+			else {
+				this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class);
+				this.targetPropertiesDataframe_ = this.sqlContext.createDataFrame(targetPropertiesJavaRDD, TargetProperty.class);
+				//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+			}
+*/
+
+			//this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class);
+			//Encoder<Location> encoder = Encoders.bean(Location.class);
+			//Dataset<Location> ds = new Dataset<Location>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
+
+			//this.features_ = ds;
+			endTime = System.nanoTime();
+			LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
+			LOG.warn("Database created ...");
+			LOG.warn("Number of items into database: " + String.valueOf(this.featuresDataframe_.count()));
+
+
+
+		} catch (Exception e) {
+			LOG.error("[JMAbuin] ERROR! "+e.getMessage());
+			e.printStackTrace();
+			System.exit(1);
+		}
+	}
 
 	public void buildDatabaseMulti(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 		try {
@@ -439,61 +513,54 @@ public class Database {
 			long endTime;
 
 			JavaPairRDD<String,String> inputData;
-			//JavaRDD<Sequence> inputSequences = null;
-			JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
-
-			inputSequences = null;
+			JavaRDD<Location> locationJavaRDD;
+			JavaRDD<Sequence> inputSequences = null;
+			//JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
 
 			for(String currentDir: infiles) {
 				LOG.warn("Starting to build database from " + currentDir + " ...");
 
-				if(databaseRDD == null) {
+
+
+				if(inputSequences == null) {
+
 					if(numPartitions == 1) {
-						databaseRDD = this.jsc.wholeTextFiles(currentDir)
-								.flatMapToPair(new FastaSketcher2(sequ2taxid, infoMode));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+
+						inputSequences = this.jsc.wholeTextFiles(currentDir)
+								.flatMap(new FastaSequenceReader(sequ2taxid, infoMode));
+
 					}
 					else {
-						databaseRDD = this.jsc.wholeTextFiles(currentDir, numPartitions)
-								.flatMapToPair(new FastaSketcher2(sequ2taxid, infoMode));
+						inputSequences = this.jsc.wholeTextFiles(currentDir, numPartitions)
+								.flatMap(new FastaSequenceReader(sequ2taxid, infoMode));
 					}
 
 				}
 				else {
 
 					if(numPartitions == 1) {
-						databaseRDD = this.jsc.wholeTextFiles(currentDir)
-								.flatMapToPair(new FastaSketcher2(sequ2taxid, infoMode))
-								.union(databaseRDD);
+
+						inputSequences = this.jsc.wholeTextFiles(currentDir)
+								.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
+								.union(inputSequences);
+
 					}
 					else {
-						databaseRDD = this.jsc.wholeTextFiles(currentDir, numPartitions)
-								.flatMapToPair(new FastaSketcher2(sequ2taxid, infoMode))
-								.union(databaseRDD);
+						inputSequences = this.jsc.wholeTextFiles(currentDir, numPartitions)
+								.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
+								.union(inputSequences);
 					}
 
 				}
 			}
 
-			databaseRDD.persist(StorageLevel.MEMORY_AND_DISK_SER());
+			locationJavaRDD = inputSequences
+					.flatMap(new Sketcher());//.persist(StorageLevel.MEMORY_AND_DISK_SER());
 
-			JavaRDD<TargetProperty> targetPropertiesJavaRDD = databaseRDD.map(current -> current._1());
+			this.targetPropertiesJavaRDD = inputSequences
+					.map(new Sequence2TargetProperty());
 
-			this.targets_ = new ArrayList<TargetProperty>(targetPropertiesJavaRDD.collect());
-
-			//inputSequences.unpersist();
-
-			JavaRDD<Location> locationJavaRDD = databaseRDD.flatMap(current -> current._2);
-
-			if(this.numPartitions != 1) {
-				//databaseRDD = databaseRDD.repartition(numPartitions);
-
-				this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class).repartition(numPartitions);
-						//.persist(StorageLevel.MEMORY_AND_DISK_SER());
-			}
-			else {
-				this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class);
-						//.persist(StorageLevel.MEMORY_AND_DISK_SER());
-			}
+			this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class);
 
 
 			//this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class);
@@ -538,9 +605,10 @@ public class Database {
 
 		String targetsDestination = this.dbfile+"_targets";
 
+		this.targetPropertiesJavaRDD.saveAsObjectFile(targetsDestination);
 		//this.targets_ = new ArrayList<TargetProperty>(inputSequences.map(new Sequence2TargetProperty()).collect());
 
-
+/*
 		// Try to open the filesystem (HDFS) and sequence file
 		try {
 			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
@@ -585,8 +653,16 @@ public class Database {
 			e.printStackTrace();
 			//System.exit(1);
 		}
+*/
 
 
+	}
+
+	public void readTargets() {
+
+		this.targetPropertiesJavaRDD = this.jsc.objectFile(this.dbfile+"_targets");
+
+		this.targets_ = new ArrayList<TargetProperty>(this.targetPropertiesJavaRDD.collect());
 	}
 
 	// These infilenames are where assembly_summary.txt found are

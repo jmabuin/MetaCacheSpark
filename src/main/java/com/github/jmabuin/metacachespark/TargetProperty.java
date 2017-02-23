@@ -90,32 +90,6 @@ public class TargetProperty implements Serializable {
 		this.ranked_lineage = ranked_lineage;
 	}
 
-	/*
-		friend void
-	read_binary(std::istream& is, target_property& p) {
-		read_binary(is, p.id);
-		read_binary(is, p.taxonId);
-		read_binary(is, p.ranks);
-		read_binary(is, p.lineage);
-		read_binary(is, p.origin.filename);
-		read_binary(is, p.origin.index);
-	}
 
-		friend void
-	write_binary(std::ostream& os, const target_property& p) {
-		write_binary(os, p.id);
-		write_binary(os, p.taxonId);
-		write_binary(os, p.ranks);
-		write_binary(os, p.lineage);
-		write_binary(os, p.origin.filename);
-		write_binary(os, p.origin.index);
-	}
-
-		std::string id;
-		taxon_id taxonId;
-		ranked_lineage ranks;
-		full_lineage lineage;
-		sequence_origin origin;
-	};*/
 
 }
