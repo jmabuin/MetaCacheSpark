@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFunction;
@@ -40,6 +41,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 
 public class Build implements Serializable {
 
@@ -135,7 +137,7 @@ public class Build implements Serializable {
 					else if((i == 1) && (taxonId != lastId)){
 						name = currentvalueTrim;
 					}
-					else if((i == 2) && (taxonId != lastId)){
+					else if((i == 3) && (taxonId != lastId)){
 						category = currentvalueTrim;
 
 						if(category.contains("scientific")) {
@@ -218,7 +220,8 @@ public class Build implements Serializable {
 			System.exit(1);
 		}
 
-
+		LOG.warn("[JMAbuin] Number of names =>" + taxonNames.size());
+		LOG.warn("[JMAbuin] Number of merged =>" + mergedTaxa.size());
 		//read taxonomic structure
 		Taxonomy tax = new Taxonomy();
 
@@ -380,7 +383,9 @@ public class Build implements Serializable {
 
 		LOG.warn("JMAbuin: Number of subdirs: " + inputDirs.size());
 
+
 		if(inputDirs.isEmpty()) {
+
 			db.buildDatabase2(this.param.getInfiles(), sequ2taxid, infoMode);
 		}
 		else {

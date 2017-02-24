@@ -26,9 +26,11 @@ import org.apache.hadoop.fs.*;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
+import scala.Tuple2;
 
 import java.io.*;
 import java.util.*;
@@ -289,7 +291,17 @@ public class Database {
 	 * @return
 	 */
 	public Taxon taxon_of_target(Long id) {
-		return taxa_.getTaxa_().get(targets_.get((int)id.longValue()).getTax());
+
+		try {
+			return taxa_.getTaxa_().get(targets_.get((int) id.longValue()).getTax());
+		}
+		catch(Exception e) {
+			LOG.error("Error in taxon_of_target: "+e.getMessage());
+			LOG.error("Error in taxon_of_target: id is: " + id + ", n. of targets is: "+
+					targets_.size()+", n ot taxa is: "+taxa_.getTaxa_().size());
+			System.exit(-1);
+		}
+		return null;
 	}
 
 	public long taxon_id_of_target(Long id) {
@@ -318,7 +330,7 @@ public class Database {
 		return this.targets_.size();
 	}
 
-
+/*
 	public void buildDatabase(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 		try {
 			LOG.warn("Starting to build database from " + infiles + " ...");
@@ -365,13 +377,14 @@ public class Database {
 			System.exit(1);
 		}
 	}
-
+*/
 	public void buildDatabase2(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 		try {
 			LOG.warn("Starting to build database from " + infiles + " ...");
 			//FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
 			long initTime = System.nanoTime();
 			long endTime;
+
 
 			//SQLContext sqlContext = new SQLContext(this.jsc);
 
@@ -395,11 +408,24 @@ public class Database {
 						.persist(StorageLevel.MEMORY_AND_DISK_SER());
 			}
 
+
+
+			List<String> data = sequences.map(new Sequence2SequenceHeader()).collect();
+
+			HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
+
+			int i = 0;
+
+			for(String value: data) {
+				sequencesIndexes.put(value, i);
+				i++;
+			}
+
 			locationJavaRDD = sequences
-					.flatMap(new Sketcher());//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+					.flatMap(new Sketcher(sequencesIndexes));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
 
 			this.targetPropertiesJavaRDD = sequences
-					.map(new Sequence2TargetProperty());
+					.map(new Sequence2TargetProperty(sequencesIndexes));
 
 			this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class);
 			//this.targetPropertiesDataframe_ = this.sqlContext.createDataFrame(targetPropertyJavaRDD, TargetProperty.class);
@@ -436,7 +462,7 @@ public class Database {
 			System.exit(1);
 		}
 	}
-
+/*
 	public void buildDatabaseMulti(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 		try {
 
@@ -446,6 +472,7 @@ public class Database {
 
 			JavaPairRDD<String,String> inputData;
 			JavaRDD<Location> databaseRDD = null;
+
 
 			for(String currentDir: infiles) {
 				LOG.warn("Starting to build database from " + currentDir + " ...");
@@ -504,7 +531,7 @@ public class Database {
 			System.exit(1);
 		}
 	}
-
+*/
 	public void buildDatabaseMulti2(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 		try {
 
@@ -516,6 +543,7 @@ public class Database {
 			JavaRDD<Location> locationJavaRDD;
 			JavaRDD<Sequence> inputSequences = null;
 			//JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
+
 
 			for(String currentDir: infiles) {
 				LOG.warn("Starting to build database from " + currentDir + " ...");
@@ -554,11 +582,24 @@ public class Database {
 				}
 			}
 
+
+
+			List<String> data = inputSequences.map(new Sequence2SequenceHeader()).collect();
+
+			HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
+
+			int i = 0;
+
+			for(String value: data) {
+				sequencesIndexes.put(value, i);
+				i++;
+			}
+
 			locationJavaRDD = inputSequences
-					.flatMap(new Sketcher());//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+					.flatMap(new Sketcher(sequencesIndexes));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
 
 			this.targetPropertiesJavaRDD = inputSequences
-					.map(new Sequence2TargetProperty());
+					.map(new Sequence2TargetProperty(sequencesIndexes));
 
 			this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class);
 

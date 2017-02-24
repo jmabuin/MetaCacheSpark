@@ -114,6 +114,66 @@ public class MatchesInWindow {
 		}
 
 
+		/* Original code
+		//check hits per query sequence
+        auto fst = begin(matches);
+        auto lst = fst;
+        while(lst != end(matches)) {
+            //look for neighboring windows with the highest total hit count
+            //as long as we are in the same target and the windows are in a
+            //contiguous range
+            if(lst->first.tgt == tgt) {
+                //add new hits to the right
+                hits += lst->second;
+                //subtract hits to the left that fall out of range
+                while(fst != lst &&
+                     (lst->first.win - fst->first.win) >= numWindows)
+                {
+                    hits -= fst->second;
+                    //move left side of range
+                    ++fst;
+                    win = fst->first.win;
+                }
+                //track best of the local sub-ranges
+                if(hits > maxHits) {
+                    maxHits = hits;
+                    maxWinBeg = win;
+                    maxWinEnd = win + distance(fst,lst);
+                }
+            }
+            else {
+                //reset to new target
+                ++numTgts_;
+                win = lst->first.win;
+                tgt = lst->first.tgt;
+                hits = lst->second;
+                maxHits = hits;
+                maxWinBeg = win;
+                maxWinEnd = win;
+                fst = lst;
+            }
+            //keep track of 'maxNo' largest
+            //TODO binary search for large maxNo?
+            for(int i = 0; i < maxNo; ++i) {
+                if(maxHits >= hits_[i]) {
+                    //shift to the right
+                    for(int j = maxNo-1; j > i; --j) {
+                        hits_[j] = hits_[j-1];
+                        tgt_[j] = tgt_[j-1];
+                        pos_[j] = pos_[j-1];
+                    }
+                    //set hits & associated sequence (position)
+                    hits_[i] = maxHits;
+                    tgt_[i] = tgt;
+                    pos_[i].beg = maxWinBeg;
+                    pos_[i].end = maxWinEnd;
+                    break;
+                }
+            }
+            ++lst;
+        }
+		 */
+
 
 	}
 

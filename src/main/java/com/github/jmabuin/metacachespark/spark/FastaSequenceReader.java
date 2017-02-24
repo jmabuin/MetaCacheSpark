@@ -38,11 +38,16 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 	private static final Log LOG = LogFactory.getLog(FastaSequenceReader.class);
 	private int currentMaxValue = Integer.MAX_VALUE;
 
+	//private HashMap<String, Integer> sequenceIndex;
+
+	//public FastaSequenceReader(HashMap<String, Long> sequ2taxid, Build.build_info infoMode, HashMap<String, Integer> sequenceIndex){
 	public FastaSequenceReader(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
 		//LOG.warn("[JMAbuin] Creating FastaSequenceReader object ");
 		super();
 		this.sequ2taxid = sequ2taxid;
 		this.infoMode = infoMode;
+
+		//this.sequenceIndex = sequenceIndex;
 	}
 
 	@Override
@@ -78,7 +83,8 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 
 					if(!header.toString().isEmpty()) {
 						//returnedValues.add(new Sequence(data.toString(), 0, fileId, currentFile.toString(), header.toString(), -1));
-						returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1, header.toString(), -1));
+						returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1,
+								header.toString(), -1));
 					}
 
 					header.delete(0,header.length());
@@ -99,7 +105,8 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 
 			if ((!data.toString().isEmpty()) && (!header.toString().isEmpty())) {
 				//returnedValues.add(new Sequence(data.toString(), 0, fileId, currentFile.toString(), header.toString(), -1));
-				returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1, header.toString(), -1));
+				returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1,
+						header.toString(), -1));
 			}
 
 			int currentIndexNumber = 0;

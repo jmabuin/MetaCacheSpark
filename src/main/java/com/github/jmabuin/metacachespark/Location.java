@@ -53,21 +53,23 @@ public class Location implements Serializable {
 		this.windowId = windowId;
 	}
 
+	@Override
+	public boolean equals(Object other){
+		if (other == null) return false;
+		if (other == this) return true;
+		if (!(other instanceof Location))return false;
+		Location otherMyClass = (Location)other;
 
-    /*
-    public String getHeader() {
-        return header;
-    }
+		if((otherMyClass.getKey() == this.getKey())
+				&& (otherMyClass.getTargetId() == this.getTargetId())
+				&& (otherMyClass.getWindowId() == this.getWindowId())) {
+			return true;
+		}
+		else {
+			return false;
+		}
 
-    public void setHeader(String header) {
-        this.header = header;
-    }
+	}
 
-    public int getTaxid() {
-        return taxid;
-    }
 
-    public void setTaxid(int taxid) {
-        this.taxid = taxid;
-    }*/
 }

@@ -37,4 +37,5 @@ public class SequenceOrigin implements Serializable {
 	public void setIndex(int index) {
 		this.index = index;
 	}
+
 }

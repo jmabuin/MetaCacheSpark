@@ -610,7 +610,7 @@ public class Taxonomy implements Serializable {
 			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputStream));
 
 			// Write data
-			bw.write(this.getTaxa_().size());
+			bw.write(String.valueOf(this.getTaxa_().size()));
 			bw.newLine();
 
 			StringBuffer currentLine = new StringBuffer();

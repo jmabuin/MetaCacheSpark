@@ -30,15 +30,17 @@ public class FastaSketcher2 implements PairFlatMapFunction<Tuple2<String, String
 
 	private HashMap<String, Long> sequ2taxid;
 	private Build.build_info infoMode;
+	private HashMap<String, Integer> sequenceIndex;
 
 	private static final Log LOG = LogFactory.getLog(FastaSketcher.class);
 	//private int currentMaxValue = Integer.MAX_VALUE;
 
-	public FastaSketcher2(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
+	public FastaSketcher2(HashMap<String, Long> sequ2taxid, Build.build_info infoMode, HashMap<String, Integer> sequenceIndex){
 		//LOG.warn("[JMAbuin] Creating FastaSequenceReader object ");
 		super();
 		this.sequ2taxid = sequ2taxid;
 		this.infoMode = infoMode;
+		this.sequenceIndex = sequenceIndex;
 	}
 
 	@Override
@@ -67,7 +69,8 @@ public class FastaSketcher2 implements PairFlatMapFunction<Tuple2<String, String
 
 				if(!header.toString().isEmpty()) {
 					//sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header.toString(), -1));
-					sequences.add(new Sequence(data.toString(), "", currentFile, -1, header.toString(), -1));
+					sequences.add(new Sequence(data.toString(), "", currentFile, -1, header.toString(),
+							-1));
 				}
 
 				header.delete(0,header.length());
@@ -88,7 +91,8 @@ public class FastaSketcher2 implements PairFlatMapFunction<Tuple2<String, String
 
 		if ((!data.toString().isEmpty()) && (!header.toString().isEmpty())) {
 			//sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header.toString(), -1));
-			sequences.add(new Sequence(data.toString(), "", arg0._1(), -1, header.toString(), -1));
+			sequences.add(new Sequence(data.toString(), "", arg0._1(), -1, header.toString(),
+					-1));
 		}
 		//endTime = System.nanoTime();
 		//LOG.warn(currentFile+" Time used in build sequence data: "+(endTime-initTime)/1e9);

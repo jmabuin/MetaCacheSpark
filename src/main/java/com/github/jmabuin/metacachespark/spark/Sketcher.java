@@ -9,6 +9,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Created by chema on 1/16/17.
@@ -31,6 +32,12 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 		return Integer.MAX_VALUE;
 	}
 
+	private HashMap<String, Integer> sequencesIndexes;
+
+	public Sketcher(HashMap<String, Integer> sequencesIndexes) {
+		super();
+		this.sequencesIndexes = sequencesIndexes;
+	}
 
 	@Override
 	public Iterable<Location> call(Sequence inputSequence) {
@@ -67,7 +74,8 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 				//resultSketch.insert(new Location(newValue,
 				//		partitionId, fileId, header, taxid));
 
-				returnedValues.add(new Location(newValue, inputSequence.getTaxid(), numWindows));
+				//returnedValues.add(new Location(newValue, inputSequence.getTaxid(), numWindows));
+				returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getHeader()), numWindows));
 
 			}
 
