@@ -234,8 +234,14 @@ public class SequenceFileReader {
 
 
 		// We iterate over windows (with overlap)
-		while (currentEnd < sequence.getData().length()) {
+		//while (currentEnd < sequence.getData().length()) {
+		while (currentStart < (sequence.getData().length() - MCSConfiguration.kmerSize)) {
 			//Sketch resultSketch = new Sketch();
+			if(currentEnd > sequence.getData().length()) {
+				currentEnd = sequence.getData().length();
+			}
+
+			//LOG.warn("[JMAbuin] Init: " + currentStart+" - End: "+currentEnd);
 
 			currentWindow = sequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
 
@@ -243,12 +249,12 @@ public class SequenceFileReader {
 			// We compute the k-mers. In C
 			int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
 
-			for(int newValue: sketchValues) {
+			//for(int newValue: sketchValues) {
 
 				//returnedValues.add(new Location(newValue, 0, numWindows));
 				returnedValues.add(new Sketch(sequence.getHeader(), sequence.getData(), sketchValues));
 
-			}
+			//}
 
 			// We compute the k-mers
 
@@ -259,6 +265,9 @@ public class SequenceFileReader {
 			numWindows++;
 			currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
 			currentEnd = currentStart + MCSConfiguration.windowSize;
+
+
+
 
 		}
 

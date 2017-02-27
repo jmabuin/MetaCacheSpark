@@ -70,6 +70,11 @@ public class QueryOptions implements Serializable {
     private int numThreads              = 1;
 
     /*
+     * Partitions
+     */
+    private int numPartitions = 1;
+
+    /*
      * Filenames
      */
     private String dbfile;
@@ -134,7 +139,7 @@ public class QueryOptions implements Serializable {
 
             this.testPrecision = this.testCoverage || this.testPrecision;
 
-            if (cmd.hasOption('l') || cmd.hasOption("showLocations")) {
+            if (cmd.hasOption('L') || cmd.hasOption("showLocations")) {
                 this.showLocations = true;
             }
 
@@ -190,6 +195,12 @@ public class QueryOptions implements Serializable {
             if (cmd.hasOption('h') || cmd.hasOption("threads")) {
                 this.numThreads = Integer.parseInt(cmd.getOptionValue("numThreads"));
             }
+
+			if (cmd.hasOption('l') || cmd.hasOption("num_partitions")) {
+				//Case of sketchlen
+				this.numPartitions = Integer.parseInt(cmd.getOptionValue("num_partitions"));
+
+			}
 
             // Get and parse the rest of the arguments
             this.otherOptions = cmd.getArgs(); //With this we get the rest of the arguments
@@ -288,7 +299,7 @@ public class QueryOptions implements Serializable {
         Option precision = new Option("r", "precision", false, "Test precision");
         privateOptions.addOption(precision);
 
-        Option showLocations = new Option("l", "showLocations", false, "Show candidate position(s) in reference sequence(s)");
+        Option showLocations = new Option("L", "showLocations", false, "Show candidate position(s) in reference sequence(s)");
         privateOptions.addOption(showLocations);
 
         Option showTopHits = new Option("t", "showTopHits", false, "Show top candidate sequences and their associated k-mer hash hit count");
@@ -329,6 +340,10 @@ public class QueryOptions implements Serializable {
 
         Option maxTargetsPerSketchVal = new Option("g", "max_locations_per_feature", true, "Maximum number of locations per feature");
         privateOptions.addOption(maxTargetsPerSketchVal);
+
+		Option num_partitions = new Option("l","num_partitions", true,"Number of desired partitions to parallelize");
+		//buildOptions.addOption(num_partitions);
+		privateOptions.addOption(num_partitions);
 
         Option numThreads = new Option("i", "threads", true, "Number of threads to use");
         privateOptions.addOption(numThreads);
@@ -600,4 +615,12 @@ public class QueryOptions implements Serializable {
     public void setOutfile(String outfile) {
         this.outfile = outfile;
     }
+
+	public int getNumPartitions() {
+		return numPartitions;
+	}
+
+	public void setNumPartitions(int numPartitions) {
+		this.numPartitions = numPartitions;
+	}
 }

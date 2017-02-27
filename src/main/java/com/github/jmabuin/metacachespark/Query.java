@@ -264,10 +264,10 @@ public class Query implements Serializable {
 
 			SequenceData data = seqReader.next();
 
-			LOG.warn("[JMAbuin] Starting to process input");
+			//LOG.warn("[JMAbuin] Starting to process input");
 
 			while(data != null) {
-				LOG.warn("[JMAbuin] Processing sequence " + data.getHeader());
+				//LOG.warn("[JMAbuin] Processing sequence " + data.getHeader()+" :: "+data.getData());
 				locations = seqReader.getSketch(data);
 
 				for(Sketch currentSketch: locations) {

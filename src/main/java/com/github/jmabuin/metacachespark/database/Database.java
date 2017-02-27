@@ -1080,7 +1080,17 @@ public class Database {
 
 	public void loadFromFile() {
 
-		this.featuresDataframe_ = this.sqlContext.read().parquet(this.dbfile).cache();
+		if(this.paramsQuery.getNumPartitions() != 1) {
+			this.featuresDataframe_ = this.sqlContext.read().parquet(this.dbfile)
+					.repartition(this.paramsQuery.getNumPartitions())
+					.persist(StorageLevel.MEMORY_AND_DISK_SER());
+		}
+		else {
+			this.featuresDataframe_ = this.sqlContext.read().parquet(this.dbfile)
+					.persist(StorageLevel.MEMORY_AND_DISK_SER());
+		}
+
+
 
 		this.featuresDataframe_.registerTempTable("parquetFeatures");
 
@@ -1103,36 +1113,67 @@ public class Database {
 		try {
 			List<Location> obtainedLocations = new ArrayList<Location>();
 
+			JavaRDD<Location> obtainedLocationsRDD = null;
 			// Made queries
 			//for(Sketch currentLocation: query) {
 
+			StringBuilder queryString = new StringBuilder();
+
 			for (int i : query.getFeatures()) {
 				//String queryString = "select * from parquetFeatures where key=" + i;
+				//DataFrame result = this.sqlContext.sql(queryString);
 
-				JavaRDD<Location> result = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location());
+				if(queryString.toString().isEmpty()) {
+					queryString.append("select * from parquetFeatures where key = " + i);
+				}
+				else {
+					queryString.append(" or key = "+i);
+				}
 
-				LOG.warn("[JMAbuin] Number of matches: " + result.collect().size());
 
-				obtainedLocations.addAll(result.collect());
+
+				/*
+				if(obtainedLocationsRDD == null) {
+					obtainedLocationsRDD = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location());
+				}
+				else {
+					obtainedLocationsRDD = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location())
+							.union(obtainedLocationsRDD);
+				}
+				*/
+
+				//JavaRDD<Location> result = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location());
+
+				//obtainedLocations.addAll(result.toJavaRDD().map(new Row2Location()).collect());
+
+				//LOG.warn("[JMAbuin] Number of current matches: " + obtainedLocations.size());
+
+
 				//DataFrame result = this.sqlContext.sql(queryString);
 				//obtainedLocations.addAll(result.javaRDD().map(new Row2Location()).collect());
 
+			}
 
+			obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2Location());
 
+			obtainedLocations = obtainedLocationsRDD.collect();
 
-				if (obtainedLocations != null) {
-					for (Location obtainedLocation : obtainedLocations) {
+			LOG.warn("[JMAbuin] Number of total matches: " + obtainedLocations.size());
+			//LOG.warn("[JMAbuin] Current query: "+queryString.toString());
 
-						if (res.containsKey(obtainedLocation)) {
-							res.put(obtainedLocation, res.get(obtainedLocation) + 1);
-						} else {
-							res.put(obtainedLocation, 1);
-						}
+			queryString.delete(0, queryString.toString().length());
 
-					}
+			for (Location obtainedLocation : obtainedLocations) {
+
+				if (res.containsKey(obtainedLocation)) {
+					res.put(obtainedLocation, res.get(obtainedLocation) + 1);
+				} else {
+					res.put(obtainedLocation, 1);
 				}
 
 			}
+
+
 
 
 		}

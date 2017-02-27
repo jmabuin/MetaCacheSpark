@@ -58,36 +58,45 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 		long endTime;
 
 		// We iterate over windows (with overlap)
-		while (currentEnd < inputSequence.getData().length()) {
+		//while (currentEnd <= inputSequence.getData().length()) {
+		LOG.warn("[JMAbuin] Processing sequence: "+inputSequence.getSequenceOrigin().getFilename());
+		while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
 			//Sketch resultSketch = new Sketch();
 
-			currentWindow = inputSequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
-
-			// Compute k-mers
-			kmer = "";
-			kmer32 = 0;
-
-			// We compute the k-mers. In C
-			int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
-
-			for(int newValue: sketchValues) {
-				//resultSketch.insert(new Location(newValue,
-				//		partitionId, fileId, header, taxid));
-
-				//returnedValues.add(new Location(newValue, inputSequence.getTaxid(), numWindows));
-				returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getHeader()), numWindows));
-
+			if(currentEnd > inputSequence.getData().length()) {
+				currentEnd = inputSequence.getData().length();
 			}
 
-			// We compute the k-mers
+			if((currentEnd- currentStart) >= MCSConfiguration.kmerSize) {
+
+				currentWindow = inputSequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
+
+				// Compute k-mers
+				kmer = "";
+				kmer32 = 0;
+
+				// We compute the k-mers. In C
+				int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
+
+				for (int newValue : sketchValues) {
+					//resultSketch.insert(new Location(newValue,
+					//		partitionId, fileId, header, taxid));
+
+					//returnedValues.add(new Location(newValue, inputSequence.getTaxid(), numWindows));
+					returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getHeader()), numWindows));
+
+				}
+
+				// We compute the k-mers
 
 
-			//returnedValuesS.add(resultSketch);
+				//returnedValuesS.add(resultSketch);
 
-
+			}
 			numWindows++;
 			currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
 			currentEnd = currentStart + MCSConfiguration.windowSize;
+
 
 		}
 

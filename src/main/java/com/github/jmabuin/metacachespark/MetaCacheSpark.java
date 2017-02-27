@@ -31,6 +31,10 @@ public class MetaCacheSpark implements Serializable {
 			sparkConf.set("spark.memory.useLegacyMode","true");
 			sparkConf.set("spark.storage.memoryFraction", "0.2");
 
+			sparkConf.set("spark.sql.tungsten.enabled", "true");
+			sparkConf.set("spark.io.compression.codec", "snappy");
+			sparkConf.set("spark.sql.parquet.compression.codec", "snappy");
+
 			// Kryo serializer
 			sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
 
@@ -40,7 +44,7 @@ public class MetaCacheSpark implements Serializable {
 
 			//The ctx is created from the previous config
 			JavaSparkContext ctx = new JavaSparkContext(sparkConf);
-			ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
+			//ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
 
 			LOG.warn("Using old Spark version!! - " + ctx.version());
 
@@ -63,13 +67,30 @@ public class MetaCacheSpark implements Serializable {
 			sparkConf.set("spark.kryoserializer.buffer.max","512m");
 			sparkConf.set("spark.driver.maxResultSize", "2g");
 
+			sparkConf.set("spark.sql.tungsten.enabled", "true");
+			sparkConf.set("spark.io.compression.codec", "snappy");
+			sparkConf.set("spark.sql.parquet.compression.codec", "snappy");
+
+			/*
+			sparkConf.set("spark.sql.tungsten.enabled", "true")
+sparkConf.set("spark.eventLog.enabled", "true")
+sparkConf.set("spark.app.id", "YourApp")
+sparkConf.set("spark.io.compression.codec", "snappy")
+sparkConf.set("spark.rdd.compress", "true")
+sparkConf.set("spark.streaming.backpressure.enabled", "true")
+
+sparkConf.set("spark.sql.parquet.compression.codec", "snappy")
+			 */
+
+
+
 			Class[] serializedClasses = {Location.class, Sketch.class};
 			sparkConf.registerKryoClasses(serializedClasses);
 
 
 			//The ctx is created from the previous config
 			JavaSparkContext ctx = new JavaSparkContext(sparkConf);
-			ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
+			//ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
 
 			LOG.warn("Using old Spark version!! - " + ctx.version());
 

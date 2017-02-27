@@ -141,16 +141,12 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
     //fprintf(stderr,"[JMAbuin] starting sketch fuction for window: %s\n", window);
 
     //for (i = 0, J = 0; (i < (strlen(window) - kmerSize)) && (J < K); i++, J++) {
-    for (i = 0; i < (strlen(window) - kmerSize) && K>0; i++) {
-        //while(K>0) {
-            // Get the corresponding K-mer
-            //strncpy(kmerStr,window+i, kmerSize);
 
-            // Get canonical form
-            //kmer2uint32C_IO(windowTMP, &kmer32, tmpLen);
+    for (i = 0; i < (strlen(windowTMP) - kmerSize) && K>0; i++) {
 
             kmer32 <<= 2;
             ambig <<= 1;
+
 
             switch(windowTMP[i]) {
                 case 'A': case 'a': break;
@@ -160,44 +156,53 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
                 default: ambig |= 1; break;
             }
 
+
             //fprintf(stderr,"[JMAbuin] parsing new. kmer is %u - %d. ambig is %u %d and K is %d\n", kmer32, kmer32, ambig, ambig, K);
 
             --K;
+
             //make sure we load k letters at the beginning
-            if((K == 0) && (!ambig)) {
+            if(K == 0) {
+                //fprintf(stderr,"[JMAbuin] parsing new. kmer is %u - %d. ambig is %u %d and char is is %c %d\n", kmer32, kmer32, ambig, ambig, windowTMP[i], K);
+
+
                 kmer32  &= kmerMsk;   //stamp out 2*k lower bits
                 ambig &= ambigMsk;  //stamp out k lower bits
+
+                //fprintf(stderr,"[JMAbuin] parsing new. kmer is %u - %d. ambig is %u %d and K is %d\n", kmer32, kmer32, ambig, ambig, K);
 
                 //do something with the kmer (and the ambiguous letters flag)
                 //consume(kmer, ambig);
 
                 // Apply hash to current kmer
                 //fprintf(stderr,"[JMAbuin] received value: %u %d\n", kmer32, kmer32);
-                hashValue = thomas_mueller_hash(make_canonical32C(kmer32,16));//HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
-                //fprintf(stderr,"[JMAbuin] resulting value: %u %d\n", hashValue, hashValue);
 
-                // Insert into array if needed
-                if(hashValue < sketchValues[sketchSize-1]) {
+               if(!ambig) {
+                    hashValue = thomas_mueller_hash(make_canonical32C(kmer32,16));//HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
+                    //hashValue = 44;
+                    //fprintf(stderr,"[JMAbuin] resulting value: %u %d\n", hashValue, hashValue);
 
-                    for(j = 0 ; j < sketchSize ; j++){
-                        if(hashValue < sketchValues[j])
-                            break;
+                    // Insert into array if needed
+                    if(hashValue < sketchValues[sketchSize-1]) {
+
+                        for(j = 0 ; j < sketchSize ; j++){
+                            if(hashValue < sketchValues[j]) {
+                                //fprintf(stderr,"[JMAbuin] resulting value: %u %d\n", hashValue, hashValue);
+                                break;
+                            }
                         }
 
-                    // We dont need this IF. It is checked before
-                    //if(j < sketchSize) {
+                        for(k = sketchSize - 1; k>j; k--){
+                            sketchValues[k] = sketchValues[k-1];
+                        }
 
-                    for(k = sketchSize - 2; k>=j; k--){
-                        sketchValues[k+1] = sketchValues[k];
-                    }
+                        sketchValues[j] = hashValue;
 
-                    sketchValues[j] = hashValue;
-                    //}
 
                     }
-
-                windowTMP+=tmpLen;
-                tmpLen = 1;
+                }
+                //windowTMP+=tmpLen;
+                //tmpLen = 1;
 
                 ++K; //we want only one letter next time
             }
