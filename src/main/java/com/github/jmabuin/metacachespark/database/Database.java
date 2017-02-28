@@ -26,8 +26,6 @@ import org.apache.hadoop.fs.*;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
@@ -136,10 +134,9 @@ public class Database {
 
 
 		this.loadFromFile();
-
 		this.readTaxonomy();
-
 		this.readTargets();
+		this.readSid2gid();
 	}
 
 	public Random getUrbg_() {
@@ -409,23 +406,22 @@ public class Database {
 			}
 
 
+			List<String> data = sequences.map(new Sequence2SequenceId()).collect();
 
-			List<String> data = sequences.map(new Sequence2SequenceHeader()).collect();
-
-			HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
+			//HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
 
 			int i = 0;
 
 			for(String value: data) {
-				sequencesIndexes.put(value, i);
+				this.sid2gid_.put(value, i);
 				i++;
 			}
 
 			locationJavaRDD = sequences
-					.flatMap(new Sketcher(sequencesIndexes));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+					.flatMap(new Sketcher(this.sid2gid_));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
 
 			this.targetPropertiesJavaRDD = sequences
-					.map(new Sequence2TargetProperty(sequencesIndexes));
+					.map(new Sequence2TargetProperty(this.sid2gid_));
 
 			this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class);
 			//this.targetPropertiesDataframe_ = this.sqlContext.createDataFrame(targetPropertyJavaRDD, TargetProperty.class);
@@ -462,76 +458,7 @@ public class Database {
 			System.exit(1);
 		}
 	}
-/*
-	public void buildDatabaseMulti(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
-		try {
 
-			//FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
-			long initTime = System.nanoTime();
-			long endTime;
-
-			JavaPairRDD<String,String> inputData;
-			JavaRDD<Location> databaseRDD = null;
-
-
-			for(String currentDir: infiles) {
-				LOG.warn("Starting to build database from " + currentDir + " ...");
-
-				if(databaseRDD == null) {
-					if(numPartitions == 1) {
-						databaseRDD = this.jsc.wholeTextFiles(currentDir)
-								.flatMap(new FastaSketcher(sequ2taxid, infoMode));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
-					}
-					else {
-						databaseRDD = this.jsc.wholeTextFiles(currentDir, numPartitions)
-								.flatMap(new FastaSketcher(sequ2taxid, infoMode));
-					}
-
-				}
-				else {
-					if (numPartitions == 1) {
-						databaseRDD = this.jsc.wholeTextFiles(currentDir)
-								.flatMap(new FastaSketcher(sequ2taxid, infoMode)).union(databaseRDD);//.persist(StorageLevel.MEMORY_AND_DISK_SER());
-
-					}
-					else {
-						databaseRDD = this.jsc.wholeTextFiles(currentDir, numPartitions)
-								.flatMap(new FastaSketcher(sequ2taxid, infoMode)).union(databaseRDD);
-					}
-				}
-			}
-
-			if(this.numPartitions != 1) {
-				//databaseRDD = databaseRDD.repartition(numPartitions);
-				this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class).repartition(numPartitions)
-					.persist(StorageLevel.MEMORY_AND_DISK_SER());
-			}
-			else {
-				this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class)
-						.persist(StorageLevel.MEMORY_AND_DISK_SER());;
-			}
-
-
-			//this.featuresDataframe_ = this.sqlContext.createDataFrame(databaseRDD, Location.class);
-
-			//Encoder<Location> encoder = Encoders.bean(Location.class);
-			//Dataset<Location> ds = new Dataset<Location>(sqlContext, this.featuresDataframe_.logicalPlan(), encoder);
-
-			//this.features_ = ds;
-			endTime = System.nanoTime();
-			LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
-			LOG.warn("Database created ...");
-			LOG.warn("Number of items into database: " + String.valueOf(this.featuresDataframe_.count()));
-
-
-
-		} catch (Exception e) {
-			LOG.error("[JMAbuin] ERROR! "+e.getMessage());
-			e.printStackTrace();
-			System.exit(1);
-		}
-	}
-*/
 	public void buildDatabaseMulti2(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
 		try {
 
@@ -584,22 +511,22 @@ public class Database {
 
 
 
-			List<String> data = inputSequences.map(new Sequence2SequenceHeader()).collect();
+			List<String> data = inputSequences.map(new Sequence2SequenceId()).collect();
 
-			HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
+			//HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
 
 			int i = 0;
 
 			for(String value: data) {
-				sequencesIndexes.put(value, i);
+				this.sid2gid_.put(value, i);
 				i++;
 			}
 
 			locationJavaRDD = inputSequences
-					.flatMap(new Sketcher(sequencesIndexes));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
+					.flatMap(new Sketcher(this.sid2gid_));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
 
 			this.targetPropertiesJavaRDD = inputSequences
-					.map(new Sequence2TargetProperty(sequencesIndexes));
+					.map(new Sequence2TargetProperty(this.sid2gid_));
 
 			this.featuresDataframe_ = this.sqlContext.createDataFrame(locationJavaRDD, Location.class);
 
@@ -649,30 +576,41 @@ public class Database {
 		this.targetPropertiesJavaRDD.saveAsObjectFile(targetsDestination);
 		//this.targets_ = new ArrayList<TargetProperty>(inputSequences.map(new Sequence2TargetProperty()).collect());
 
-/*
+
+	}
+
+	public void readTargets() {
+
+		this.targetPropertiesJavaRDD = this.jsc.objectFile(this.dbfile+"_targets");
+
+		this.targets_ = new ArrayList<TargetProperty>(this.targetPropertiesJavaRDD.collect());
+	}
+
+
+	public void writeSid2gid() {
+
+		String sig2sidDestination = this.dbfile+"_sig2sid";
+
 		// Try to open the filesystem (HDFS) and sequence file
 		try {
+
+
 			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
-			FSDataOutputStream outputStream = fs.create(new Path(targetsDestination));
+			FSDataOutputStream outputStream = fs.create(new Path(sig2sidDestination));
 
 			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputStream));
 
 			// Write data
-			bw.write(this.targets_.size());
+			bw.write(String.valueOf(this.sid2gid_.size()));
 			bw.newLine();
 
 			StringBuffer currentLine = new StringBuffer();
 
-			for(TargetProperty currentEntry: this.targets_) {
+			for(Map.Entry<String, Integer> currentEntry: this.sid2gid_.entrySet()) {
 
-				currentLine.append(currentEntry.getIdentifier());
+				currentLine.append(currentEntry.getKey());
 				currentLine.append(":");
-
-				currentLine.append(currentEntry.getTax());
-				currentLine.append(":");
-				currentLine.append(currentEntry.getOrigin().getFilename());
-				currentLine.append(":");
-				currentLine.append(currentEntry.getOrigin().getIndex());
+				currentLine.append(currentEntry.getValue());
 				bw.write(currentLine.toString());
 				bw.newLine();
 
@@ -685,25 +623,62 @@ public class Database {
 
 		}
 		catch (IOException e) {
-			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writing targets.");
+			LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in writeSid2gid.");
 			e.printStackTrace();
 			//System.exit(1);
 		}
 		catch (Exception e) {
-			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writing targets.");
+			LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in writeSid2gid.");
 			e.printStackTrace();
 			//System.exit(1);
 		}
-*/
-
 
 	}
 
-	public void readTargets() {
+	public void readSid2gid() {
 
-		this.targetPropertiesJavaRDD = this.jsc.objectFile(this.dbfile+"_targets");
+		String sig2sidDestination = this.dbfile+"_sig2sid";
 
-		this.targets_ = new ArrayList<TargetProperty>(this.targetPropertiesJavaRDD.collect());
+		try {
+			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+			FSDataInputStream inputStream = fs.open(new Path(sig2sidDestination));
+
+			BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
+
+			if(this.sid2gid_ == null) {
+				this.sid2gid_ = new HashMap<String, Integer>();
+			}
+
+			// read data
+			long numberItems = Long.parseLong(br.readLine());
+
+			String currentLine;
+
+			while((currentLine = br.readLine()) != null) {
+
+				String parts[] = currentLine.split(":");
+
+				this.sid2gid_.put(parts[0], Integer.parseInt(parts[1]));
+
+			}
+
+
+			br.close();
+			inputStream.close();
+
+		}
+		catch (IOException e) {
+			LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in readSid2gid.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+		catch (Exception e) {
+			LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in readSid2gid.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+
+
 	}
 
 	// These infilenames are where assembly_summary.txt found are
@@ -1158,7 +1133,8 @@ public class Database {
 
 			obtainedLocations = obtainedLocationsRDD.collect();
 
-			LOG.warn("[JMAbuin] Number of total matches: " + obtainedLocations.size());
+			//LOG.warn("[JMAbuin] Current query: "+queryString.toString());
+			//LOG.warn("[JMAbuin] Number of total matches: " + obtainedLocations.size());
 			//LOG.warn("[JMAbuin] Current query: "+queryString.toString());
 
 			queryString.delete(0, queryString.toString().length());

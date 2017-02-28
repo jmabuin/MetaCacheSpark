@@ -59,7 +59,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 
 		// We iterate over windows (with overlap)
 		//while (currentEnd <= inputSequence.getData().length()) {
-		LOG.warn("[JMAbuin] Processing sequence: "+inputSequence.getSequenceOrigin().getFilename());
+		//LOG.warn("[JMAbuin] Processing sequence: "+inputSequence.getSequenceOrigin().getFilename());
 		while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
 			//Sketch resultSketch = new Sketch();
 
@@ -83,7 +83,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 					//		partitionId, fileId, header, taxid));
 
 					//returnedValues.add(new Location(newValue, inputSequence.getTaxid(), numWindows));
-					returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getHeader()), numWindows));
+					returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
 
 				}
 

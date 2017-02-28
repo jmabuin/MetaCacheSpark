@@ -368,6 +368,7 @@ public class Build implements Serializable {
 			db.write_database();
 			db.writeTaxonomy();
 			db.writeTargets();
+			db.writeSid2gid();
 
 			long elapsedTime = System.nanoTime() - startTime;
 			LOG.warn("Total build time: " + (double)elapsedTime/1e9);

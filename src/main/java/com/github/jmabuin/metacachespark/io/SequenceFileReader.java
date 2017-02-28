@@ -91,7 +91,7 @@ public class SequenceFileReader {
 	 * @return The new SequenceData object that represents the sequence read
 	 */
 	public SequenceData next() {
-		LOG.warn("[JMAbuin] Call to next");
+		//LOG.warn("[JMAbuin] Call to next");
 		if(this.currentFormat == MetaCacheOptions.InputFormat.FASTA) {
 
 			// Get a new FASTA record from file
@@ -113,14 +113,14 @@ public class SequenceFileReader {
 						this.bufferData.delete(0, this.bufferData.length());
 
 						this.bufferHeader.append(line.subSequence(1,line.length()));
-						LOG.warn("[JMAbuin] New header and return");
+						//LOG.warn("[JMAbuin] New header and return");
 						return currentSequenceData;
 
 					}
 					// Case of new line with data
 					else {
 						this.bufferData.append(line.replace("\n", ""));
-						LOG.warn("[JMAbuin] Data");
+						//LOG.warn("[JMAbuin] Data");
 					}
 				}
 

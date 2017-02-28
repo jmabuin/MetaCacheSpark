@@ -22,7 +22,7 @@ public class Sequence2TargetProperty implements Function<Sequence, TargetPropert
 	public TargetProperty call(Sequence arg0) {
 
 		//return new TargetProperty(arg0.getIdentifier(), arg0.getTaxid(), arg0.getSequenceOrigin());
-		return new TargetProperty(arg0.getIdentifier(), sequencesIndexes.get(arg0.getHeader()), arg0.getSequenceOrigin());
+		return new TargetProperty(arg0.getIdentifier(), sequencesIndexes.get(arg0.getIdentifier()), arg0.getSequenceOrigin());
 
 	}
 }

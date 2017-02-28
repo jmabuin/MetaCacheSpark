@@ -428,6 +428,7 @@ public class Query implements Serializable {
 
 					if (l != -1) {
 						d.write(header, 0, l);
+						d.newLine();
 					/*
 					auto oit = std::ostream_iterator<char>{os, ""};
 					std::copy(header.begin(), header.begin() + l, oit);
@@ -435,6 +436,7 @@ public class Query implements Serializable {
 					}
 					else {
 						d.write(header);
+						d.newLine();
 					}
 
 					d.write(param.getOutSeparator());
@@ -555,9 +557,11 @@ public class Query implements Serializable {
 			if(lowest == Taxonomy.Rank.Sequence) {
 				if(mode != MetaCacheOptions.taxon_print_mode.id_only) {
 					os.write("sequence:"+db.sequence_id_of_target(tid));
+					os.newLine();
 
 				} else {
 					os.write(db.sequence_id_of_target(tid));
+					os.newLine();
 				}
 			}
 
@@ -718,15 +722,23 @@ public class Query implements Serializable {
 				long taxid = lineage[lowest.ordinal()];
 				os.write(Taxonomy.rank_name(lowest) +  ':');
 				if(mode != MetaCacheOptions.taxon_print_mode.id_only) {
-					if(taxid > 1)
+					if(taxid > 1) {
 						os.write(db.taxon_with_id(taxid).getTaxonName());
-					else
+					}
+					else {
 						os.write("n/a");
-					if(mode != MetaCacheOptions.taxon_print_mode.name_only)
+					}
+
+					os.newLine();
+
+					if(mode != MetaCacheOptions.taxon_print_mode.name_only) {
 						os.write("(" + taxid + ")");
+						os.newLine();
+					}
 				}
 				else {
 					os.write(Long.toString(taxid));
+					os.newLine();
 				}
 			}
 			//range of ranks
@@ -750,6 +762,7 @@ public class Query implements Serializable {
 						if(r.ordinal() < highest.ordinal()) {
 							os.write(',');
 						}
+						os.newLine();
 					}
 				}
 			}
@@ -778,12 +791,14 @@ public class Query implements Serializable {
 					os.write(db.sequence_id_of_target(r.getKey().getTargetId())+
 							'/' + r.getKey().getWindowId()+
 							':' + r.getValue() + ',');
+					os.newLine();
 				}
 			}
 			else {
 				for(Map.Entry<Location, Integer> r : matches.entrySet()) {
 					long taxid = db.ranks_of_target(r.getKey().getTargetId())[lowest.ordinal()];
 					os.write(Long.toString(taxid) + ':' + r.getValue() + ',');
+					os.newLine();
 				}
 			}
 		}
@@ -812,12 +827,14 @@ public class Query implements Serializable {
 					os.write(db.sequence_id_of_target(r.getKey().getTargetId())+
 							'/' + r.getKey().getWindowId()+
 							':' + r.getValue() + ',');
+					os.newLine();
 				}
 			}
 			else {
 				for(Map.Entry<Location, Integer> r : matches.entrySet()) {
 					long taxid = db.ranks_of_target(r.getKey().getTargetId())[lowest.ordinal()];
 					os.write(Long.toString(taxid) + ':' + r.getValue() + ',');
+					os.newLine();
 				}
 			}
 		}
@@ -843,6 +860,7 @@ public class Query implements Serializable {
 			for(int i = 0; i < n; ++i) {
 				os.write('[' + (w * cand.window(i).getBeg())
 					+ ',' + (w * cand.window(i).getEnd() + "] "));
+				os.newLine();
 			}
 		}
 		catch(IOException e) {
