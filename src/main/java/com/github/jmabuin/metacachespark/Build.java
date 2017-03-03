@@ -220,8 +220,6 @@ public class Build implements Serializable {
 			System.exit(1);
 		}
 
-		LOG.warn("[JMAbuin] Number of names =>" + taxonNames.size());
-		LOG.warn("[JMAbuin] Number of merged =>" + mergedTaxa.size());
 		//read taxonomic structure
 		Taxonomy tax = new Taxonomy();
 

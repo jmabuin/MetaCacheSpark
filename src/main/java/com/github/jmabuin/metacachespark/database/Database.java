@@ -49,7 +49,7 @@ public class Database {
 	private long queryWindowSize_;
 	private long queryWindowStride_;
 	private long maxLocsPerFeature_;
-	private short nextTargetId_;
+	private int nextTargetId_;
 	private ArrayList<TargetProperty> targets_;
 	private Dataset<Location> features_;
 	private DataFrame featuresDataframe_;
@@ -137,6 +137,10 @@ public class Database {
 		this.readTaxonomy();
 		this.readTargets();
 		this.readSid2gid();
+
+		this.nextTargetId_ = this.sid2gid_.size();
+		this.apply_taxonomy();
+
 	}
 
 	public Random getUrbg_() {
@@ -203,11 +207,11 @@ public class Database {
 		this.maxLocsPerFeature_ = maxLocsPerFeature_;
 	}
 
-	public short getNextTargetId_() {
+	public int getNextTargetId_() {
 		return nextTargetId_;
 	}
 
-	public void setNextTargetId_(short nextTargetId_) {
+	public void setNextTargetId_(int nextTargetId_) {
 		this.nextTargetId_ = nextTargetId_;
 	}
 
@@ -319,6 +323,11 @@ public class Database {
 			update_lineages(g);
 	}
 
+	public void apply_taxonomy() {
+		for(TargetProperty g : this.targets_)
+			update_lineages(g);
+	}
+
 	public long taxon_count() {
 		return this.taxa_.taxon_count();
 	}
@@ -417,6 +426,8 @@ public class Database {
 				i++;
 			}
 
+			this.nextTargetId_ = this.sid2gid_.size();
+
 			locationJavaRDD = sequences
 					.flatMap(new Sketcher(this.sid2gid_));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
 
@@ -510,7 +521,6 @@ public class Database {
 			}
 
 
-
 			List<String> data = inputSequences.map(new Sequence2SequenceId()).collect();
 
 			//HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
@@ -521,6 +531,8 @@ public class Database {
 				this.sid2gid_.put(value, i);
 				i++;
 			}
+
+			this.nextTargetId_ = this.sid2gid_.size();
 
 			locationJavaRDD = inputSequences
 					.flatMap(new Sketcher(this.sid2gid_));//.persist(StorageLevel.MEMORY_AND_DISK_SER());
@@ -1083,6 +1095,12 @@ public class Database {
 		return res;
 	}
 
+	public TreeMap<Location, Integer> matches(ArrayList<Sketch> query) {
+		TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
+		accumulate_matches(query, res);
+		return res;
+	}
+
 
 	public void	accumulate_matches(Sketch query, TreeMap<Location, Integer> res) {
 		try {
@@ -1163,6 +1181,85 @@ public class Database {
 
 	}
 
+	public void	accumulate_matches(ArrayList<Sketch> query, TreeMap<Location, Integer> res) {
+		try {
+			List<Location> obtainedLocations = new ArrayList<Location>();
+
+			JavaRDD<Location> obtainedLocationsRDD = null;
+			// Made queries
+			//for(Sketch currentLocation: query) {
+
+			StringBuilder queryString = new StringBuilder();
+
+			for(Sketch currentSketch : query) {
+				for (int i : currentSketch.getFeatures()) {
+					//String queryString = "select * from parquetFeatures where key=" + i;
+					//DataFrame result = this.sqlContext.sql(queryString);
+
+					if (queryString.toString().isEmpty()) {
+						queryString.append("select * from parquetFeatures where key = " + i);
+					} else {
+						queryString.append(" or key = " + i);
+					}
+
+
+
+				/*
+				if(obtainedLocationsRDD == null) {
+					obtainedLocationsRDD = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location());
+				}
+				else {
+					obtainedLocationsRDD = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location())
+							.union(obtainedLocationsRDD);
+				}
+				*/
+
+					//JavaRDD<Location> result = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location());
+
+					//obtainedLocations.addAll(result.toJavaRDD().map(new Row2Location()).collect());
+
+					//LOG.warn("[JMAbuin] Number of current matches: " + obtainedLocations.size());
+
+
+					//DataFrame result = this.sqlContext.sql(queryString);
+					//obtainedLocations.addAll(result.javaRDD().map(new Row2Location()).collect());
+
+				}
+			}
+			obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2Location());
+
+			obtainedLocations = obtainedLocationsRDD.collect();
+
+			//LOG.warn("[JMAbuin] Current query: "+queryString.toString());
+			//LOG.warn("[JMAbuin] Number of total matches: " + obtainedLocations.size());
+			//LOG.warn("[JMAbuin] Current query: "+queryString.toString());
+
+			queryString.delete(0, queryString.toString().length());
+
+			for (Location obtainedLocation : obtainedLocations) {
+
+				if (res.containsKey(obtainedLocation)) {
+					res.put(obtainedLocation, res.get(obtainedLocation) + 1);
+				} else {
+					res.put(obtainedLocation, 1);
+				}
+
+			}
+
+
+
+
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+			LOG.error("General error in accumulate_matches: "+e.getMessage());
+			System.exit(1);
+		}
+
+		//}
+
+	}
+
 	public static long invalid_target_id() {
 		return max_target_count();
 	}
@@ -1187,6 +1284,7 @@ public class Database {
 	public Long[] ranks(Taxon tax)  {
 		return this.taxa_.ranks((Long)tax.getTaxonId());
 	}
+
 	public Classification ground_truth(String header) {
 		//try to extract query id and find the corresponding target in database
 		long tid = this.target_id_of_sequence(SequenceReader.extract_ncbi_accession_version_number(header));
@@ -1229,6 +1327,9 @@ public class Database {
 	}
 
 	public Taxon ranked_lca_of_targets(int ta, int tb) {
+
+		//LOG.warn("[JMABUIN] Un: "+ranks_of_target_basic(ta).length+ ", dous: "+ranks_of_target_basic(tb).length);
+
 		return taxa_.lca(ranks_of_target_basic(ta), ranks_of_target_basic(tb));
 	}
 

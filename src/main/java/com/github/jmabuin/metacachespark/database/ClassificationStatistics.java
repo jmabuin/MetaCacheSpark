@@ -215,7 +215,7 @@ public class ClassificationStatistics {
 		return known(r) > 0 ? correct(r) / (double)known(r) : 0;
 	}
 
-	double precision(Taxonomy.Rank r) {
+	public double precision(Taxonomy.Rank r) {
 		//note that in general tot != assigned(r) and tot != known(r)
 		double tot = correct(r) + wrong(r);
 		return tot > 0 ? correct(r) / tot : 0;

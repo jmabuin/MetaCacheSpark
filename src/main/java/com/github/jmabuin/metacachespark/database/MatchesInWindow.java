@@ -90,7 +90,8 @@ public class MatchesInWindow {
 				maxHits = hits;
 				maxWinBeg = win;
 				maxWinEnd = win;
-				fst = lst;
+				//fst = lst;
+				entryFST = entryLST;
 			}
 			//keep track of 'maxNo' largest
 			//TODO binary search for large maxNo?

@@ -42,6 +42,28 @@ public class Query implements Serializable {
 
         this.db = new Database(jsc, this.param.getDbfile(), this.param);
 
+        /*if(this.param.getMaxLoadFactor() > 0) {
+        	this.db.setmaxloadfactor
+		}
+
+		if(this.param.getMaxTargetsPerSketchVal() > 1) {
+			db.remove_features_with_more_locations_than(param.maxTargetsPerSketchVal);
+		}*/
+
+        if(this.param.getHitsMin() < 1) {
+        	int sks = MCSConfiguration.sketchSize;
+
+			if(sks >= 6) {
+				this.param.setHitsMin((int) (sks/3.0));
+			}
+			else if (sks >= 4) {
+				this.param.setHitsMin(2);
+			}
+			else {
+				this.param.setHitsMin(1);
+			}
+		}
+
 		this.hits = new HashMap<Location, Integer>();
 
 		this.query();
@@ -149,6 +171,50 @@ public class Query implements Serializable {
 
     public void classify_sequences(String[] infilenames, BufferedWriter d) {
 		try {
+
+			StringBuffer comment = new StringBuffer();
+
+			if(this.param.getMapViewMode() != MetaCacheOptions.map_view_mode.none) {
+				comment.append("Reporting per-read mappings (non-mapping lines start with '').\n");
+				comment.append("Output will be constrained to ranks from 'taxonomy::rank_name(param.lowestRank)' to" +
+						"'taxonomy::rank_name(param.highestRank)'.\n");
+
+				if(this.param.isShowLineage()) {
+					comment.append("The complete lineage will be reported "
+							+ "starting with the lowest match.\n");
+				}
+				else {
+					comment.append("Only the lowest matching rank will be reported.\n");
+				}
+			}
+			else {
+				comment.append("Per-Read mappings will not be shown.\n");
+			}
+
+			if(this.param.getExcludedRank() != Taxonomy.Rank.none) {
+				comment.append("Clade Exclusion on Rank: " +
+						Taxonomy.rank_name(this.param.getExcludedRank()));
+			}
+
+			if(this.param.getPairing() == MetaCacheOptions.pairing_mode.files) {
+				comment.append("File based paired-end mode:\n" +
+						"  Reads from two consecutive files will be interleaved.\n" +
+						"  Max insert size considered " + this.param.getInsertSizeMax() + ".\n");
+			}
+			else if(this.param.getPairing() == MetaCacheOptions.pairing_mode.sequences) {
+				comment.append("Per file paired-end mode:\n"
+						+ "  Reads from two consecutive sequences in each file will be paired up.\n"
+						+ "  Max insert size considered \" + this.param.getInsertSizeMax() + \".\n");
+			}
+
+			if(this.param.isTestAlignment()) {
+				comment.append("Query sequences will be aligned to best candidate target => SLOW!\\n");
+			}
+
+			comment.append("Using "+this.param.getNumThreads() + " threads\n");
+
+			long initTime = System.nanoTime();
+
 			ClassificationStatistics stats = new ClassificationStatistics();
 
 			if(this.param.getPairing() == MetaCacheOptions.pairing_mode.files) {
@@ -157,6 +223,29 @@ public class Query implements Serializable {
 			else {
 				classify_per_file(infilenames, d, stats);
 			}
+
+			long endTime = System.nanoTime();
+
+			//show results
+			int numQueries = (this.param.getPairing() == MetaCacheOptions.pairing_mode.none) ? stats.total() :
+					2 * stats.total();
+
+			double speed = (double)numQueries / ((double)(endTime - initTime)/1e9/60.0);
+
+			comment.append("queries:       " + numQueries + "\n");
+			//comment.append("basic queries: " + stats.total()+"\n");
+			comment.append("time:          " + (endTime - initTime)/1e6 + " ms\n");
+			comment.append("speed:         " + speed + " queries/min\n");
+
+			if(stats.total() > 0) {
+				//show_classification_statistics(os, stats, comment);
+				this.show_classification_statistics(d, stats, comment);
+			}
+			else {
+				comment.append("No valid query sequences found.\n");
+				d.write(comment.toString());
+			}
+
 		}
 		catch (Exception e) {
 			e.printStackTrace();
@@ -166,6 +255,118 @@ public class Query implements Serializable {
 
 
     }
+
+    public void show_classification_statistics(BufferedWriter d, ClassificationStatistics stats, StringBuffer prefix) {
+
+    	try {
+			Taxonomy.Rank ranks[] = {Taxonomy.Rank.Sequence, Taxonomy.Rank.subSpecies, Taxonomy.Rank.Species,
+					Taxonomy.Rank.Genus, Taxonomy.Rank.Family, Taxonomy.Rank.Order, Taxonomy.Rank.Class,
+					Taxonomy.Rank.Phylum, Taxonomy.Rank.Kingdom, Taxonomy.Rank.Domain};
+
+			if(stats.assigned() < 1) {
+				prefix.append("None of the input sequences could be classified.\n");
+			}
+
+			if(stats.unassigned() > 0) {
+				prefix.append("unclassified: " + (100 * stats.unclassified_rate()) + "% (" + stats.unassigned() + ")\n");
+			}
+
+			prefix.append("classified:\n");
+
+			for(Taxonomy.Rank r: ranks) {
+				if(stats.assigned(r) > 0) {
+					String rn = Taxonomy.rank_name(r);
+					//rn.resize(11, ' ');
+					prefix.append(" " + rn +"\t" + (100 * stats.classification_rate(r)) + "% (" + stats.assigned(r) + ")\n");
+				}
+			}
+
+			if(stats.known() > 0) {
+				if(stats.unknown() > 0) {
+					prefix.append("ground truth unknown: " + (100 * stats.unknown_rate()) + "% (" + stats.unknown() + ")\n");
+				}
+
+				prefix.append("ground truth known:\n");
+
+				for(Taxonomy.Rank r: ranks) {
+					if(stats.assigned(r) > 0) {
+						String rn = Taxonomy.rank_name(r);
+						//rn.resize(11, ' ');
+						prefix.append(" " + rn +"\t"+ (100 * stats.known_rate(r)) + "% (" + stats.known(r) + ")\n");
+					}
+				}
+
+				prefix.append("correctly classified:\n");
+				for(Taxonomy.Rank r: ranks) {
+					if(stats.assigned(r) > 0) {
+						String rn = Taxonomy.rank_name(r);
+						//rn.resize(11, ' ');
+						prefix.append(" " + rn +"\t" + stats.correct(r) + "\n");
+					}
+				}
+
+				prefix.append("precision (correctly classified / classified):\n");
+				for(Taxonomy.Rank r: ranks) {
+					if(stats.assigned(r) > 0) {
+						String rn = Taxonomy.rank_name(r);
+						//rn.resize(11, ' ');
+						prefix.append(" " + rn +"\t" + (100 * stats.precision(r)) + "\n");
+					}
+				}
+
+				prefix.append("sensitivity (correctly classified / all):\n");
+				for(Taxonomy.Rank r: ranks) {
+					if(stats.assigned(r) > 0) {
+						String rn = Taxonomy.rank_name(r);
+						//rn.resize(11, ' ');
+						prefix.append(" " + rn +"\t" + (100 * stats.sensitivity(r)) + "\n");
+					}
+				}
+
+				if (stats.coverage(Taxonomy.Rank.Domain).total() > 0) {
+					prefix.append("false positives (hit on taxa not covered in DB):\n");
+
+					for(Taxonomy.Rank r: ranks) {
+						if(stats.assigned(r) > 0) {
+							String rn = Taxonomy.rank_name(r);
+							//rn.resize(11, ' ');
+							prefix.append(" " + rn +"\t" + stats.coverage(r).false_pos() + "\n");
+						}
+					}
+
+
+				}
+
+			}
+
+			/*
+
+    auto alscore = stats.alignment_scores();
+    if(!alscore.empty()) {
+        os << prefix << "semi-global alignment of query to best candidates:\n"
+           << prefix << "  score: " << alscore.mean()
+                     << " +/- " << alscore.stddev()
+                     << " <> " << alscore.skewness() << '\n';
+    }
+
+}
+     */
+
+
+			d.write(prefix.toString());
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+			LOG.error("IO exception error in show_classification_statistics: "+e.getMessage());
+			System.exit(1);
+		}
+
+
+
+
+	}
+
+
 
     public void classify_on_file_pairs(String[] infilenames, BufferedWriter d, ClassificationStatistics stats) {
 
@@ -189,7 +390,7 @@ public class Query implements Serializable {
 			for(int i = 0; i < infilenames.length; i ++) {
 				String fname = infilenames[i];
 
-				this.classify(fname, d, stats);
+				this.classify2(fname, d, stats);
 /*
             if(this.param.getPairing() == MetaCacheOptions.pairing_mode.sequences){
 				this.classify_pairs();
@@ -277,6 +478,44 @@ public class Query implements Serializable {
 
 					matches.clear();
 				}
+
+				locations.clear();
+				data = seqReader.next();
+			}
+
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+			LOG.error("General error in classify: "+e.getMessage());
+			System.exit(1);
+		}
+
+
+
+	}
+
+	public void classify2(String filename, BufferedWriter d, ClassificationStatistics stats) {
+		try {
+			SequenceFileReader seqReader = new SequenceFileReader(filename, this.jsc);
+
+			ArrayList<Sketch> locations = new ArrayList<Sketch>();
+			TreeMap<Location, Integer> matches;
+
+			SequenceData data = seqReader.next();
+
+			//LOG.warn("[JMAbuin] Starting to process input");
+
+			while(data != null) {
+				//LOG.warn("[JMAbuin] Processing sequence " + data.getHeader()+" :: "+data.getData());
+				locations = seqReader.getSketch(data);
+
+				//for(Sketch currentSketch: locations) {
+					matches = this.db.matches(locations);
+
+					this.process_database_answer(data.getHeader(), data.getData(), "", matches, d, stats);
+
+					matches.clear();
+				//}
 
 				locations.clear();
 				data = seqReader.next();
@@ -386,7 +625,7 @@ public class Query implements Serializable {
 				(this.param.getMapViewMode() != MetaCacheOptions.map_view_mode.none && this.param.isShowGroundTruth()) ||
 				(this.param.getExcludedRank() != Taxonomy.Rank.none) ) {
 
-			groundTruth = this.db.ground_truth( header);
+			groundTruth = this.db.ground_truth(header);
 
 		}
 
@@ -413,6 +652,7 @@ public class Query implements Serializable {
 			}
 		}
 		else {
+			//LOG.warn("[JMAbuin] Enter into assign with rank: " + Taxonomy.rank_name(cls.rank()));
 			stats.assign(cls.rank());
 		}
 
@@ -428,7 +668,6 @@ public class Query implements Serializable {
 
 					if (l != -1) {
 						d.write(header, 0, l);
-						d.newLine();
 					/*
 					auto oit = std::ostream_iterator<char>{os, ""};
 					std::copy(header.begin(), header.begin() + l, oit);
@@ -436,7 +675,7 @@ public class Query implements Serializable {
 					}
 					else {
 						d.write(header);
-						d.newLine();
+
 					}
 
 					d.write(param.getOutSeparator());
@@ -589,6 +828,7 @@ public class Query implements Serializable {
 
 		//sum of top-2 hits < threshold => considered not classifiable
 		if((cand.hits(0) + cand.hits(1)) < wc*param.getHitsMin()) {
+			//LOG.warn("[JMAbuin] First if");
 			return new Classification();
 		}
 
@@ -599,9 +839,11 @@ public class Query implements Serializable {
 		{
 			//return top candidate
 			int tid = cand.target_id(0);
+			//LOG.warn("[JMAbuin] Second if with tid: "+tid);
 			return new Classification(tid, db.taxon_of_target((long)tid));
 		}
 
+		//LOG.warn("[JMAbuin] Last if");
 		return new Classification(lowest_common_taxon(MatchesInWindow.maxNo, cand, (float)param.getHitsDiff(), param.getLowestRank(), param.getHighestRank()));
 
 
@@ -618,6 +860,9 @@ public class Query implements Serializable {
 		}
 
 		if(maxn < 3 || cand.count() < 3) {
+
+			//LOG.warn("[JMABUIN] Un: "+cand.target_id(0)+ ", dous: "+cand.target_id(1));
+
 			Taxon tax = db.ranked_lca_of_targets(cand.target_id(0), cand.target_id(1));
 
 			//classify if rank is below or at the highest rank of interest
@@ -718,7 +963,8 @@ public class Query implements Serializable {
 						   MetaCacheOptions.taxon_print_mode mode, Taxonomy.Rank lowest, Taxonomy.Rank highest) {
 		//one rank only
 		try{
-			if(lowest == highest) { // ordinal?
+			//if(lowest == highest) { // ordinal?
+			if(lowest.equals(highest)) {
 				long taxid = lineage[lowest.ordinal()];
 				os.write(Taxonomy.rank_name(lowest) +  ':');
 				if(mode != MetaCacheOptions.taxon_print_mode.id_only) {
@@ -884,6 +1130,7 @@ public class Query implements Serializable {
 			else if(cls.has_taxon()) {
 				if(cls.rank().ordinal() > param.getHighestRank().ordinal()) {
 					os.write("--");
+					os.newLine();
 				}
 				else {
 					Taxonomy.Rank rmin = param.getLowestRank().ordinal() < cls.rank().ordinal() ? cls.rank() : param.getLowestRank();
@@ -895,6 +1142,7 @@ public class Query implements Serializable {
 			}
 			else {
 				os.write("--");
+				os.newLine();
 			}
 		}
 		catch(IOException e) {

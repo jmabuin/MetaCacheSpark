@@ -45,6 +45,7 @@ public class Taxonomy implements Serializable {
 	 */
 	public Taxonomy() {
 		this.taxa_ = new HashMap<Long, Taxon>();
+		this.noTaxon_ = new Taxon(0, 0, "--", Rank.none);
 	}
 
 	/**
@@ -306,7 +307,7 @@ public class Taxonomy implements Serializable {
 			if (currentTaxon != null) {
 
 				lin.add(id);
-				if(currentTaxon.getParentId() != 0) {
+				if(currentTaxon.getParentId() != id) {
 					id = currentTaxon.getParentId();
 				}
 				else {
@@ -319,6 +320,8 @@ public class Taxonomy implements Serializable {
 			}
 
 		}
+
+		//LOG.warn("[JMAbuin] lineage size: "+lin.size());
 
 		return lin;
 	}
@@ -345,7 +348,7 @@ public class Taxonomy implements Serializable {
 				if(currentTaxon.getRank() != Rank.none) {
 					lin[currentTaxon.getRank().ordinal()] = currentTaxon.getTaxonId();
 				}
-				if(currentTaxon.getParentId() != 0){
+				if(currentTaxon.getParentId() != id){
 					id = currentTaxon.getParentId();
 				}
 				else {
@@ -526,6 +529,8 @@ public class Taxonomy implements Serializable {
 	 * @return	The Taxon
 	 */
 	public Taxon lca(long lina[], long linb[]) {
+		LOG.warn("JMABUIN : Taxon.lca");
+		LOG.warn("JMABUIN : Taxon.lca :: " + ranked_lca_id(lina,linb));
 		return this.pos(ranked_lca_id(lina,linb));
 	}
 
