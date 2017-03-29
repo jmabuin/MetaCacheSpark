@@ -4,13 +4,15 @@ import java.io.Serializable;
 /**
  * Created by jabuinmo on 31.01.17.
  */
-public class Location implements Serializable {
+public class Location implements Serializable, Comparable<Location>{
+//public class Location implements Serializable {
 
     private int key;
     private int targetId;
     private int windowId;
 
     public Location(int key, int targetId, int windowId) {
+	//public Location(int targetId, int windowId) {
         this.key = key;
         this.targetId = targetId;
         this.windowId = windowId;
@@ -68,6 +70,41 @@ public class Location implements Serializable {
 		else {
 			return false;
 		}
+
+	}
+
+	@Override
+	public int compareTo(Location other) {
+
+		if(this.key == other.getKey()) {
+
+			if (this.getTargetId() < other.getTargetId()) {
+				return -1;
+			}
+			else if (this.getTargetId() > other.getTargetId()) {
+				return 1;
+			}
+			else if (this.getTargetId() == other.getTargetId()) {
+
+				if (this.getWindowId() < other.getWindowId()) {
+					return -1;
+				}
+				else if (this.getWindowId() > other.getWindowId()) {
+					return 1;
+				}
+				else {
+					return 0;
+				}
+
+			}
+		}
+		else if (this.key < other.getKey()) {
+			return -1;
+		}
+		else {
+			return 1;
+		}
+		return 0;
 
 	}
 

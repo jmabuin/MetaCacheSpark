@@ -25,6 +25,10 @@ import scala.Tuple2;
 import java.util.*;
 
 
+/**
+ * To be deleted in the future
+ */
+@Deprecated
 public class FastaSketcher4Query implements FlatMapFunction<Tuple2<String, String>,Sketch> {
 
 

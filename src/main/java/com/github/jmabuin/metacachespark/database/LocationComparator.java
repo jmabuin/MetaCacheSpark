@@ -13,24 +13,32 @@ public class LocationComparator implements Comparator<Location>{
 	@Override
 	public int compare(Location L1, Location L2) {
 
-		if(L1.getTargetId() < L2.getTargetId()) {
+		if(L1.getKey() < L2.getKey()) {
 			return -1;
 		}
-		else if(L1.getTargetId() > L2.getTargetId()) {
+		else if(L1.getKey() >  L2.getKey()) {
 			return 1;
 		}
-		else if(L1.getTargetId() == L2.getTargetId()) {
-
-			if(L1.getWindowId() < L2.getWindowId()) {
+		else{
+			if(L1.getTargetId() < L2.getTargetId()) {
 				return -1;
 			}
-			else if(L1.getWindowId() >  L2.getWindowId()) {
+			else if(L1.getTargetId() > L2.getTargetId()) {
 				return 1;
 			}
-			else {
-				return 0;
-			}
+			else if(L1.getTargetId() == L2.getTargetId()) {
 
+				if(L1.getWindowId() < L2.getWindowId()) {
+					return -1;
+				}
+				else if(L1.getWindowId() >  L2.getWindowId()) {
+					return 1;
+				}
+				else {
+					return 0;
+				}
+
+			}
 		}
 
 		return 0;

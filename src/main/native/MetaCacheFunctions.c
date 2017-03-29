@@ -1,5 +1,6 @@
 #include "com_github_jmabuin_metacachespark_HashFunctions.h"
 #include <string.h>
+#include <stdlib.h>
 
 inline unsigned long make_reverse_complement64C(unsigned long s, unsigned char k) {
     s = ((s >> 2)  & 0x3333333333333333ul) | ((s & 0x3333333333333333ul) << 2);
@@ -347,6 +348,8 @@ inline unsigned int *seq2feat(const char *sequence, int windowSize, int sketchSi
         currentWindow++;
     }
 
+    free(sketchValues);
+
     return features;
 }
 
@@ -402,6 +405,7 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions
     }*/
 
     (*env)->SetIntArrayRegion(env, iarr, 0, sketchSize, returnValues);
+    free(returnValues);
     return iarr;
 
 }

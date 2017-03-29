@@ -698,4 +698,8 @@ public class Taxonomy implements Serializable {
 
 	}
 
+	public void clear() {
+		this.taxa_.clear();
+	}
+
 }

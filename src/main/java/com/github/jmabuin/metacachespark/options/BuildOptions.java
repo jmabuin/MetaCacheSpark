@@ -11,23 +11,18 @@ import java.io.Serializable;
 /**
  * Created by chema on 1/24/17.
  */
-public class BuildOptions implements Serializable {
+public class BuildOptions extends CommonOptions implements Serializable {
 
 	private static final Log LOG = LogFactory.getLog(BuildOptions.class);
 
-	private Options options = null;
+	private Options buildOptions = null;
 
 	// Default options values
-	private int sketchlenValue 		= 16;
-	private int winlenValue 		= 128;
-	private int winstrideValue 		= 113;
-	private int kmerlenValue 		= 16;
-	private boolean verboseValue 	= false;
+
+
 	private String taxonomyValue 	= "";
 	private String taxpostmapValue 	= "";
 
-	private float maxLoadFactorValue 		= -1.0f;
-	private int maxLocationsPerFeatureValue = 0;
 	private Taxonomy.Rank removeAmbigFeaturesOnRank = Taxonomy.Rank.none;
 
 	private int maxTaxaPerFeature = 1;
@@ -37,94 +32,62 @@ public class BuildOptions implements Serializable {
 
 	private TaxonomyParam taxonomyParam;
 
+	private boolean myWholeTextFiles = false;
+
 	private String[] otherOptions;
-	private int numPartitions = 1;
 
 
 	public BuildOptions(String args[]) {
 
-		//Parse arguments
-		for (String argument : args) {
-			LOG.info("["+this.getClass().getName()+"] :: Received argument: " + argument);
-		}
+		super();
 
-		this.options = this.initOptions(args);
+		this.buildOptions = this.getOptions();//this.initOptions(newArgs);
+
+		this.initOptions();
 
 		//Parse the given arguments
 		CommandLineParser parser = new BasicParser();
 		CommandLine cmd;
 
-
 		try {
-			cmd = parser.parse(this.options, args);
+			cmd = parser.parse(this.buildOptions, args);
 
-			//We check the options
+			// Common options
+			this.parseCommonOptions(cmd);
 
-			if (cmd.hasOption('s') || cmd.hasOption("sketchlen")) {
-				//Case of sketchlen
-				this.sketchlenValue = Integer.parseInt(cmd.getOptionValue("sketchlen"));
-
-			}
-
-			if (cmd.hasOption('w') || cmd.hasOption("winlen")) {
-				// Case of winlen
-				this.winlenValue = Integer.parseInt(cmd.getOptionValue("winlen"));
-
-			}
-
-			if (cmd.hasOption('d') || cmd.hasOption("winstride")) {
-				// Case of winstride
-				this.winstrideValue = Integer.parseInt(cmd.getOptionValue("winstride"));
-
-			}
-
-			if (cmd.hasOption('k') || cmd.hasOption("kmerlen")) {
-				// Case of kmerlen
-				this.kmerlenValue = Integer.parseInt(cmd.getOptionValue("kmerlen"));
-
-			}
-
-			if (cmd.hasOption('v') || cmd.hasOption("verbose")) {
-				// Case of verbose
-				this.verboseValue = true;
-
-			}
-
+			//From Main: h,q,b,a,i,n
+			//From Common: s,w,d,k,r,v,f,m,l,p,g,o,e,c
+			// Build Options============================================================================================
 			if (cmd.hasOption('t') || cmd.hasOption("taxonomy")) {
 				// Case of taxonomy
 				this.taxonomyValue = cmd.getOptionValue("taxonomy");
 
 			}
 
-			if (cmd.hasOption('p') || cmd.hasOption("taxpostmap")) {
+			if (cmd.hasOption('y') || cmd.hasOption("taxpostmap")) {
 				// Case of taxpostmap
 				this.taxpostmapValue = cmd.getOptionValue("taxpostmap");
 
 			}
 
-			if (cmd.hasOption('f') || cmd.hasOption("max_load_fac")) {
-				// Case of max_load_fac
-				this.maxLoadFactorValue = Float.parseFloat(cmd.getOptionValue("max_load_fac"));
 
-			}
-
-			if (cmd.hasOption('r') || cmd.hasOption("max_locations_per_feature")) {
-				// Case of max_locations_per_feature
-				this.maxLocationsPerFeatureValue = Integer.parseInt(cmd.getOptionValue("max_locations_per_feature"));
-
-			}
-
-			if (cmd.hasOption('b') || cmd.hasOption("remove_ambig_features")) {
+			if (cmd.hasOption('z') || cmd.hasOption("remove_ambig_features")) {
 				// Case of max_load_fac
 				this.removeAmbigFeaturesOnRank = Taxonomy.rank_from_name(cmd.getOptionValue("remove_ambig_features"));
 
 			}
 
-			if (cmd.hasOption('e') || cmd.hasOption("max_ambig_per_feature")) {
+			if (cmd.hasOption('x') || cmd.hasOption("max_ambig_per_feature")) {
 				// Case of max_load_fac
-				this.maxTaxaPerFeature = Integer.parseInt(cmd.getOptionValue("max_ambig_per_feature"));
+				this.maxTaxaPerFeature = Integer.parseInt("max_ambig_per_feature");
 
 			}
+
+			if (cmd.hasOption('j') || cmd.hasOption("wholetextfiles")) {
+				this.myWholeTextFiles = true;
+
+			}
+
 
 			/*
 			if(this.taxpostmapValue != "" && this.taxonomyValue != "") {
@@ -133,13 +96,6 @@ public class BuildOptions implements Serializable {
 			*/
 			if(this.taxonomyValue != "") {
 				this.taxonomyParam = new TaxonomyParam(this.taxonomyValue, this.taxpostmapValue);
-			}
-
-
-			if (cmd.hasOption('l') || cmd.hasOption("num_partitions")) {
-				// Case of max_load_fac
-				this.numPartitions = Integer.parseInt(cmd.getOptionValue("num_partitions"));
-
 			}
 
 			// Get and parse the rest of the arguments
@@ -162,6 +118,7 @@ public class BuildOptions implements Serializable {
 				this.infiles 	= this.otherOptions[1];
 
 			}
+
 		}
 		catch (UnrecognizedOptionException e) {
 			e.printStackTrace();
@@ -177,130 +134,36 @@ public class BuildOptions implements Serializable {
 			System.exit(1);
 		}
 
+
 	}
 
 
-	private Options initOptions(String[] args) {
-		Options privateOptions = new Options();
-
-		//OptionGroup buildOptions = new OptionGroup();
-
-		/*
-		Previous options from main program are:
-			if (cmd.hasOption('h') || cmd.hasOption("help")) {
-				//Case of showing the help
-				this.mode = Mode.HELP;
-			} else if (cmd.hasOption('q') || cmd.hasOption("query")) {
-				// Case of query
-				this.mode = Mode.QUERY;
-			} else if (cmd.hasOption('b') || cmd.hasOption("build")) {
-				// Case of build
-				this.mode = Mode.BUILD;
-			} else if (cmd.hasOption('a') || cmd.hasOption("add")) {
-				// Case of add
-				this.mode = Mode.ADD;
-			} else if (cmd.hasOption('i') || cmd.hasOption("info")) {
-				// Case of info
-				this.mode = Mode.INFO;
-			} else if (cmd.hasOption('n') || cmd.hasOption("annotate")) {
-				// Case of annotate
-				this.mode = Mode.ANNOTATE;
-			}
-		 */
-
-		Option sketchlen = new Option("s","sketchlen", true,"Shows documentation");
-		//buildOptions.addOption(sketchlen);
-		privateOptions.addOption(sketchlen);
-
-		Option winlen = new Option("w","winlen", true,"Classify read sequences using pre-built database");
-		//buildOptions.addOption(winlen);
-		privateOptions.addOption(winlen);
-
-		Option winstride = new Option("d", "winstride", true, "Build new database from reference genomes");
-		//buildOptions.addOption(winstride);
-		privateOptions.addOption(winstride);
-
-		Option kmerlen = new Option("k", "kmerlen", true, "Add reference genomes and/or taxonomy to existing database");
-		//buildOptions.addOption(kmerlen);
-		privateOptions.addOption(kmerlen);
-
-		Option verbose = new Option("v", "verbose", false, "Shows database and reference genome properties");
-		//buildOptions.addOption(verbose);
-		privateOptions.addOption(verbose);
+	private void initOptions() {
+		//Options privateOptions = new Options();
 
 		Option taxonomy = new Option("t", "taxonomy", true, "Annotate sequences with taxonomic information");
 		//buildOptions.addOption(taxonomy);
-		privateOptions.addOption(taxonomy);
+		this.buildOptions.addOption(taxonomy);
 
-		Option taxpostmap = new Option("p", "taxpostmap", true, "Shows database and reference genome properties");
+		Option taxpostmap = new Option("y", "taxpostmap", true, "Shows database and reference genome properties");
 		//buildOptions.addOption(taxpostmap);
-		privateOptions.addOption(taxpostmap);
-
-		Option max_load_fac = new Option("f", "max_load_fac", true,"Maximum value for load factor");
-		//buildOptions.addOption(max_load_fac);
-		privateOptions.addOption(max_load_fac);
-
-		Option max_locations_per_feature = new Option("r", "max_locations_per_feature", true, "Maximum number of locations per feature");
-		//buildOptions.addOption(max_locations_per_feature);
-		privateOptions.addOption(max_locations_per_feature);
+		this.buildOptions.addOption(taxpostmap);
 
 		Option remove_ambig_features = new Option("z", "remove_ambig_features", true, "Remove ambiguous features on rank");
 		//buildOptions.addOption(remove_ambig_features);
-		privateOptions.addOption(remove_ambig_features);
+		this.buildOptions.addOption(remove_ambig_features);
 
-		Option max_ambig_per_feature = new Option("e","max_ambig_per_feature", true, "Maximim ambiguous per feature" );
+		Option max_ambig_per_feature = new Option("x","max_ambig_per_feature", true, "Maximum ambiguous per feature" );
 		//buildOptions.addOption(max_ambig_per_feature);
-		privateOptions.addOption(max_ambig_per_feature);
+		this.buildOptions.addOption(max_ambig_per_feature);
 
-		Option num_partitions = new Option("l","num_partitions", true,"Number of desired partitions to parallelize");
-		//buildOptions.addOption(num_partitions);
-		privateOptions.addOption(num_partitions);
-
-		//privateOptions.addOptionGroup(buildOptions);
-
-		return privateOptions;
+		Option wholetextfiles = new Option("j", "wholetextfiles", false, "Use own implementation of wholetextfiles");
+		this.buildOptions.addOption(wholetextfiles);
 
 	}
 
-	public int getSketchlenValue() {
-		return sketchlenValue;
-	}
 
-	public void setSketchlenValue(int sketchlenValue) {
-		this.sketchlenValue = sketchlenValue;
-	}
 
-	public int getWinlenValue() {
-		return winlenValue;
-	}
-
-	public void setWinlenValue(int winlenValue) {
-		this.winlenValue = winlenValue;
-	}
-
-	public int getWinstrideValue() {
-		return winstrideValue;
-	}
-
-	public void setWinstrideValue(int winstrideValue) {
-		this.winstrideValue = winstrideValue;
-	}
-
-	public int getKmerlenValue() {
-		return kmerlenValue;
-	}
-
-	public void setKmerlenValue(int kmerlenValue) {
-		this.kmerlenValue = kmerlenValue;
-	}
-
-	public boolean isVerboseValue() {
-		return verboseValue;
-	}
-
-	public void setVerboseValue(boolean verboseValue) {
-		this.verboseValue = verboseValue;
-	}
 
 	public String getTaxonomyValue() {
 		return taxonomyValue;
@@ -316,22 +179,6 @@ public class BuildOptions implements Serializable {
 
 	public void setTaxpostmapValue(String taxpostmapValue) {
 		this.taxpostmapValue = taxpostmapValue;
-	}
-
-	public float getMaxLoadFactorValue() {
-		return maxLoadFactorValue;
-	}
-
-	public void setMaxLoadFactorValue(float maxLoadFactorValue) {
-		this.maxLoadFactorValue = maxLoadFactorValue;
-	}
-
-	public int getMaxLocationsPerFeatureValue() {
-		return maxLocationsPerFeatureValue;
-	}
-
-	public void setMaxLocationsPerFeatureValue(int maxLocationsPerFeatureValue) {
-		this.maxLocationsPerFeatureValue = maxLocationsPerFeatureValue;
 	}
 
 	public Taxonomy.Rank getRemoveAmbigFeaturesOnRank() {
@@ -374,12 +221,11 @@ public class BuildOptions implements Serializable {
 		this.taxonomyParam = taxonomyParam;
 	}
 
-	public int getNumPartitions() {
-		return numPartitions;
+	public boolean isMyWholeTextFiles() {
+		return myWholeTextFiles;
 	}
 
-	public void setNumPartitions(int numPartitions) {
-		this.numPartitions = numPartitions;
+	public void setMyWholeTextFiles(boolean myWholeTextFiles) {
+		this.myWholeTextFiles = myWholeTextFiles;
 	}
-
 }

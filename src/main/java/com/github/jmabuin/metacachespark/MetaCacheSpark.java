@@ -26,7 +26,7 @@ public class MetaCacheSpark implements Serializable {
 
 			SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Build");
 
-			sparkConf.set("spark.sql.parquet.mergeSchema", "false");
+			//sparkConf.set("spark.sql.parquet.mergeSchema", "false");
 			sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
 			sparkConf.set("spark.memory.useLegacyMode","true");
 			sparkConf.set("spark.storage.memoryFraction", "0.2");
@@ -58,7 +58,7 @@ public class MetaCacheSpark implements Serializable {
 		else if(newOptions.getMode() == MetaCacheOptions.Mode.QUERY) {
 			SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Query");
 
-			sparkConf.set("spark.sql.parquet.mergeSchema", "false");
+			//sparkConf.set("spark.sql.parquet.mergeSchema", "false");
 			sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
 			//sparkConf.set("spark.memory.useLegacyMode","true");
 
@@ -84,7 +84,7 @@ sparkConf.set("spark.sql.parquet.compression.codec", "snappy")
 
 
 
-			Class[] serializedClasses = {Location.class, Sketch.class};
+			Class[] serializedClasses = {Location.class, Sketch.class, LocationBasic.class};
 			sparkConf.registerKryoClasses(serializedClasses);
 
 

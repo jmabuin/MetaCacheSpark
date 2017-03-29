@@ -11,7 +11,7 @@ public class HashFunctions implements Serializable {
 
         static {
             try {
-                NativeUtils.loadLibraryFromJar("/libmetacache.so");
+                NativeUtils.loadLibraryFromJar("/libfunctions.so");
             } catch (IOException e) {
                 e.printStackTrace();
             }

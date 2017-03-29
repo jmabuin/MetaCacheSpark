@@ -35,7 +35,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 	private HashMap<String, Integer> sequencesIndexes;
 
 	public Sketcher(HashMap<String, Integer> sequencesIndexes) {
-		super();
+		//super();
 		this.sequencesIndexes = sequencesIndexes;
 	}
 
@@ -83,6 +83,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 					//		partitionId, fileId, header, taxid));
 
 					//returnedValues.add(new Location(newValue, inputSequence.getTaxid(), numWindows));
+					//returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
 					returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
 
 				}

@@ -1,4 +1,6 @@
 package com.github.jmabuin.metacachespark;
+import org.apache.spark.api.java.JavaSparkContext;
+
 import java.io.File;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -24,7 +26,7 @@ public class TaxonomyParam implements Serializable {
 		this.mappingPostFiles = mappingPostFiles;
 	}
 
-	public TaxonomyParam( String inputPath, String taxpostmap) {
+	public TaxonomyParam(String inputPath, String taxpostmap) {
 
 		this.path = inputPath;
 

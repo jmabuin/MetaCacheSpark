@@ -64,7 +64,7 @@ public class Build implements Serializable {
 
 		this.jsc = jsc;
 
-		this.db = new Database(this.jsc, this.param.getTaxonomyParam(), this.param.getNumPartitions(), this.param.getDbfile());
+		this.db = new Database(this.jsc, this.param.getTaxonomyParam(), this.param, this.param.getNumPartitions(), this.param.getDbfile());
 
 		//configure sketching scheme
 		/*
@@ -304,11 +304,11 @@ public class Build implements Serializable {
 		LOG.info("Beginning add to database");
 		long startTime = System.nanoTime();
 
-		if(this.param.getMaxLocationsPerFeatureValue() > 0){
-			db.setMaxLocsPerFeature_((long)this.param.getMaxLocationsPerFeatureValue());
+		if(this.param.getMax_locations_per_feature() > 0){
+			db.setMaxLocsPerFeature_((long)this.param.getMax_locations_per_feature());
 		}
 
-		if(this.param.getMaxLoadFactorValue() > 0) {
+		if(this.param.getMax_load_fac() > 0) {
 			//db.max_load_factor(param.maxLoadFactor);
 		}
 
@@ -352,6 +352,8 @@ public class Build implements Serializable {
 					build_info.moderate);
 
 
+			// This block has been moved to Database.buildDatabaseMulti2
+
 			db.try_to_rank_unranked_targets();
 
 			if(this.param.getRemoveAmbigFeaturesOnRank() != Taxonomy.Rank.none && db.taxon_count() > 1) {
@@ -388,8 +390,8 @@ public class Build implements Serializable {
 			db.buildDatabase2(this.param.getInfiles(), sequ2taxid, infoMode);
 		}
 		else {
-			//db.buildDatabaseMulti(inputDirs, sequ2taxid, infoMode);
-			db.buildDatabaseMulti2(inputDirs, sequ2taxid, infoMode);
+			//db.buildDatabaseMulti2(inputDirs, sequ2taxid, infoMode);
+			db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
 		}
 
 

@@ -25,7 +25,7 @@ import scala.Tuple2;
 import java.util.*;
 
 
-public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Location> {
+public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,LocationBasic> {
 
 	private HashMap<String, Long> sequ2taxid;
 	private Build.build_info infoMode;
@@ -43,7 +43,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 	}
 
 	@Override
-	public Iterable<Location> call(Tuple2<String, String> arg0) {
+	public Iterable<LocationBasic> call(Tuple2<String, String> arg0) {
 		//LOG.warn("[JMAbuin] Starting Call function");
 		//String header = "";
 		StringBuffer header = new StringBuffer();
@@ -53,7 +53,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 		String currentFile = arg0._1();
 
 		int fileId = 0, currentIndexNumber = 0;
-		ArrayList<Location> returnedValues = new ArrayList<Location>();
+		ArrayList<LocationBasic> returnedValues = new ArrayList<LocationBasic>();
 		ArrayList<Sequence> sequences = new ArrayList<Sequence>();
 
 
@@ -168,7 +168,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 				for(int newValue: sketchValues) {
 
 					//returnedValues.add(new Location(newValue, currentSequence.getPartitionId(), currentSequence.getFileId(), currentSequence.getHeader(), currentSequence.getTaxid()));
-					returnedValues.add(new Location(newValue, currentSequence.getTaxid(), numWindows));
+					returnedValues.add(new LocationBasic(currentSequence.getTaxid(), numWindows));
 
 				}
 

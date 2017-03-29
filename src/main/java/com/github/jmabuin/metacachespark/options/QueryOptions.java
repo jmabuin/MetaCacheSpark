@@ -10,10 +10,10 @@ import java.util.Arrays;
 /**
  * Created by jabuinmo on 07.02.17.
  */
-public class QueryOptions implements Serializable {
+public class QueryOptions extends CommonOptions implements Serializable {
     private static final Log LOG = LogFactory.getLog(QueryOptions.class);
 
-    private Options options = null;
+    private Options queryOptions = null;
 
     /*
      * Output options & formatting
@@ -55,24 +55,8 @@ public class QueryOptions implements Serializable {
 
     private String sequ2taxonPreFile;               // Additional file with query -> ground truth mapping
 
-    /*
-     * Query sampling scheme
-     */
-    private int sketchlen = -1;  //< 0 : use value from database
-    private int winlen    = -1;  //< 0 : use value from database
-    private int winstride = -1;  //< 0 : use value from database
 
-    /*
-     * Tuning parameters
-     */
-    private double maxLoadFactor        = -1; //< 0 : use value from database
-    private int maxTargetsPerSketchVal  = -1; //< 0 : use value from database
     private int numThreads              = 1;
-
-    /*
-     * Partitions
-     */
-    private int numPartitions = 1;
 
     /*
      * Filenames
@@ -82,50 +66,39 @@ public class QueryOptions implements Serializable {
     private String[] infiles;
     private String outfile;
 
-    private String[] otherOptions;
+
+    private String[] otherQueryOptions;
 
     public QueryOptions(String args[]) {
+		super();
 
-        //Parse arguments
-        for (String argument : args) {
-            LOG.info("["+this.getClass().getName()+"] :: Received argument: " + argument);
-        }
+		//String[] newArgs = super.getOtherOptions();
 
-        this.options = this.initOptions(args);
+        this.queryOptions = this.getOptions();
+
+        this.initOptions();
 
         //Parse the given arguments
         CommandLineParser parser = new BasicParser();
         CommandLine cmd;
 
         try {
-            cmd = parser.parse(this.options, args);
+            cmd = parser.parse(this.queryOptions, args);
 
-            //We check the options
+            this.parseCommonOptions(cmd);
 
-            if (cmd.hasOption('s') || cmd.hasOption("sketchlen")) {
-                //Case of sketchlen
-                this.sketchlen = Integer.parseInt(cmd.getOptionValue("sketchlen"));
 
-            }
-            if (cmd.hasOption('w') || cmd.hasOption("winlen")) {
-                // Case of winlen
-                this.winlen = Integer.parseInt(cmd.getOptionValue("winlen"));
-
-            }
-
-            if (cmd.hasOption('d') || cmd.hasOption("winstride")) {
-                // Case of winstride
-                this.winstride = Integer.parseInt(cmd.getOptionValue("winstride"));
-            }
-
+			//From Main: h,q,b,a,i,n
+			//From Common: s,w,d,k,r,v,f,m,l,p,g,o,e,c
+			//Here: p,z,g,c,x,u,1,2,o,j,y,3,4,5,6,t
             if (cmd.hasOption('p') || cmd.hasOption("showDBproperties")) {
                 this.showDBproperties = true;
             }
 
-            if(cmd.hasOption("pairedFiles") || cmd.hasOption("P")) {
+            if(cmd.hasOption("pairedFiles") || cmd.hasOption("z")) {
                 this.pairing = MetaCacheOptions.pairing_mode.files;
             }
-            else if(cmd.hasOption("pairedSequences") || cmd.hasOption("S")) {
+            else if(cmd.hasOption("pairedSequences") || cmd.hasOption("g")) {
                 this.pairing = MetaCacheOptions.pairing_mode.sequences;
             }
 
@@ -133,13 +106,13 @@ public class QueryOptions implements Serializable {
                 this.testCoverage = true;
             }
 
-            if (cmd.hasOption('r') || cmd.hasOption("precision")) {
+            if (cmd.hasOption('x') || cmd.hasOption("precision")) {
                 this.testPrecision = true;
             }
 
             this.testPrecision = this.testCoverage || this.testPrecision;
 
-            if (cmd.hasOption('L') || cmd.hasOption("showLocations")) {
+            if (cmd.hasOption('u') || cmd.hasOption("showLocations")) {
                 this.showLocations = true;
             }
 
@@ -147,24 +120,24 @@ public class QueryOptions implements Serializable {
                 this.showTopHits = true;
             }
 
-            if (cmd.hasOption('a') || cmd.hasOption("showAllHits")) {
+            if (cmd.hasOption('1') || cmd.hasOption("showAllHits")) {
                 this.showAllHits = true;
             }
 
-            if (cmd.hasOption('i') || cmd.hasOption("taxids_only")) {
+            if (cmd.hasOption('o') || cmd.hasOption("taxids_only")) {
                 this.showTaxaAs = MetaCacheOptions.taxon_print_mode.id_only;
             }
             else if (cmd.hasOption('j') || cmd.hasOption("taxid")) {
                 this.showTaxaAs = MetaCacheOptions.taxon_print_mode.id_name;
             }
-            else if (cmd.hasOption('n') || cmd.hasOption("name_only")) {
+            else if (cmd.hasOption('y') || cmd.hasOption("name_only")) {
                 this.showTaxaAs = MetaCacheOptions.taxon_print_mode.name_only;
             }
 
-            if (cmd.hasOption('b') || cmd.hasOption("nomap")) {
+            if (cmd.hasOption('2') || cmd.hasOption("nomap")) {
                 this.mapViewMode = MetaCacheOptions.map_view_mode.none;
             }
-            else if (cmd.hasOption('c') || cmd.hasOption("mappedOnly")) {
+            else if (cmd.hasOption('3') || cmd.hasOption("mappedOnly")) {
                 this.mapViewMode = MetaCacheOptions.map_view_mode.mapped_only;
             }
 
@@ -176,40 +149,31 @@ public class QueryOptions implements Serializable {
                 this.mapViewMode =MetaCacheOptions.map_view_mode.all;
             }
 
-            if (cmd.hasOption('j') || cmd.hasOption("showGroundTruth")) {
+            if (cmd.hasOption('4') || cmd.hasOption("showGroundTruth")) {
                 this.showGroundTruth = true;
             }
 
-            if (cmd.hasOption('e') || cmd.hasOption("insertSizeMax")) {
+            if (cmd.hasOption('6') || cmd.hasOption("insertSizeMax")) {
                 this.insertSizeMax = Integer.parseInt(cmd.getOptionValue("insertSizeMax"));
             }
 
-            if (cmd.hasOption('f') || cmd.hasOption("max_load_fac")) {
-                this.maxLoadFactor = Double.parseDouble(cmd.getOptionValue("max_load_fac"));
-            }
-
-            if (cmd.hasOption('g') || cmd.hasOption("max_locations_per_feature")) {
-                this.maxTargetsPerSketchVal = Integer.parseInt(cmd.getOptionValue("maxTargetsPerSketchVal"));
-            }
-
-            if (cmd.hasOption('h') || cmd.hasOption("threads")) {
+            if (cmd.hasOption('t') || cmd.hasOption("threads")) {
                 this.numThreads = Integer.parseInt(cmd.getOptionValue("numThreads"));
             }
 
-			if (cmd.hasOption('l') || cmd.hasOption("num_partitions")) {
-				//Case of sketchlen
-				this.numPartitions = Integer.parseInt(cmd.getOptionValue("num_partitions"));
 
-			}
+
+
+
 
             // Get and parse the rest of the arguments
-            this.otherOptions = cmd.getArgs(); //With this we get the rest of the arguments
+            this.otherQueryOptions = cmd.getArgs(); //With this we get the rest of the arguments
 
             // Check if the number of arguments is correct. This is, dbname, outfile and infiles
-            if (this.otherOptions.length < 3) {
+            if (this.otherQueryOptions.length < 3) {
                 LOG.error("["+this.getClass().getName()+"] No database, input data and output file name have been found. Aborting.");
 
-                for (String tmpString : this.otherOptions) {
+                for (String tmpString : this.otherQueryOptions) {
                     LOG.error("["+this.getClass().getName()+"] Other args:: " + tmpString);
                 }
 
@@ -218,10 +182,10 @@ public class QueryOptions implements Serializable {
             }
             else {
 
-                this.dbfile 	= this.otherOptions[0];
-                this.outfile    = this.otherOptions[1];
+                this.dbfile 	= this.otherQueryOptions[0];
+                this.outfile    = this.otherQueryOptions[1];
                 //this.infiles 	= this.otherOptions[2:this.otherOptions.length];
-                this.infiles = Arrays.copyOfRange(this.otherOptions, 2, this.otherOptions.length);
+                this.infiles = Arrays.copyOfRange(this.otherQueryOptions, 2, this.otherQueryOptions.length);
 
             }
 
@@ -241,114 +205,70 @@ public class QueryOptions implements Serializable {
         }
     }
 
-    private Options initOptions(String[] args) {
-        Options privateOptions = new Options();
+    private void initOptions() {
+        //Options privateOptions = new Options();
 
-        //OptionGroup buildOptions = new OptionGroup();
-
-		/*
-		Previous options from main program are:
-			if (cmd.hasOption('h') || cmd.hasOption("help")) {
-				//Case of showing the help
-				this.mode = Mode.HELP;
-			} else if (cmd.hasOption('q') || cmd.hasOption("query")) {
-				// Case of query
-				this.mode = Mode.QUERY;
-			} else if (cmd.hasOption('b') || cmd.hasOption("build")) {
-				// Case of build
-				this.mode = Mode.BUILD;
-			} else if (cmd.hasOption('a') || cmd.hasOption("add")) {
-				// Case of add
-				this.mode = Mode.ADD;
-			} else if (cmd.hasOption('i') || cmd.hasOption("info")) {
-				// Case of info
-				this.mode = Mode.INFO;
-			} else if (cmd.hasOption('n') || cmd.hasOption("annotate")) {
-				// Case of annotate
-				this.mode = Mode.ANNOTATE;
-			}
-		 */
-
-        Option sketchlen = new Option("s","sketchlen", true,"Shows documentation");
-        //buildOptions.addOption(sketchlen);
-        privateOptions.addOption(sketchlen);
-
-        Option winlen = new Option("w","winlen", true,"Classify read sequences using pre-built database");
-        //buildOptions.addOption(winlen);
-        privateOptions.addOption(winlen);
-
-        Option winstride = new Option("d", "winstride", true, "Build new database from reference genomes");
-        //buildOptions.addOption(winstride);
-        privateOptions.addOption(winstride);
+		//From Main: h,q,b,a,i,n
+		//From Common: s,w,d,k,r,v,f,m,l,H,G,O,D,C
+		//Here: p,P,S,c,x,L,t,A,o,j,y,B,M,J,e,T
 
         Option showDBproperties = new Option("p","showDBproperties", false,"Show database properties");
-        privateOptions.addOption(showDBproperties);
+		this.queryOptions.addOption(showDBproperties);
 
         OptionGroup pairing = new OptionGroup();
-        Option pairedFiles = new Option("P","pairedFiles", false, "Paired files");
+        Option pairedFiles = new Option("z","pairedFiles", false, "Paired files");
         pairing.addOption(pairedFiles);
 
-        Option pairedSequences = new Option("S", "pairedSequences", false,"Paired sequences");
+        Option pairedSequences = new Option("g", "pairedSequences", false,"Paired sequences");
         pairing.addOption(pairedSequences);
 
-        privateOptions.addOptionGroup(pairing);
+		this.queryOptions.addOptionGroup(pairing);
 
         Option coverage = new Option("c", "coverage", false,"Test precision coverage");
-        privateOptions.addOption(coverage);
+		this.queryOptions.addOption(coverage);
 
-        Option precision = new Option("r", "precision", false, "Test precision");
-        privateOptions.addOption(precision);
+        Option precision = new Option("x", "precision", false, "Test precision");
+		this.queryOptions.addOption(precision);
 
-        Option showLocations = new Option("L", "showLocations", false, "Show candidate position(s) in reference sequence(s)");
-        privateOptions.addOption(showLocations);
+        Option showLocations = new Option("u", "showLocations", false, "Show candidate position(s) in reference sequence(s)");
+		this.queryOptions.addOption(showLocations);
 
-        Option showTopHits = new Option("t", "showTopHits", false, "Show top candidate sequences and their associated k-mer hash hit count");
-        privateOptions.addOption(showTopHits);
+        Option showTopHits = new Option("1", "showTopHits", false, "Show top candidate sequences and their associated k-mer hash hit count");
+		this.queryOptions.addOption(showTopHits);
 
-        Option showAllHits = new Option("a", "showAllHits", false, "Show all k-mer-hash hits in database for each given read");
-        privateOptions.addOption(showAllHits);
+        Option showAllHits = new Option("2", "showAllHits", false, "Show all k-mer-hash hits in database for each given read");
+		this.queryOptions.addOption(showAllHits);
 
         OptionGroup taxonPrintMode = new OptionGroup();
-        Option taxids_only = new Option("i", "taxids_only", false, "Only tax ids");
+        Option taxids_only = new Option("o", "taxids_only", false, "Only tax ids");
         taxonPrintMode.addOption(taxids_only);
 
         Option taxid = new Option("j", "taxid", false,"Tax ids and name");
         taxonPrintMode.addOption(taxid);
 
-        Option name_only = new Option("n", "name_only", false, "Name only");
+        Option name_only = new Option("y", "name_only", false, "Name only");
         taxonPrintMode.addOption(name_only);
 
-        privateOptions.addOptionGroup(taxonPrintMode);
+		this.queryOptions.addOptionGroup(taxonPrintMode);
 
         OptionGroup mapViewMode = new OptionGroup();
-        Option nomap = new Option("b", "nomap", false, "Show only classification summary");
+        Option nomap = new Option("3", "nomap", false, "Show only classification summary");
         mapViewMode.addOption(nomap);
 
-        Option mappedOnly = new Option("c", "mappedOnly", false,"Show mappings in classification");
+        Option mappedOnly = new Option("4", "mappedOnly", false,"Show mappings in classification");
         mapViewMode.addOption(mappedOnly);
-        privateOptions.addOptionGroup(mapViewMode);
+		this.queryOptions.addOptionGroup(mapViewMode);
 
-        Option showGroundTruth = new Option("j", "showGroundTruth", false, "Show known taxon (or complete lineage if 'showLineage' on)");
-        privateOptions.addOption(showGroundTruth);
+        Option showGroundTruth = new Option("5", "showGroundTruth", false, "Show known taxon (or complete lineage if 'showLineage' on)");
+		this.queryOptions.addOption(showGroundTruth);
 
-        Option insertSizeMax = new Option("e", "insertSizeMax", true, "Maximum range in sequence that read (pair) is expected to be in");
-        privateOptions.addOption(insertSizeMax);
+        Option insertSizeMax = new Option("6", "insertSizeMax", true, "Maximum range in sequence that read (pair) is expected to be in");
+		this.queryOptions.addOption(insertSizeMax);
 
-        Option max_load_fac = new Option("f", "max_load_fac", true,"Maximum value for load factor");
-        //buildOptions.addOption(max_load_fac);
-        privateOptions.addOption(max_load_fac);
+        Option numThreads = new Option("t", "threads", true, "Number of threads to use");
+		this.queryOptions.addOption(numThreads);
 
-        Option maxTargetsPerSketchVal = new Option("g", "max_locations_per_feature", true, "Maximum number of locations per feature");
-        privateOptions.addOption(maxTargetsPerSketchVal);
-
-		Option num_partitions = new Option("l","num_partitions", true,"Number of desired partitions to parallelize");
-		//buildOptions.addOption(num_partitions);
-		privateOptions.addOption(num_partitions);
-
-        Option numThreads = new Option("i", "threads", true, "Number of threads to use");
-        privateOptions.addOption(numThreads);
-
-        return privateOptions;
+        //return privateOptions;
 
     }
 
@@ -544,46 +464,6 @@ public class QueryOptions implements Serializable {
         this.sequ2taxonPreFile = sequ2taxonPreFile;
     }
 
-    public int getSketchlen() {
-        return sketchlen;
-    }
-
-    public void setSketchlen(int sketchlen) {
-        this.sketchlen = sketchlen;
-    }
-
-    public int getWinlen() {
-        return winlen;
-    }
-
-    public void setWinlen(int winlen) {
-        this.winlen = winlen;
-    }
-
-    public int getWinstride() {
-        return winstride;
-    }
-
-    public void setWinstride(int winstride) {
-        this.winstride = winstride;
-    }
-
-    public double getMaxLoadFactor() {
-        return maxLoadFactor;
-    }
-
-    public void setMaxLoadFactor(double maxLoadFactor) {
-        this.maxLoadFactor = maxLoadFactor;
-    }
-
-    public int getMaxTargetsPerSketchVal() {
-        return maxTargetsPerSketchVal;
-    }
-
-    public void setMaxTargetsPerSketchVal(int maxTargetsPerSketchVal) {
-        this.maxTargetsPerSketchVal = maxTargetsPerSketchVal;
-    }
-
     public int getNumThreads() {
         return numThreads;
     }
@@ -616,11 +496,4 @@ public class QueryOptions implements Serializable {
         this.outfile = outfile;
     }
 
-	public int getNumPartitions() {
-		return numPartitions;
-	}
-
-	public void setNumPartitions(int numPartitions) {
-		this.numPartitions = numPartitions;
-	}
 }

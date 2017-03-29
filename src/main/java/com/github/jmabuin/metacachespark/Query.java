@@ -147,7 +147,7 @@ public class Query implements Serializable {
 			FSDataOutputStream outputStream = fs.create(new Path(outputfile), true);
 
 			BufferedWriter d = new BufferedWriter(new OutputStreamWriter(outputStream));
-
+			// JMAbuin here
 			this.classify_sequences(inputfiles, d);
 
 
@@ -455,13 +455,13 @@ public class Query implements Serializable {
 
 
 	}
-
+/*
 	public void classify(String filename, BufferedWriter d, ClassificationStatistics stats) {
 		try {
 			SequenceFileReader seqReader = new SequenceFileReader(filename, this.jsc);
 
 			ArrayList<Sketch> locations = new ArrayList<Sketch>();
-			TreeMap<Location, Integer> matches;
+			TreeMap<LocationBasic, Integer> matches;
 
 			SequenceData data = seqReader.next();
 
@@ -493,7 +493,7 @@ public class Query implements Serializable {
 
 
 	}
-
+*/
 	public void classify2(String filename, BufferedWriter d, ClassificationStatistics stats) {
 		try {
 			SequenceFileReader seqReader = new SequenceFileReader(filename, this.jsc);
@@ -509,13 +509,13 @@ public class Query implements Serializable {
 				//LOG.warn("[JMAbuin] Processing sequence " + data.getHeader()+" :: "+data.getData());
 				locations = seqReader.getSketch(data);
 
-				//for(Sketch currentSketch: locations) {
-					matches = this.db.matches(locations);
-
+				for(Sketch currentSketch: locations) {
+					//matches = this.db.matches(locations);
+					matches = this.db.matches(currentSketch);
 					this.process_database_answer(data.getHeader(), data.getData(), "", matches, d, stats);
 
 					matches.clear();
-				//}
+				}
 
 				locations.clear();
 				data = seqReader.next();
@@ -606,6 +606,8 @@ public class Query implements Serializable {
 		//using std::swap;
 		//swap(maskedRes,this.hits);
 	}
+
+
 
 	public void process_database_answer(String header, String query1, String query2, TreeMap<Location, Integer> hits,
 										BufferedWriter d, ClassificationStatistics stats) {
@@ -787,6 +789,139 @@ public class Query implements Serializable {
 
 		if(showMapping) os << '\n';
 		*/
+	}
+
+	public void process_database_answer(String header, String query1, String query2, HashMap<Location, Integer> hits,
+										BufferedWriter d, ClassificationStatistics stats) {
+			/*
+     const database& db, const query_param& param,
+     const std::string& header,
+     const sequence& query1, const sequence& query2,
+	 match_result&& hits, std::ostream& os, classification_statistics& stats)
+	 */
+
+		if (header.isEmpty()) return;
+
+		//preparation -------------------------------
+		Classification groundTruth = new Classification();
+
+		if (this.param.isTestPrecision() ||
+				(this.param.getMapViewMode() != MetaCacheOptions.map_view_mode.none && this.param.isShowGroundTruth()) ||
+				(this.param.getExcludedRank() != Taxonomy.Rank.none)) {
+
+			groundTruth = this.db.ground_truth(header);
+
+		}
+
+		//clade exclusion
+		if (this.param.getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
+			long exclTaxid = this.db.ranks(groundTruth.tax())[this.param.getExcludedRank().ordinal()];
+			remove_hits_on_rank(this.param.getExcludedRank(), exclTaxid); //Todo: Look what this function does
+		}
+
+		//classify ----------------------------------
+		long numWindows = (2 + Math.max(query1.length() + query2.length(), this.param.getInsertSizeMax()) / this.db.getTargetWindowStride_());
+
+		MatchesInWindow tophits = new MatchesInWindow(hits, numWindows);
+		Classification cls = this.sequence_classification(tophits);
+
+		if (param.isTestPrecision()) {
+			Taxonomy.Rank lowestCorrectRank = db.lowest_common_rank(cls, groundTruth);
+
+			stats.assign_known_correct(cls.rank(), groundTruth.rank(), lowestCorrectRank);
+
+			//check if taxa of assigned target are covered
+			if (param.isTestCoverage() && groundTruth.has_taxon()) {
+				update_coverage_statistics(cls, groundTruth, stats);
+			}
+		} else {
+			//LOG.warn("[JMAbuin] Enter into assign with rank: " + Taxonomy.rank_name(cls.rank()));
+			stats.assign(cls.rank());
+		}
+
+		boolean showMapping = (param.getMapViewMode() == MetaCacheOptions.map_view_mode.all) ||
+				(param.getMapViewMode() == MetaCacheOptions.map_view_mode.mapped_only && !cls.none());
+
+		try {
+			if (showMapping) {
+				//print query header and ground truth
+				if (param.isShowTopHits() || param.isShowAllHits()) {
+					//show first contiguous string only
+					int l = header.indexOf(' ');
+
+					if (l != -1) {
+						d.write(header, 0, l);
+					/*
+					auto oit = std::ostream_iterator<char>{os, ""};
+					std::copy(header.begin(), header.begin() + l, oit);
+					 */
+					} else {
+						d.write(header);
+
+					}
+
+					d.write(param.getOutSeparator());
+
+					if (param.isShowGroundTruth()) {
+						if (groundTruth.sequence_level()) {
+							show_ranks_of_target(d, db, groundTruth.target(),
+									param.getShowTaxaAs(), param.getLowestRank(),
+									param.isShowLineage() ? param.getHighestRank() : param.getLowestRank());
+						} else if (groundTruth.has_taxon()) {
+							show_ranks(d, db, db.ranks(groundTruth.tax()),
+									param.getShowTaxaAs(), param.getLowestRank(),
+									param.isShowLineage() ? param.getHighestRank() : param.getLowestRank());
+						} else {
+							d.write("n/a");
+						}
+
+						d.write(param.getOutSeparator());
+					}
+				}
+
+				//print results
+				if (param.isShowAllHits()) {
+					show_matches(d, db, hits, param.getLowestRank());
+					d.write(param.getOutSeparator());
+				}
+				if (param.isShowTopHits()) {
+					show_matches(d, db, tophits, param.getLowestRank());
+					d.write(param.getOutSeparator());
+				}
+				if (param.isShowLocations()) {
+					show_candidate_ranges(d, db, tophits);
+					d.write(param.getOutSeparator());
+				}
+				show_classification(d, db, cls);
+
+			}
+
+			// BUSCA //HERE CHEMA mais abaixo
+			if (this.param.isTestAlignment() && !cls.none()) {
+				SequenceOrigin origin = this.db.origin_of_target(tophits.target_id(0));
+
+				SequenceFileReader reader = new SequenceFileReader(origin.getFilename(), this.jsc);
+
+				for (int i = 0; i < origin.getIndex(); ++i) {
+					reader.next();
+				}
+
+				SequenceData finalSeq = reader.next();
+
+				if (finalSeq != null) {
+					String tgtSequ = finalSeq.getData();
+
+				}
+
+			}
+
+		} catch (IOException e) {
+			LOG.error("IOException in function process_database_answer: " + e.getMessage());
+			System.exit(1);
+		} catch (Exception e) {
+			LOG.error("Exception in function process_database_answer: " + e.getMessage());
+			System.exit(1);
+		}
 	}
 
 	public void show_ranks_of_target(BufferedWriter os, Database db, long tid, MetaCacheOptions.taxon_print_mode mode, Taxonomy.Rank lowest,
@@ -1028,6 +1163,40 @@ public class Query implements Serializable {
 	//-------------------------------------------------------------------
 	public void show_matches(BufferedWriter os, Database db, TreeMap<Location, Integer> matches,
 					  Taxonomy.Rank lowest)	{
+		if(matches.isEmpty()) {
+			return;
+		}
+		try {
+			if(lowest == Taxonomy.Rank.Sequence) {
+				for(Map.Entry<Location, Integer> r : matches.entrySet()) {
+					os.write(db.sequence_id_of_target(r.getKey().getTargetId())+
+							'/' + r.getKey().getWindowId()+
+							':' + r.getValue() + ',');
+					os.newLine();
+				}
+			}
+			else {
+				for(Map.Entry<Location, Integer> r : matches.entrySet()) {
+					long taxid = db.ranks_of_target(r.getKey().getTargetId())[lowest.ordinal()];
+					os.write(Long.toString(taxid) + ':' + r.getValue() + ',');
+					os.newLine();
+				}
+			}
+		}
+		catch(IOException e) {
+			LOG.error("IOException in function show_matches: "+ e.getMessage());
+			System.exit(1);
+		}
+		catch(Exception e) {
+			LOG.error("Exception in function show_matches: "+ e.getMessage());
+			System.exit(1);
+		}
+
+	}
+
+	//-------------------------------------------------------------------
+	public void show_matches(BufferedWriter os, Database db, HashMap<Location, Integer> matches,
+							 Taxonomy.Rank lowest)	{
 		if(matches.isEmpty()) {
 			return;
 		}
