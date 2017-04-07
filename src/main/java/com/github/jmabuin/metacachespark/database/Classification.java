@@ -44,6 +44,6 @@ public class Classification {
 	}
 
 	public Taxonomy.Rank rank()  {
-		return sequence_level() ? Taxonomy.Rank.Sequence : (this.has_taxon() ? tax_.getRank() : Taxonomy.Rank.none);
+		return this.sequence_level() ? Taxonomy.Rank.Sequence : (this.has_taxon() ? tax_.getRank() : Taxonomy.Rank.none);
 	}
 }

@@ -2,8 +2,6 @@ package com.github.jmabuin.metacachespark.database;
 
 import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 
 import java.util.*;
 
@@ -13,7 +11,7 @@ import java.util.*;
 
 //matches_in_contiguous_window_range_top in original metacache
 
-public class MatchesInWindow {
+public class MatchesInWindowBasic {
 
 	private int numTgts_;
 	private long hits_[];
@@ -21,12 +19,10 @@ public class MatchesInWindow {
 	private int tgt_[];
 	private IndexRange pos_[];
 	public static int maxNo = 2;
-	private HashMap<LocationBasic, Integer> matches;
+	private TreeMap<LocationBasic, Integer> matches;
 	//private TreeMap<LocationBasic, Integer> matches_HM;
 
-	private static final Log LOG = LogFactory.getLog(MatchesInWindow.class);
-
-	public MatchesInWindow(HashMap<LocationBasic, Integer> matches, long numWindows) {
+	public MatchesInWindowBasic(TreeMap<LocationBasic, Integer> matches, long numWindows) {
 		this.hits_ = new long[maxNo];
 		this.tgt_ = new int[maxNo];
 		this.pos_ = new IndexRange[maxNo];
@@ -51,22 +47,16 @@ public class MatchesInWindow {
 		long maxWinBeg = 0;
 		long maxWinEnd = 0;
 
-		ArrayList<Map.Entry<LocationBasic, Integer>> arrayListMatches = new ArrayList<Map.Entry<LocationBasic, Integer>>(matches.entrySet());
-
-
 		//check hits per query sequence
-		Map.Entry<LocationBasic, Integer> fst = arrayListMatches.get(0);//matches.firstEntry();
+		Map.Entry<LocationBasic, Integer> fst = matches.firstEntry();
 		Map.Entry<LocationBasic, Integer> lst = fst;
 
+		ArrayList<Map.Entry<LocationBasic, Integer>> arrayListMatches = new ArrayList<Map.Entry<LocationBasic, Integer>>(matches.entrySet());
 
 		int entryFST = 0;
 
-		// Iterate over candidates
 		for(int entryLST = 0; entryLST< arrayListMatches.size(); entryLST++) {
-
 			lst = arrayListMatches.get(entryLST);
-
-			//LOG.warn("Candidate window is: "+lst.getKey().getWindowId());
 
 			//look for neighboring windows with the highest total hit count
 			//as long as we are in the same target and the windows are in a
@@ -239,7 +229,7 @@ public class MatchesInWindow {
 		return coveredWins_;
 	}
 
-	public HashMap<LocationBasic, Integer> getMatches() {
+	public TreeMap<LocationBasic, Integer> getMatches() {
 		return matches;
 	}
 }

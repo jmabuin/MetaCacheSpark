@@ -17,22 +17,17 @@ public class LocationBasicComparator implements Comparator<LocationBasic>{
 		if(L1.getTargetId() < L2.getTargetId()) {
 			return -1;
 		}
-		else if(L1.getTargetId() > L2.getTargetId()) {
+		if(L1.getTargetId() > L2.getTargetId()) {
 			return 1;
 		}
-		else if(L1.getTargetId() == L2.getTargetId()) {
 
-			if(L1.getWindowId() < L2.getWindowId()) {
+		if(L1.getWindowId() < L2.getWindowId()) {
 				return -1;
-			}
-			else if(L1.getWindowId() >  L2.getWindowId()) {
-				return 1;
-			}
-			else {
-				return 0;
-			}
-
 		}
+		if(L1.getWindowId() >  L2.getWindowId()) {
+				return 1;
+		}
+
 
 		return 0;
 

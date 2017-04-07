@@ -104,7 +104,7 @@ public class Build implements Serializable {
 
 		//read scientific taxon names
 		//failure to do so will not be fatal
-		HashMap<Long, String> taxonNames = new HashMap<Long,String>();
+		HashMap<Long, String> taxonNames = new HashMap<Long,String>(); // TaxId, Name
 		BufferedReader br;
 		//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 

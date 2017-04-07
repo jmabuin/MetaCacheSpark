@@ -36,6 +36,8 @@ public class TargetProperty implements Serializable {
 		this.identifier = identifier;
 		this.tax = tax;
 		this.origin = origin;
+		this.full_lineage = new ArrayList<Long>();
+		this.ranked_lineage = new Long[0];
 	}
 
 	public TargetProperty(String identifier, long tax, SequenceOrigin origin, ArrayList<Long> full_lineage, Long[] ranked_lineage) {

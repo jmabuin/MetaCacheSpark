@@ -4,7 +4,7 @@ import java.io.Serializable;
 /**
  * Created by jabuinmo on 31.01.17.
  */
-public class Location implements Serializable, Comparable<Location>{
+public class Location implements Serializable{
 //public class Location implements Serializable {
 
     private int key;
@@ -72,7 +72,7 @@ public class Location implements Serializable, Comparable<Location>{
 		}
 
 	}
-
+/*
 	@Override
 	public int compareTo(Location other) {
 
@@ -105,6 +105,16 @@ public class Location implements Serializable, Comparable<Location>{
 			return 1;
 		}
 		return 0;
+
+	}
+*/
+	@Override
+	public int hashCode() {
+
+		String codeString = this.key+"-"+this.targetId+"-"+this.windowId;
+
+		return codeString.hashCode();
+
 
 	}
 

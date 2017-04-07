@@ -88,17 +88,18 @@ public class QueryOptions extends CommonOptions implements Serializable {
             this.parseCommonOptions(cmd);
 
 
-			//From Main: h,q,b,a,i,n
-			//From Common: s,w,d,k,r,v,f,m,l,p,g,o,e,c
-			//Here: p,z,g,c,x,u,1,2,o,j,y,3,4,5,6,t
-            if (cmd.hasOption('p') || cmd.hasOption("showDBproperties")) {
+            //From Main: h,q,b,a,i,n
+            //Common: s,w,d,k,r,v,f,m,l,p,g,o,e,c
+			//Here: 9,z,8,c,x,u,1,2,7,j,y,3,4,5,6,t
+
+            if (cmd.hasOption('9') || cmd.hasOption("showDBproperties")) {
                 this.showDBproperties = true;
             }
 
             if(cmd.hasOption("pairedFiles") || cmd.hasOption("z")) {
                 this.pairing = MetaCacheOptions.pairing_mode.files;
             }
-            else if(cmd.hasOption("pairedSequences") || cmd.hasOption("g")) {
+            else if(cmd.hasOption("pairedSequences") || cmd.hasOption("8")) {
                 this.pairing = MetaCacheOptions.pairing_mode.sequences;
             }
 
@@ -116,15 +117,15 @@ public class QueryOptions extends CommonOptions implements Serializable {
                 this.showLocations = true;
             }
 
-            if (cmd.hasOption('t') || cmd.hasOption("showTopHits")) {
+            if (cmd.hasOption('1') || cmd.hasOption("showTopHits")) {
                 this.showTopHits = true;
             }
 
-            if (cmd.hasOption('1') || cmd.hasOption("showAllHits")) {
+            if (cmd.hasOption('2') || cmd.hasOption("showAllHits")) {
                 this.showAllHits = true;
             }
 
-            if (cmd.hasOption('o') || cmd.hasOption("taxids_only")) {
+            if (cmd.hasOption('7') || cmd.hasOption("taxids_only")) {
                 this.showTaxaAs = MetaCacheOptions.taxon_print_mode.id_only;
             }
             else if (cmd.hasOption('j') || cmd.hasOption("taxid")) {
@@ -134,10 +135,10 @@ public class QueryOptions extends CommonOptions implements Serializable {
                 this.showTaxaAs = MetaCacheOptions.taxon_print_mode.name_only;
             }
 
-            if (cmd.hasOption('2') || cmd.hasOption("nomap")) {
+            if (cmd.hasOption('3') || cmd.hasOption("nomap")) {
                 this.mapViewMode = MetaCacheOptions.map_view_mode.none;
             }
-            else if (cmd.hasOption('3') || cmd.hasOption("mappedOnly")) {
+            else if (cmd.hasOption('4') || cmd.hasOption("mappedOnly")) {
                 this.mapViewMode = MetaCacheOptions.map_view_mode.mapped_only;
             }
 
@@ -146,10 +147,10 @@ public class QueryOptions extends CommonOptions implements Serializable {
                 this.mapViewMode = MetaCacheOptions.map_view_mode.mapped_only;
             }
             else if(this.showAllHits) {
-                this.mapViewMode =MetaCacheOptions.map_view_mode.all;
+                this.mapViewMode = MetaCacheOptions.map_view_mode.all;
             }
 
-            if (cmd.hasOption('4') || cmd.hasOption("showGroundTruth")) {
+            if (cmd.hasOption('5') || cmd.hasOption("showGroundTruth")) {
                 this.showGroundTruth = true;
             }
 
@@ -208,18 +209,18 @@ public class QueryOptions extends CommonOptions implements Serializable {
     private void initOptions() {
         //Options privateOptions = new Options();
 
-		//From Main: h,q,b,a,i,n
-		//From Common: s,w,d,k,r,v,f,m,l,H,G,O,D,C
-		//Here: p,P,S,c,x,L,t,A,o,j,y,B,M,J,e,T
+        //From Main: h,q,b,a,i,n
+        //Common: s,w,d,k,r,v,f,m,l,p,g,o,e,c
+        //Here: 9,z,8,c,x,u,1,2,7,j,y,3,4,5,6,t
 
-        Option showDBproperties = new Option("p","showDBproperties", false,"Show database properties");
+        Option showDBproperties = new Option("9","showDBproperties", false,"Show database properties");
 		this.queryOptions.addOption(showDBproperties);
 
         OptionGroup pairing = new OptionGroup();
         Option pairedFiles = new Option("z","pairedFiles", false, "Paired files");
         pairing.addOption(pairedFiles);
 
-        Option pairedSequences = new Option("g", "pairedSequences", false,"Paired sequences");
+        Option pairedSequences = new Option("8", "pairedSequences", false,"Paired sequences");
         pairing.addOption(pairedSequences);
 
 		this.queryOptions.addOptionGroup(pairing);
@@ -240,7 +241,7 @@ public class QueryOptions extends CommonOptions implements Serializable {
 		this.queryOptions.addOption(showAllHits);
 
         OptionGroup taxonPrintMode = new OptionGroup();
-        Option taxids_only = new Option("o", "taxids_only", false, "Only tax ids");
+        Option taxids_only = new Option("7", "taxids_only", false, "Only tax ids");
         taxonPrintMode.addOption(taxids_only);
 
         Option taxid = new Option("j", "taxid", false,"Tax ids and name");

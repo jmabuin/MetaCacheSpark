@@ -31,6 +31,7 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
@@ -338,6 +339,7 @@ public class Database implements Serializable{
 	public void update_lineages(TargetProperty gp)
 	{
 		if(gp.getTax() > 0) {
+			//LOG.warn("Updating target with tax: "+gp.getTax());
 			gp.setFull_lineage(taxa_.lineage(gp.getTax()));
 			gp.setRanked_lineage(taxa_.ranks((Long)gp.getTax()));
 		}
@@ -729,7 +731,10 @@ public class Database implements Serializable{
 				//this.locationJavaPairListRDD = this.inputSequences
 				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
 				this.locationJavaRDDHashMultiMapNative = this.inputSequences
-						.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
+						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
+						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+						.partitionBy(new MyCustomPartitioner(this.paramsBuild.getNumPartitions()))
+						.mapPartitionsWithIndex(new Pair2HashMapNative(), true);
 			}
 			else if(paramsBuild.isBuildModeParquetDataframe()) {
 				LOG.warn("Building database with isBuildModeParquetDataframe");
@@ -1372,12 +1377,39 @@ public class Database implements Serializable{
 
 		}
 		else if(paramsQuery.isBuildModeHashMultiMapG()) {
-			LOG.warn("Loading database with isBuildModeHashMultiMapG");
+			/*LOG.warn("Loading database with isBuildModeHashMultiMapG");
 			this.locationJavaHashMMRDD = this.jsc.objectFile(this.dbfile);
 
 			this.locationJavaHashMMRDD.persist(StorageLevel.MEMORY_AND_DISK());
 
 			LOG.warn("The number of persisted HashMultimaps is: " + this.locationJavaHashMMRDD.count());
+			*/
+			LOG.warn("Loading database with isBuildModeHashMultiMapMC-G");
+			//this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
+
+			List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0);
+
+			for(String newFile : filesNames) {
+				LOG.warn("New file added: "+newFile);
+			}
+
+			JavaRDD<String> filesNamesRDD;
+
+			if(this.paramsQuery.getNumPartitions() != 1) {
+				filesNamesRDD = this.jsc.parallelize(filesNames, this.paramsQuery.getNumPartitions());
+			}
+			else {
+				filesNamesRDD = this.jsc.parallelize(filesNames);
+			}
+
+
+
+			this.locationJavaRDDHashMultiMapNative = filesNamesRDD
+					.mapPartitionsWithIndex(new ReadHashMapNative(), true)
+					.persist(StorageLevel.MEMORY_AND_DISK());
+
+
+			LOG.warn("The number of paired persisted entries is: " + this.locationJavaRDDHashMultiMapNative.count());
 		}
 		else if(paramsQuery.isBuildModeHashMultiMapMC()) {
 			LOG.warn("Loading database with isBuildModeHashMultiMapMC");
@@ -1434,8 +1466,99 @@ public class Database implements Serializable{
 
 	}
 
+	public List<HashMap<LocationBasic, Integer>> matches_buffer( List<SequenceData> inputData, long init, int size, long total, long readed) {
 
-	public TreeMap<Location, Integer> matches(Sketch query) {
+		// Get results for this buffer
+		List<Tuple2<Long,List<int[]>>> results = this.locationJavaRDDHashMultiMapNative
+				.mapPartitionsToPair(new PartialQuery(inputData, init, size, total, readed))
+				.reduceByKey(new QueryReducer())
+				.sortByKey()
+				.collect();
+
+		List<HashMap<LocationBasic, Integer>> returnValues = new ArrayList<HashMap<LocationBasic, Integer>>();
+
+		//LOG.warn("Starting hits counter ");
+
+		for(Tuple2<Long,List<int[]>> current : results) {
+
+			HashMap<LocationBasic, Integer> myHashMap = new HashMap<LocationBasic, Integer>();
+
+			for(int[] currentLocation: current._2) {
+
+				for(int i = 0; i< currentLocation.length; i+=2) {
+
+					LocationBasic loc = new LocationBasic(currentLocation[i], currentLocation[i+1]);
+
+					if(myHashMap.containsKey(loc)) {
+						myHashMap.put(loc,myHashMap.get(loc)+1);
+					}
+					else {
+						myHashMap.put(loc,1);
+					}
+
+				}
+
+			}
+
+			returnValues.add(myHashMap);
+
+		}
+
+		//LOG.warn("Ending hits counter ");
+
+
+		return returnValues;
+
+	}
+
+
+	public List<TreeMap<LocationBasic, Integer>> matches_buffer_treemap( List<SequenceData> inputData, long init, int size, long total, long readed) {
+
+		// Get results for this buffer
+		List<Tuple2<Long,List<int[]>>> results = this.locationJavaRDDHashMultiMapNative
+				.mapPartitionsToPair(new PartialQuery(inputData, init, size, total, readed))
+				.reduceByKey(new QueryReducer())
+				.sortByKey()
+				.collect();
+
+		List<TreeMap<LocationBasic, Integer>> returnValues = new ArrayList<TreeMap<LocationBasic, Integer>>();
+
+		//LOG.warn("Starting hits counter ");
+
+		for(Tuple2<Long,List<int[]>> current : results) {
+
+			TreeMap<LocationBasic, Integer> myHashMap = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
+
+			for(int[] currentLocation: current._2) {
+
+				for(int i = 0; i< currentLocation.length; i+=2) {
+
+					LocationBasic loc = new LocationBasic(currentLocation[i], currentLocation[i+1]);
+
+					if(myHashMap.containsKey(loc)) {
+						myHashMap.put(loc,myHashMap.get(loc)+1);
+					}
+					else {
+						myHashMap.put(loc,1);
+					}
+
+				}
+
+			}
+
+			returnValues.add(myHashMap);
+
+		}
+
+		//LOG.warn("Ending hits counter ");
+
+
+		return returnValues;
+
+	}
+
+
+	public HashMap<LocationBasic, Integer> matches(Sketch query) {
 
 		if(this.paramsQuery.isBuildModeHashMap()) {
 			return this.accumulate_matches_hashmapmode(query);
@@ -1458,15 +1581,15 @@ public class Database implements Serializable{
 	}
 
 
-	public TreeMap<Location, Integer> accumulate_matches_filter(Sketch query) {
+	public HashMap<LocationBasic, Integer> accumulate_matches_filter(Sketch query) {
 
-		TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
+		HashMap<LocationBasic, Integer> res = new HashMap<LocationBasic, Integer>();
 
 		StringBuilder queryString = new StringBuilder();
 
-		JavaRDD<Location> obtainedLocationsRDD = null;
+		JavaRDD<LocationBasic> obtainedLocationsRDD = null;
 
-		List<Location> obtainedLocations = new ArrayList<Location>();
+		List<LocationBasic> obtainedLocations = new ArrayList<LocationBasic>();
 
 		try {
 
@@ -1483,7 +1606,7 @@ public class Database implements Serializable{
 				Row results[] = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collect();
 
 				for(Row currentRow: results) {
-					obtainedLocations.add(new Location(currentRow.getInt(0),currentRow.getInt(1),currentRow.getInt(2)));
+					obtainedLocations.add(new LocationBasic(currentRow.getInt(1),currentRow.getInt(2)));
 				}
 
 			}
@@ -1496,7 +1619,7 @@ public class Database implements Serializable{
 
 			//queryString.delete(0, queryString.toString().length());
 
-			for (Location obtainedLocation : obtainedLocations) {
+			for (LocationBasic obtainedLocation : obtainedLocations) {
 
 				if (res.containsKey(obtainedLocation)) {
 					res.put(obtainedLocation, res.get(obtainedLocation) + 1);
@@ -1522,7 +1645,7 @@ public class Database implements Serializable{
 	}
 
 	// Not using it
-	public void accumulate_matches_lookup(ArrayList<Sketch> query, TreeMap<Location, Integer> res) {
+	public void accumulate_matches_lookup(ArrayList<Sketch> query, HashMap<LocationBasic, Integer> res) {
 		try {
 
 			for(Sketch currentSketch : query) {
@@ -1532,12 +1655,12 @@ public class Database implements Serializable{
 
 					for (LocationBasic obtainedLocation : obtainedValues) {
 
-						Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
+						//Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
 
-						if (res.containsKey(newLocation)) {
-							res.put(newLocation, res.get(obtainedLocation) + 1);
+						if (res.containsKey(obtainedLocation)) {
+							res.put(obtainedLocation, res.get(obtainedLocation) + 1);
 						} else {
-							res.put(newLocation, 1);
+							res.put(obtainedLocation, 1);
 						}
 
 					}
@@ -1558,9 +1681,9 @@ public class Database implements Serializable{
 		//}
 	}
 
-	public TreeMap<Location, Integer> accumulate_matches_combinemode(Sketch query) {
+	public HashMap<LocationBasic, Integer> accumulate_matches_combinemode(Sketch query) {
 
-		TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
+		HashMap<LocationBasic, Integer> res = new HashMap<LocationBasic, Integer>();
 
 		try {
 
@@ -1573,12 +1696,12 @@ public class Database implements Serializable{
 					for(List<LocationBasic> obtainedLocations: obtainedValues){
 						for (LocationBasic obtainedLocation : obtainedLocations) {
 
-							Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
+							//Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
 
-							if (res.containsKey(newLocation)) {
-								res.put(newLocation, res.get(newLocation) + 1);
+							if (res.containsKey(obtainedLocation)) {
+								res.put(obtainedLocation, res.get(obtainedLocation) + 1);
 							} else {
-								res.put(newLocation, 1);
+								res.put(obtainedLocation, 1);
 							}
 						}
 
@@ -1604,9 +1727,9 @@ public class Database implements Serializable{
 
 
 	// TODO: Here!!!
-	public TreeMap<Location, Integer> accumulate_matches_hashmapmode(Sketch query) {
+	public HashMap<LocationBasic, Integer> accumulate_matches_hashmapmode(Sketch query) {
 
-		TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
+		HashMap<LocationBasic, Integer> res = new HashMap<LocationBasic, Integer>();
 
 		try {
 
@@ -1621,12 +1744,12 @@ public class Database implements Serializable{
 				//for(List<LocationBasic> obtainedLocations: obtainedValues){
 					for (LocationBasic obtainedLocation : obtainedValues) {
 
-						Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
+						//Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
 
-						if (res.containsKey(newLocation)) {
-							res.put(newLocation, res.get(newLocation) + 1);
+						if (res.containsKey(obtainedLocation)) {
+							res.put(obtainedLocation, res.get(obtainedLocation) + 1);
 						} else {
-							res.put(newLocation, 1);
+							res.put(obtainedLocation, 1);
 						}
 					}
 
@@ -1650,36 +1773,47 @@ public class Database implements Serializable{
 
 	}
 
-	public TreeMap<Location, Integer> accumulate_matches_hashmapnativemode(Sketch query) {
+	public HashMap<LocationBasic, Integer> accumulate_matches_hashmapnativemode(Sketch query) {
 
-		TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
+		HashMap<LocationBasic, Integer> res = new HashMap<LocationBasic, Integer>();
 
 		try {
 
+			List<LocationBasic> obtainedValues = this.locationJavaRDDHashMultiMapNative
+					.mapPartitions(new SearchInHashMapNativeArray(query.getFeatures()), true)
+					.collect();
 
-			//for(Sketch currentSketch : query) {
-			/*
-			for (int i : query.getFeatures()) {
+			//for(List<LocationBasic> obtainedLocations: obtainedValues){
+			for (LocationBasic newLocation : obtainedValues) {
 
-
-				List<LocationBasic> obtainedValues = this.locationJavaRDDHashMultiMapNative
-						.mapPartitions(new SearchInHashMapNative(i), true)
-						.collect();
-
-				//for(List<LocationBasic> obtainedLocations: obtainedValues){
-				for (LocationBasic obtainedLocation : obtainedValues) {
-
-					Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
-
-					if (res.containsKey(newLocation)) {
-						res.put(newLocation, res.get(newLocation) + 1);
-					} else {
-						res.put(newLocation, 1);
-					}
+				if (res.containsKey(newLocation)) {
+					res.put(newLocation, res.get(newLocation) + 1);
+				} else {
+					res.put(newLocation, 1);
 				}
-
 			}
-*/
+
+			//LOG.warn("[JMAbuin] Number of locations: "+res.size());
+
+			return res;
+			//}
+
+		}
+		catch(Exception e) {
+			e.printStackTrace();
+			LOG.error("General error in accumulate_matches: "+e.getMessage());
+			System.exit(1);
+		}
+
+		return res;
+
+	}
+/*
+	public HashMap<Location, Integer> accumulate_matches_hashmapnativemode_hashmap(Sketch query) {
+
+		HashMap<Location, Integer> res = new HashMap<Location, Integer>();
+
+		try {
 
 			List<Location> obtainedValues = this.locationJavaRDDHashMultiMapNative
 					.mapPartitions(new SearchInHashMapNativeArray(query.getFeatures()), true)
@@ -1710,7 +1844,7 @@ public class Database implements Serializable{
 		return res;
 
 	}
-
+*/
 	public TreeMap<Location, Integer> accumulate_matches(Sketch query) {
 
 		TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
@@ -1766,11 +1900,11 @@ public class Database implements Serializable{
 
 	}
 
-	public void accumulate_matches(Sketch query, TreeMap<Location, Integer> res) {
+	public void accumulate_matches(Sketch query, HashMap<LocationBasic, Integer> res) {
 		try {
-			List<Location> obtainedLocations = new ArrayList<Location>();
+			List<LocationBasic> obtainedLocations = new ArrayList<LocationBasic>();
 
-			JavaRDD<Location> obtainedLocationsRDD = null;
+			JavaRDD<LocationBasic> obtainedLocationsRDD = null;
 			// Made queries
 			//for(Sketch currentLocation: query) {
 
@@ -1783,13 +1917,13 @@ public class Database implements Serializable{
 
 					queryString.append("select * from MetaCacheSpark where key = " + i);
 
-					obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2Location());
+					obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2LocationBasic());
 
 					obtainedLocations = obtainedLocationsRDD.collect();
 
 					queryString.delete(0, queryString.toString().length());
 
-					for (Location obtainedLocation : obtainedLocations) {
+					for (LocationBasic obtainedLocation : obtainedLocations) {
 
 						if (res.containsKey(obtainedLocation)) {
 							res.put(obtainedLocation, res.get(obtainedLocation) + 1);
@@ -1990,12 +2124,24 @@ public class Database implements Serializable{
 	//}
 
 	public long[] ranks_of_target_basic(long id) {
+/*
+		if(targets_.get((int)id) == null) {
+			LOG.error("Can not find target id!!: "+id);
+			System.exit(-1);
+		}
+*/
 		Long data[] = targets_.get((int)id).getRanked_lineage();
+
+		if(data == null) {
+			//LOG.warn("Data is null");
+			return null;
+		}
 
 		long returnedData[] = new long[data.length];
 
 		for(int i = 0; i< data.length; i++){
 			returnedData[i] = data[i].longValue();
+			//LOG.warn("JMABUIN: Taxa in target id: "+targets_.get((int)id).getTax()+ " value:" +i+" : " + returnedData[i]);
 		}
 
 		return returnedData;

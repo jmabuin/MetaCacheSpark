@@ -13,7 +13,7 @@ import java.util.*;
 
 //matches_in_contiguous_window_range_top in original metacache
 
-public class MatchesInWindow {
+public class MatchesInWindowTreeMap {
 
 	private int numTgts_;
 	private long hits_[];
@@ -21,12 +21,12 @@ public class MatchesInWindow {
 	private int tgt_[];
 	private IndexRange pos_[];
 	public static int maxNo = 2;
-	private HashMap<LocationBasic, Integer> matches;
+	private TreeMap<LocationBasic, Integer> matches;
 	//private TreeMap<LocationBasic, Integer> matches_HM;
 
 	private static final Log LOG = LogFactory.getLog(MatchesInWindow.class);
 
-	public MatchesInWindow(HashMap<LocationBasic, Integer> matches, long numWindows) {
+	public MatchesInWindowTreeMap(TreeMap<LocationBasic, Integer> matches, long numWindows) {
 		this.hits_ = new long[maxNo];
 		this.tgt_ = new int[maxNo];
 		this.pos_ = new IndexRange[maxNo];
@@ -239,7 +239,7 @@ public class MatchesInWindow {
 		return coveredWins_;
 	}
 
-	public HashMap<LocationBasic, Integer> getMatches() {
+	public TreeMap<LocationBasic, Integer> getMatches() {
 		return matches;
 	}
 }

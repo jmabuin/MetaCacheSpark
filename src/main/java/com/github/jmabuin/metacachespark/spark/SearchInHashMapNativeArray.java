@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * Created by chema on 3/28/17.
  */
-public class SearchInHashMapNativeArray implements FlatMapFunction<Iterator<HashMultiMapNative>, Location> {
+public class SearchInHashMapNativeArray implements FlatMapFunction<Iterator<HashMultiMapNative>, LocationBasic> {
 
 	private int searchedValues[];
 
@@ -22,12 +22,12 @@ public class SearchInHashMapNativeArray implements FlatMapFunction<Iterator<Hash
 	}
 
 	@Override
-	public Iterable<Location> call(Iterator<HashMultiMapNative> myHashMaps) {
+	public Iterable<LocationBasic> call(Iterator<HashMultiMapNative> myHashMaps) {
 
-		List<Location> returnValues = new ArrayList<Location>();
+		List<LocationBasic> returnValues = new ArrayList<LocationBasic>();
 
 		// Theoretically there is only one HashMap per partition
-		while(myHashMaps.hasNext()) {
+		//while(myHashMaps.hasNext()) {
 
 			HashMultiMapNative currentHashMap = myHashMaps.next();
 
@@ -39,7 +39,8 @@ public class SearchInHashMapNativeArray implements FlatMapFunction<Iterator<Hash
 
 					for(int i = 0; i< values.length; i+=2) {
 
-						returnValues.add(new Location(newKey, values[i], values[i+1]));
+						//returnValues.add(new Location(newKey, values[i], values[i+1]));
+						returnValues.add(new LocationBasic(values[i], values[i+1]));
 					}
 
 				}
@@ -47,7 +48,7 @@ public class SearchInHashMapNativeArray implements FlatMapFunction<Iterator<Hash
 
 
 
-		}
+		//}
 
 		return returnValues;
 

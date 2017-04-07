@@ -342,10 +342,15 @@ public class Taxonomy implements Serializable {
 		Taxon currentTaxon = null;
 
 		while(id != (long)0) {
-
+			//LOG.warn("JMABUIN "+id);
 			currentTaxon = this.taxa_.get(id);
+
+
+
 			if(currentTaxon != null) {
-				if(currentTaxon.getRank() != Rank.none) {
+				//LOG.warn("JMABUIN "+currentTaxon.getTaxonName() + currentTaxon.getRank().name());
+				//LOG.warn("JMABUIN "+currentTaxon.getRank().ordinal() +" - "+Rank.none.ordinal());
+				if(currentTaxon.getRank().ordinal() != Rank.none.ordinal()) {
 					lin[currentTaxon.getRank().ordinal()] = currentTaxon.getTaxonId();
 				}
 				if(currentTaxon.getParentId() != id){
@@ -361,7 +366,7 @@ public class Taxonomy implements Serializable {
 			}
 
 		}
-
+		//LOG.warn("\n\n");
 		return lin;
 
 	}
@@ -384,7 +389,7 @@ public class Taxonomy implements Serializable {
 	 */
 	public void emplace(long taxonId, long parentId, String taxonName, String rankName) {
 
-		this.emplace(taxonId, parentId, taxonName, rank_from_name(rankName) );
+		this.emplace(taxonId, parentId, taxonName, rank_from_name(rankName.toLowerCase()) );
 
 	}
 
@@ -415,12 +420,12 @@ public class Taxonomy implements Serializable {
 	public void rank_all_unranked() {
 		for(Taxon tax : taxa_.values()) {
 
-			if(tax.getRank() == Rank.none) {
+			if(tax.getRank().ordinal() == Rank.none.ordinal()) {
 
 				Rank lr = this.lowest_rank(tax);
 
-				if(lr != Rank.none) {
-					if (lr.compareTo(Rank.subSpecies) > 0) {
+				if(lr.ordinal() != Rank.none.ordinal()) {
+					if (lr.ordinal() > Rank.subSpecies.ordinal()) {
 						lr = lr.previous();
 					}
 					tax.setRank(lr);
@@ -448,7 +453,7 @@ public class Taxonomy implements Serializable {
 			if(currentTaxon != null) {
 
 				// If the Taxon is not the none Taxon, returns
-				if(currentTaxon.getRank() != Rank.none) {
+				if(currentTaxon.getRank().ordinal() != Rank.none.ordinal()) {
 					return currentTaxon.getRank();
 				}
 
@@ -529,8 +534,8 @@ public class Taxonomy implements Serializable {
 	 * @return	The Taxon
 	 */
 	public Taxon lca(long lina[], long linb[]) {
-		LOG.warn("JMABUIN : Taxon.lca");
-		LOG.warn("JMABUIN : Taxon.lca :: " + ranked_lca_id(lina,linb));
+		//LOG.warn("JMABUIN : Taxon.lca");
+		//LOG.warn("JMABUIN : Taxon.lca :: " + ranked_lca_id(lina,linb)+" -- "+this.pos(ranked_lca_id(lina,linb)).getTaxonName());
 		return this.pos(ranked_lca_id(lina,linb));
 	}
 
@@ -542,7 +547,13 @@ public class Taxonomy implements Serializable {
 	 */
 	public static long ranked_lca_id( long lina[],long linb[]) {
 
+		if(lina == null || linb == null || lina.length == 0 || linb.length == 0) {
+			//LOG.warn("Null ou cero");
+			return 0;
+		}
+
 		for(int i = 0; i < Rank.root.ordinal(); ++i) {
+			//LOG.warn("Un: "+lina[i]+". Dous: "+linb[i]);
 			if((lina[i] > 0) && (lina[i] == linb[i])) return lina[i];
 		}
 
@@ -588,9 +599,10 @@ public class Taxonomy implements Serializable {
 			Taxon it = taxa_.get(id);
 
 			if(it != null) {
-				if(it.getRank() != Rank.none) {
+				if(it.getRank().ordinal() != Rank.none.ordinal()) {
 					lin[it.getRank().ordinal()] = it.getTaxonId();
 				}
+
 				if(it.getParentId() != id) {
 					id = it.getParentId();
 				} else {
@@ -676,7 +688,7 @@ public class Taxonomy implements Serializable {
 				String parts[] = currentLine.split(":");
 
 				this.taxa_.put(Long.parseLong(parts[0]), new Taxon(Long.parseLong(parts[1]), Long.parseLong(parts[2])
-						, parts[3], Taxonomy.rank_from_name(parts[4])));
+						, parts[3], Taxonomy.rank_from_name(parts[4].toLowerCase())));
 
 			}
 

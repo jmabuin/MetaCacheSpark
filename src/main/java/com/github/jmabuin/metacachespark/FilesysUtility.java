@@ -1,17 +1,12 @@
 package com.github.jmabuin.metacachespark;
-import java.io.IOException;
-import java.io.Serializable;
+import java.io.*;
 import java.util.ArrayList;
-import java.io.File;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.*;
 import org.apache.spark.api.java.JavaSparkContext;
 
 /**
@@ -227,4 +222,41 @@ public class FilesysUtility implements Serializable {
 		return returnedFiles;
 */
 	}
+
+
+	public static long readsInFastaFile(String fileName) {
+
+		long numReads = 0L;
+
+		try{
+			FileSystem fs = FileSystem.get(new Configuration());
+
+			FSDataInputStream inputStream = fs.open(new Path(fileName));
+
+			BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
+
+
+			String line;
+
+			while((line = br.readLine()) != null ) {
+				if(line.startsWith(">")) {
+					numReads++;
+				}
+			}
+
+			return numReads;
+
+
+
+		}
+		catch(IOException e) {
+
+			LOG.error("Error in FilesysUtility: "+e.getMessage());
+			System.exit(-1);
+		}
+
+		return numReads;
+
+	}
+
 }

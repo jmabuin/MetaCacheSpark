@@ -6,6 +6,7 @@ import com.github.jmabuin.metacachespark.Sketch;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -14,17 +15,18 @@ import org.apache.spark.api.java.JavaSparkContext;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
  * Created by chema on 2/17/17.
  */
-public class SequenceFileReader {
+public class SequenceFileReader implements Serializable{
 
 	private static final Log LOG = LogFactory.getLog(SequenceFileReader.class); // LOG to show messages
 
 	private String 							inputFile;		// File where the sequences are stored
-	private JavaSparkContext jsc;			// JavaSparkContext object to use
+	//private JavaSparkContext jsc;			// JavaSparkContext object to use
 	private StringBuffer 					bufferHeader;	// Buffer to store sequence headers
 	private StringBuffer 					bufferData;		// Buffer to store sequence data
 	private StringBuffer 					bufferQuality;	// Buffer to store sequence quality (in case of FASTQ)
@@ -32,6 +34,8 @@ public class SequenceFileReader {
 	private BufferedReader br;				// BufferedReader to read input file
 	private FSDataInputStream inputStream;	// InputStream to read input file
 	private MetaCacheOptions.InputFormat 	currentFormat;	// File format, FASTQ or FASTA
+
+	private long readedValues;
 
 	/**
 	 * @brief Basic builder
@@ -43,13 +47,14 @@ public class SequenceFileReader {
 	/**
 	 * @brief Builder when considering a file and a spark context
 	 * @param fileName The name of the file where the sequences are stored
-	 * @param jsc The JavaSparContext we are using
 	 */
-	public SequenceFileReader(String fileName, JavaSparkContext jsc) {
+	public SequenceFileReader(String fileName, long offset) {
 
 		// Variable initialization
 		this.inputFile = fileName;
-		this.jsc = jsc;
+		//this.jsc = jsc;
+
+		this.readedValues = offset;
 
 		this.bufferData = new StringBuffer();
 		this.bufferHeader = new StringBuffer();
@@ -57,10 +62,13 @@ public class SequenceFileReader {
 
 		// Try to open the filesystem (HDFS) and sequence file
 		try {
-			FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+			Configuration conf = new Configuration();
+			FileSystem fs = FileSystem.get(conf);
 			this.inputStream = fs.open(new Path(this.inputFile));
 
 			this.br = new BufferedReader(new InputStreamReader(inputStream));
+
+			this.br.skip(offset);
 
 			// Obtain the sequences file format
 			if (this.inputFile.endsWith(".fastq") || this.inputFile.endsWith(".fq") || this.inputFile.endsWith(".fnq")) {
@@ -69,6 +77,9 @@ public class SequenceFileReader {
 			else {
 				this.currentFormat = MetaCacheOptions.InputFormat.FASTA;
 			}
+
+
+
 
 		}
 		catch (IOException e) {
@@ -103,6 +114,7 @@ public class SequenceFileReader {
 					// Case of first header in file
 					if((line.startsWith(">")) && (this.bufferHeader.toString().isEmpty())) {
 						this.bufferHeader.append(line.subSequence(1,line.length()));
+						//this.readedValues += (line.length() + 1);
 						//LOG.warn("[JMAbuin] Header");
 					}
 					// Case of new header found after a new sequence data. We build the new SequenceData to return and store the new header
@@ -114,14 +126,18 @@ public class SequenceFileReader {
 
 						this.bufferHeader.append(line.subSequence(1,line.length()));
 						//LOG.warn("[JMAbuin] New header and return");
+						//this.readedValues += (line.length() + 1);
 						return currentSequenceData;
 
 					}
 					// Case of new line with data
 					else {
 						this.bufferData.append(line.replace("\n", ""));
+						//this.readedValues += (line.length() + 1);
 						//LOG.warn("[JMAbuin] Data");
 					}
+
+
 				}
 
 				// At the end, if we don't have data, is because we are at the end of the file. Return null
@@ -166,9 +182,10 @@ public class SequenceFileReader {
 					}
 					else if (i == 3) {
 						this.bufferQuality.append(line);
+						i = 0;
 					}
 
-
+					this.readedValues += (line.length() + 1);
 				}
 
 				if(this.bufferData.toString().isEmpty() && (this.bufferHeader.toString().isEmpty())) {
@@ -275,4 +292,74 @@ public class SequenceFileReader {
 		return returnedValues;
 	}
 
+
+	public static ArrayList<Sketch> getSketchStatic(SequenceData sequence) {
+
+
+		int currentStart = 0;
+		int currentEnd = MCSConfiguration.windowSize;
+
+		ArrayList<Sketch> returnedValues = new ArrayList<Sketch>();
+		//ArrayList<Location> returnedValues = new ArrayList<Location>();
+
+		String currentWindow = "";
+		int numWindows = 0;
+
+
+		// We iterate over windows (with overlap)
+		//while (currentEnd < sequence.getData().length()) {
+		while (currentStart < (sequence.getData().length() - MCSConfiguration.kmerSize)) {
+			//Sketch resultSketch = new Sketch();
+			if(currentEnd > sequence.getData().length()) {
+				currentEnd = sequence.getData().length();
+			}
+
+			//LOG.warn("[JMAbuin] Init: " + currentStart+" - End: "+currentEnd);
+
+			currentWindow = sequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
+
+			// Compute k-mers
+			// We compute the k-mers. In C
+			int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
+
+			//for(int newValue: sketchValues) {
+
+			//returnedValues.add(new Location(newValue, 0, numWindows));
+			returnedValues.add(new Sketch(sequence.getHeader(), sequence.getData(), sketchValues));
+
+			//}
+
+			// We compute the k-mers
+
+
+			//returnedValuesS.add(resultSketch);
+
+
+			numWindows++;
+			currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
+			currentEnd = currentStart + MCSConfiguration.windowSize;
+
+
+
+
+		}
+
+
+		return returnedValues;
+	}
+
+	public long getReadedValues() {
+		return readedValues;
+	}
+
+	public void skip(long readed) {
+		try {
+			this.br.skip(readed);
+		}
+		catch(IOException e) {
+			LOG.error("IOException in skip method: "+e.getMessage());
+			System.exit(-1);
+		}
+
+	}
 }
