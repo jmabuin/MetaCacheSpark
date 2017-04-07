@@ -106,12 +106,12 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
 				currentEnd = currentStart + MCSConfiguration.windowSize;
 
 			}
-			LOG.warn("[JMAbuin] Total windows: "+numWindows);
+			//LOG.warn("[JMAbuin] Total windows: "+numWindows);
 
 		//}
 
 		endTime = System.nanoTime();
-		LOG.warn("Time for this partition is: " + ((endTime - initTime)/1e9));
+		//LOG.warn("Time for this partition is: " + ((endTime - initTime)/1e9));
 
 
 		return returnedValues;

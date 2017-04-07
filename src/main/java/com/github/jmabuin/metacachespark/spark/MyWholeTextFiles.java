@@ -63,7 +63,7 @@ public class MyWholeTextFiles implements PairFlatMapFunction<Iterator<String>, S
 					br.close();
 					inputStream.close();
 
-					LOG.warn("Reading file: "+fileName+" - " + content.length());
+					//LOG.warn("Reading file: "+fileName+" - " + content.length());
 
 					returnValues.add(new Tuple2<String, String>(key, content.toString()));
 				}

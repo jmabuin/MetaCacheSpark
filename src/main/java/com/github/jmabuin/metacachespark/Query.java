@@ -395,7 +395,7 @@ public class Query implements Serializable {
 				LOG.warn("Processing file "+fname);
 
 
-				if(!this.param.isBuildModeHashMultiMapG()){
+				if(!this.param.isBuildModeHashMultiMapMCBuffered()){
 					this.classify(fname, d, stats);
 				}
 				else {

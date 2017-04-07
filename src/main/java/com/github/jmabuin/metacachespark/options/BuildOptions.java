@@ -56,7 +56,7 @@ public class BuildOptions extends CommonOptions implements Serializable {
 			this.parseCommonOptions(cmd);
 
 			//From Main: h,q,b,a,i,n
-			//From Common: s,w,d,k,r,v,f,m,l,p,g,o,e,c
+			//From Common: s,w,d,k,r,v,f,m,l,p,g,o,u,e,c
 			// Build Options============================================================================================
 			if (cmd.hasOption('t') || cmd.hasOption("taxonomy")) {
 				// Case of taxonomy

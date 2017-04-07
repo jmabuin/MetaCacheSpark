@@ -88,57 +88,59 @@ public class QueryOptions extends CommonOptions implements Serializable {
             this.parseCommonOptions(cmd);
 
 
-            //From Main: h,q,b,a,i,n
-            //Common: s,w,d,k,r,v,f,m,l,p,g,o,e,c
-			//Here: 9,z,8,c,x,u,1,2,7,j,y,3,4,5,6,t
+			//From Main: h,q,b,a,i,n
+			//Common: s,w,d,k,r,v,f,m,l,p,g,o,u,e,c
+			//Here: showDBproperties, pairedFiles, pairedSequences, coverage, precision, showLocations
+			// , showTopHits, showAllHits, taxids_only, taxid, name_only
+			// , nomap, mappedOnly, showGroundTruth, insertSizeMax ,t
 
-            if (cmd.hasOption('9') || cmd.hasOption("showDBproperties")) {
+            if (cmd.hasOption("showDBproperties")) {
                 this.showDBproperties = true;
             }
 
-            if(cmd.hasOption("pairedFiles") || cmd.hasOption("z")) {
+            if(cmd.hasOption("pairedFiles")) {
                 this.pairing = MetaCacheOptions.pairing_mode.files;
             }
-            else if(cmd.hasOption("pairedSequences") || cmd.hasOption("8")) {
+            else if(cmd.hasOption("pairedSequences")) {
                 this.pairing = MetaCacheOptions.pairing_mode.sequences;
             }
 
-            if (cmd.hasOption('c') || cmd.hasOption("coverage")) {
+            if (cmd.hasOption("coverage")) {
                 this.testCoverage = true;
             }
 
-            if (cmd.hasOption('x') || cmd.hasOption("precision")) {
+            if (cmd.hasOption("precision")) {
                 this.testPrecision = true;
             }
 
             this.testPrecision = this.testCoverage || this.testPrecision;
 
-            if (cmd.hasOption('u') || cmd.hasOption("showLocations")) {
+            if (cmd.hasOption("showLocations")) {
                 this.showLocations = true;
             }
 
-            if (cmd.hasOption('1') || cmd.hasOption("showTopHits")) {
+            if (cmd.hasOption("showTopHits")) {
                 this.showTopHits = true;
             }
 
-            if (cmd.hasOption('2') || cmd.hasOption("showAllHits")) {
+            if (cmd.hasOption("showAllHits")) {
                 this.showAllHits = true;
             }
 
-            if (cmd.hasOption('7') || cmd.hasOption("taxids_only")) {
+            if (cmd.hasOption("taxids_only")) {
                 this.showTaxaAs = MetaCacheOptions.taxon_print_mode.id_only;
             }
-            else if (cmd.hasOption('j') || cmd.hasOption("taxid")) {
+            else if (cmd.hasOption("taxid")) {
                 this.showTaxaAs = MetaCacheOptions.taxon_print_mode.id_name;
             }
-            else if (cmd.hasOption('y') || cmd.hasOption("name_only")) {
+            else if (cmd.hasOption("name_only")) {
                 this.showTaxaAs = MetaCacheOptions.taxon_print_mode.name_only;
             }
 
-            if (cmd.hasOption('3') || cmd.hasOption("nomap")) {
+            if (cmd.hasOption("nomap")) {
                 this.mapViewMode = MetaCacheOptions.map_view_mode.none;
             }
-            else if (cmd.hasOption('4') || cmd.hasOption("mappedOnly")) {
+            else if (cmd.hasOption("mappedOnly")) {
                 this.mapViewMode = MetaCacheOptions.map_view_mode.mapped_only;
             }
 
@@ -150,11 +152,11 @@ public class QueryOptions extends CommonOptions implements Serializable {
                 this.mapViewMode = MetaCacheOptions.map_view_mode.all;
             }
 
-            if (cmd.hasOption('5') || cmd.hasOption("showGroundTruth")) {
+            if (cmd.hasOption("showGroundTruth")) {
                 this.showGroundTruth = true;
             }
 
-            if (cmd.hasOption('6') || cmd.hasOption("insertSizeMax")) {
+            if (cmd.hasOption("insertSizeMax")) {
                 this.insertSizeMax = Integer.parseInt(cmd.getOptionValue("insertSizeMax"));
             }
 
@@ -210,60 +212,62 @@ public class QueryOptions extends CommonOptions implements Serializable {
         //Options privateOptions = new Options();
 
         //From Main: h,q,b,a,i,n
-        //Common: s,w,d,k,r,v,f,m,l,p,g,o,e,c
-        //Here: 9,z,8,c,x,u,1,2,7,j,y,3,4,5,6,t
+        //Common: s,w,d,k,r,v,f,m,l,p,g,o,u,e,c
+        //Here: showDBproperties, pairedFiles, pairedSequences,coverage,precision, showLocations
+        // , showTopHits, showAllHits, taxids_only, taxid, name_only
+        // , nomap, mappedOnly, showGroundTruth, insertSizeMax ,t
 
-        Option showDBproperties = new Option("9","showDBproperties", false,"Show database properties");
+        Option showDBproperties = new Option(null,"showDBproperties", false,"Show database properties");
 		this.queryOptions.addOption(showDBproperties);
 
         OptionGroup pairing = new OptionGroup();
-        Option pairedFiles = new Option("z","pairedFiles", false, "Paired files");
+        Option pairedFiles = new Option(null,"pairedFiles", false, "Paired files");
         pairing.addOption(pairedFiles);
 
-        Option pairedSequences = new Option("8", "pairedSequences", false,"Paired sequences");
+        Option pairedSequences = new Option(null, "pairedSequences", false,"Paired sequences");
         pairing.addOption(pairedSequences);
 
 		this.queryOptions.addOptionGroup(pairing);
 
-        Option coverage = new Option("c", "coverage", false,"Test precision coverage");
+        Option coverage = new Option(null, "coverage", false,"Test precision coverage");
 		this.queryOptions.addOption(coverage);
 
-        Option precision = new Option("x", "precision", false, "Test precision");
+        Option precision = new Option(null, "precision", false, "Test precision");
 		this.queryOptions.addOption(precision);
 
-        Option showLocations = new Option("u", "showLocations", false, "Show candidate position(s) in reference sequence(s)");
+        Option showLocations = new Option(null, "showLocations", false, "Show candidate position(s) in reference sequence(s)");
 		this.queryOptions.addOption(showLocations);
 
-        Option showTopHits = new Option("1", "showTopHits", false, "Show top candidate sequences and their associated k-mer hash hit count");
+        Option showTopHits = new Option(null, "showTopHits", false, "Show top candidate sequences and their associated k-mer hash hit count");
 		this.queryOptions.addOption(showTopHits);
 
-        Option showAllHits = new Option("2", "showAllHits", false, "Show all k-mer-hash hits in database for each given read");
+        Option showAllHits = new Option(null, "showAllHits", false, "Show all k-mer-hash hits in database for each given read");
 		this.queryOptions.addOption(showAllHits);
 
         OptionGroup taxonPrintMode = new OptionGroup();
-        Option taxids_only = new Option("7", "taxids_only", false, "Only tax ids");
+        Option taxids_only = new Option(null, "taxids_only", false, "Only tax ids");
         taxonPrintMode.addOption(taxids_only);
 
-        Option taxid = new Option("j", "taxid", false,"Tax ids and name");
+        Option taxid = new Option(null, "taxid", false,"Tax ids and name");
         taxonPrintMode.addOption(taxid);
 
-        Option name_only = new Option("y", "name_only", false, "Name only");
+        Option name_only = new Option(null, "name_only", false, "Name only");
         taxonPrintMode.addOption(name_only);
 
 		this.queryOptions.addOptionGroup(taxonPrintMode);
 
         OptionGroup mapViewMode = new OptionGroup();
-        Option nomap = new Option("3", "nomap", false, "Show only classification summary");
+        Option nomap = new Option(null, "nomap", false, "Show only classification summary");
         mapViewMode.addOption(nomap);
 
-        Option mappedOnly = new Option("4", "mappedOnly", false,"Show mappings in classification");
+        Option mappedOnly = new Option(null, "mappedOnly", false,"Show mappings in classification");
         mapViewMode.addOption(mappedOnly);
 		this.queryOptions.addOptionGroup(mapViewMode);
 
-        Option showGroundTruth = new Option("5", "showGroundTruth", false, "Show known taxon (or complete lineage if 'showLineage' on)");
+        Option showGroundTruth = new Option(null, "showGroundTruth", false, "Show known taxon (or complete lineage if 'showLineage' on)");
 		this.queryOptions.addOption(showGroundTruth);
 
-        Option insertSizeMax = new Option("6", "insertSizeMax", true, "Maximum range in sequence that read (pair) is expected to be in");
+        Option insertSizeMax = new Option(null, "insertSizeMax", true, "Maximum range in sequence that read (pair) is expected to be in");
 		this.queryOptions.addOption(insertSizeMax);
 
         Option numThreads = new Option("t", "threads", true, "Number of threads to use");

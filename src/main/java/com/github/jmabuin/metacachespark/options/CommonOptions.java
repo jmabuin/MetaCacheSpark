@@ -40,6 +40,7 @@ public class CommonOptions implements Serializable {
 	private boolean buildModeHashMap = false;
 	private boolean buildModeHashMultiMapG = false;
 	private boolean buildModeHashMultiMapMC = false;
+	private boolean buildModeHashMultiMapMCBuffered = false;
 	private boolean buildModeParquetDataframe = true;
 	private boolean buildCombineByKey = false;
 
@@ -97,6 +98,9 @@ public class CommonOptions implements Serializable {
 		Option hashmultimapMC = new Option("o", "hashmultimapMC", false, "Uses own implementation distributed hashmultimap to build the database");
 		buildMode.addOption(hashmultimapMC);
 
+		Option hashmultimapMCBuffered = new Option("u", "hashmultimapMCBuffered", false, "Uses own implementation distributed hashmultimap to build the database");
+		buildMode.addOption(hashmultimapMCBuffered);
+
 		Option dataframe = new Option("e", "dataframe", false, "Uses Spark parquet and dataframes to build the database");
 		buildMode.addOption(dataframe);
 
@@ -114,7 +118,7 @@ public class CommonOptions implements Serializable {
 
 		//We check the options
 		//From Main: h,q,b,a,i,n
-		//Common: s,w,d,k,r,v,f,m,l,p,g,o,e,c
+		//Common: s,w,d,k,r,v,f,m,l,p,g,o,u,e,c
 
 		// Common Options===========================================================================================
 		if (cmd.hasOption('s') || cmd.hasOption("sketchlen")) {
@@ -171,6 +175,7 @@ public class CommonOptions implements Serializable {
 			this.setBuildModeHashMap(true);
 			this.setBuildModeHashMultiMapG(false);
 			this.setBuildModeHashMultiMapMC(false);
+			this.setBuildModeHashMultiMapMCBuffered(false);
 			this.setBuildModeParquetDataframe(false);
 			this.setBuildCombineByKey(false);
 		}
@@ -179,6 +184,7 @@ public class CommonOptions implements Serializable {
 			this.setBuildModeHashMap(false);
 			this.setBuildModeHashMultiMapG(true);
 			this.setBuildModeHashMultiMapMC(false);
+			this.setBuildModeHashMultiMapMCBuffered(false);
 			this.setBuildModeParquetDataframe(false);
 			this.setBuildCombineByKey(false);
 		}
@@ -186,6 +192,15 @@ public class CommonOptions implements Serializable {
 			this.setBuildModeHashMap(false);
 			this.setBuildModeHashMultiMapG(false);
 			this.setBuildModeHashMultiMapMC(true);
+			this.setBuildModeHashMultiMapMCBuffered(false);
+			this.setBuildModeParquetDataframe(false);
+			this.setBuildCombineByKey(false);
+		}
+		else if(cmd.hasOption("u") || cmd.hasOption("hashmultimapMCBuffered")) {
+			this.setBuildModeHashMap(false);
+			this.setBuildModeHashMultiMapG(false);
+			this.setBuildModeHashMultiMapMC(false);
+			this.setBuildModeHashMultiMapMCBuffered(true);
 			this.setBuildModeParquetDataframe(false);
 			this.setBuildCombineByKey(false);
 		}
@@ -193,6 +208,7 @@ public class CommonOptions implements Serializable {
 			this.setBuildModeHashMap(false);
 			this.setBuildModeHashMultiMapG(false);
 			this.setBuildModeHashMultiMapMC(false);
+			this.setBuildModeHashMultiMapMCBuffered(false);
 			this.setBuildModeParquetDataframe(true);
 			this.setBuildCombineByKey(false);
 		}
@@ -200,6 +216,7 @@ public class CommonOptions implements Serializable {
 			this.setBuildModeHashMap(false);
 			this.setBuildModeHashMultiMapG(false);
 			this.setBuildModeHashMultiMapMC(false);
+			this.setBuildModeHashMultiMapMCBuffered(false);
 			this.setBuildModeParquetDataframe(false);
 			this.setBuildCombineByKey(true);
 		}
@@ -262,6 +279,14 @@ public class CommonOptions implements Serializable {
 
 	public void setBuildCombineByKey(boolean buildCombineByKey) {
 		this.buildCombineByKey = buildCombineByKey;
+	}
+
+	public boolean isBuildModeHashMultiMapMCBuffered() {
+		return buildModeHashMultiMapMCBuffered;
+	}
+
+	public void setBuildModeHashMultiMapMCBuffered(boolean buildModeHashMultiMapMCBuffered) {
+		this.buildModeHashMultiMapMCBuffered = buildModeHashMultiMapMCBuffered;
 	}
 
 	public int getSketchlen() {

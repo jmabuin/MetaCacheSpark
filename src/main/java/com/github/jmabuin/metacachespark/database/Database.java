@@ -628,25 +628,13 @@ public class Database implements Serializable{
 
 			if(this.paramsBuild.isMyWholeTextFiles()) {
 
-				LOG.warn("Starting to build database from with MyWholeTextFiles");
-/*
-				JavaRDD<String> myFiles;
+				//LOG.warn("Starting to build database from with MyWholeTextFiles");
 
-				List<String> newFiles = FilesysUtility.files_in_directory(this.paramsBuild.getInfiles(),0);
-
-				if(this.paramsBuild.getNumPartitions() != 1){
-					myFiles = this.jsc.parallelize(newFiles, this.paramsBuild.getNumPartitions())
-							.repartition(this.paramsBuild.getNumPartitions());
-				}
-				else {
-					myFiles = this.jsc.parallelize(newFiles);
-				}
-*/
 
 				JavaPairRDD<String, String> tmpInput = null;
 
 				for (String currentDir : infiles) {
-					LOG.warn("Starting to build database from " + currentDir + " ...");
+					//LOG.warn("Starting to build database from " + currentDir + " ...");
 
 					if (tmpInput == null) {
 						tmpInput = this.jsc.wholeTextFiles(currentDir);
@@ -662,7 +650,7 @@ public class Database implements Serializable{
 						.mapPartitionsToPair(new MyWholeTextFiles(), true)
 						.persist(StorageLevel.DISK_ONLY());
 
-				LOG.warn("Number of partitions for input files:" + inputData.count());
+				//LOG.warn("Number of partitions for input files:" + inputData.count());
 
 				this.inputSequences = inputData
 						.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
@@ -671,7 +659,7 @@ public class Database implements Serializable{
 			else {
 
 				for (String currentDir : infiles) {
-					LOG.warn("Starting to build database from " + currentDir + " ...");
+					//LOG.warn("Starting to build database from " + currentDir + " ...");
 
 					if (inputData == null) {
 						inputData = this.jsc.wholeTextFiles(currentDir);
@@ -731,6 +719,16 @@ public class Database implements Serializable{
 				//this.locationJavaPairListRDD = this.inputSequences
 				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
 				this.locationJavaRDDHashMultiMapNative = this.inputSequences
+						.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
+						//.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+						//.partitionBy(new MyCustomPartitioner(this.paramsBuild.getNumPartitions()))
+						//.mapPartitionsWithIndex(new Pair2HashMapNative(), true);
+			}
+			else if(paramsBuild.isBuildModeHashMultiMapMCBuffered()) {
+				LOG.warn("Building database with isBuildModeHashMultiMapMCBuffered");
+				//this.locationJavaPairListRDD = this.inputSequences
+				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
+				this.locationJavaRDDHashMultiMapNative = this.inputSequences
 						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
 						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
 						.partitionBy(new MyCustomPartitioner(this.paramsBuild.getNumPartitions()))
@@ -755,40 +753,20 @@ public class Database implements Serializable{
 
 			}
 
-			/*
-			this.inputSequences
-					//.mapPartitionsWithIndex(new Sketcher2HashMap(this.sid2gid_), true)
-					.mapPartitionsWithIndex(new Sketcher2HashMap(this.sid2gid_), true)
-					.saveAsObjectFile(this.dbfile+"_object");
-			*/
-			/*this.inputSequences
-					.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_))
-					.saveAsObjectFile(this.dbfile+"_object");
-*/
-			// With this works fine!!!!
-			/*this.inputSequences
-					.mapPartitionsWithIndex(new Sketcher2HashMap(this.sid2gid_), true)
-					.saveAsObjectFile(this.dbfile);
-			*/
-
-
 			this.targetPropertiesJavaRDD = this.inputSequences
 					.map(new Sequence2TargetProperty(this.sid2gid_));
 
 
-
-
-			//this.features_ = ds;
-			endTime = System.nanoTime();
-			LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
-			LOG.warn("Database created ...");
+			//endTime = System.nanoTime();
+			//LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
+			//LOG.warn("Database created ...");
 			//LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaHashRDD.count()));
 			//LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaPairListRDD.count()));
 
 
 
 		} catch (Exception e) {
-			LOG.error("[JMAbuin] ERROR! "+e.getMessage());
+			LOG.error("ERROR! "+e.getMessage());
 			e.printStackTrace();
 			System.exit(1);
 		}
@@ -1292,7 +1270,7 @@ public class Database implements Serializable{
 			else if(paramsBuild.isBuildModeHashMultiMapG()) {
 				this.locationJavaHashMMRDD.saveAsObjectFile(path+"/"+this.dbfile);
 			}
-			else if(paramsBuild.isBuildModeHashMultiMapMC()) {
+			else if(paramsBuild.isBuildModeHashMultiMapMC() || paramsBuild.isBuildModeHashMultiMapMCBuffered()) {
 				//this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
 				//this.locationJavaRDDHashMultiMapNative.saveAsObjectFile(path+"/"+this.dbfile);
 
@@ -1315,7 +1293,7 @@ public class Database implements Serializable{
 
 
 
-			LOG.warn("Time in writedatabase is: "+ (System.nanoTime() - startTime)/10e9);
+			//LOG.warn("Time in writedatabase is: "+ (System.nanoTime() - startTime)/10e9);
 
 
 			//this.locationJavaPairListRDD.saveAsObjectFile(this.dbfile);
@@ -1377,13 +1355,14 @@ public class Database implements Serializable{
 
 		}
 		else if(paramsQuery.isBuildModeHashMultiMapG()) {
-			/*LOG.warn("Loading database with isBuildModeHashMultiMapG");
+			LOG.warn("Loading database with isBuildModeHashMultiMapG");
 			this.locationJavaHashMMRDD = this.jsc.objectFile(this.dbfile);
 
 			this.locationJavaHashMMRDD.persist(StorageLevel.MEMORY_AND_DISK());
 
 			LOG.warn("The number of persisted HashMultimaps is: " + this.locationJavaHashMMRDD.count());
-			*/
+
+			/*
 			LOG.warn("Loading database with isBuildModeHashMultiMapMC-G");
 			//this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
@@ -1410,8 +1389,9 @@ public class Database implements Serializable{
 
 
 			LOG.warn("The number of paired persisted entries is: " + this.locationJavaRDDHashMultiMapNative.count());
+			*/
 		}
-		else if(paramsQuery.isBuildModeHashMultiMapMC()) {
+		else if(paramsQuery.isBuildModeHashMultiMapMC() || paramsQuery.isBuildModeHashMultiMapMCBuffered()) {
 			LOG.warn("Loading database with isBuildModeHashMultiMapMC");
 			//this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
