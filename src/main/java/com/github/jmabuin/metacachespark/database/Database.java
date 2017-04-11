@@ -719,10 +719,10 @@ public class Database implements Serializable{
 				//this.locationJavaPairListRDD = this.inputSequences
 				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
 				this.locationJavaRDDHashMultiMapNative = this.inputSequences
-						.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
-						//.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
+						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
 						//.partitionBy(new MyCustomPartitioner(this.paramsBuild.getNumPartitions()))
-						//.mapPartitionsWithIndex(new Pair2HashMapNative(), true);
+						.mapPartitionsWithIndex(new Pair2HashMapNative(), true);
 			}
 			else if(paramsBuild.isBuildModeHashMultiMapMCBuffered()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapMCBuffered");
@@ -1538,7 +1538,7 @@ public class Database implements Serializable{
 	}
 
 
-	public HashMap<LocationBasic, Integer> matches(Sketch query) {
+	public TreeMap<LocationBasic, Integer> matches(Sketch query) {
 
 		if(this.paramsQuery.isBuildModeHashMap()) {
 			return this.accumulate_matches_hashmapmode(query);
@@ -1561,9 +1561,9 @@ public class Database implements Serializable{
 	}
 
 
-	public HashMap<LocationBasic, Integer> accumulate_matches_filter(Sketch query) {
+	public TreeMap<LocationBasic, Integer> accumulate_matches_filter(Sketch query) {
 
-		HashMap<LocationBasic, Integer> res = new HashMap<LocationBasic, Integer>();
+		TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
 
 		StringBuilder queryString = new StringBuilder();
 
@@ -1661,9 +1661,9 @@ public class Database implements Serializable{
 		//}
 	}
 
-	public HashMap<LocationBasic, Integer> accumulate_matches_combinemode(Sketch query) {
+	public TreeMap<LocationBasic, Integer> accumulate_matches_combinemode(Sketch query) {
 
-		HashMap<LocationBasic, Integer> res = new HashMap<LocationBasic, Integer>();
+		TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
 
 		try {
 
@@ -1707,9 +1707,9 @@ public class Database implements Serializable{
 
 
 	// TODO: Here!!!
-	public HashMap<LocationBasic, Integer> accumulate_matches_hashmapmode(Sketch query) {
+	public TreeMap<LocationBasic, Integer> accumulate_matches_hashmapmode(Sketch query) {
 
-		HashMap<LocationBasic, Integer> res = new HashMap<LocationBasic, Integer>();
+		TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
 
 		try {
 
@@ -1753,9 +1753,9 @@ public class Database implements Serializable{
 
 	}
 
-	public HashMap<LocationBasic, Integer> accumulate_matches_hashmapnativemode(Sketch query) {
+	public TreeMap<LocationBasic, Integer> accumulate_matches_hashmapnativemode(Sketch query) {
 
-		HashMap<LocationBasic, Integer> res = new HashMap<LocationBasic, Integer>();
+		TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
 
 		try {
 
@@ -1880,7 +1880,7 @@ public class Database implements Serializable{
 
 	}
 
-	public void accumulate_matches(Sketch query, HashMap<LocationBasic, Integer> res) {
+	public void accumulate_matches(Sketch query, TreeMap<LocationBasic, Integer> res) {
 		try {
 			List<LocationBasic> obtainedLocations = new ArrayList<LocationBasic>();
 

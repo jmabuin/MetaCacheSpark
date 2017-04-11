@@ -79,9 +79,9 @@ public class Sketcher2HashMultiMapNative implements Function2<Integer, Iterator<
 			// We iterate over windows (with overlap)
 			//while (currentEnd <= inputSequence.getData().length()) {
 
-			LOG.warn("[JMAbuin] Processing sequence: "+inputSequence.getHeader()+ " with length " +
-					inputSequence.getData().length());
-			LOG.warn("Consumed memory: "+ ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024.0/1024.0)+" MB");
+			//LOG.warn("[JMAbuin] Processing sequence: "+inputSequence.getHeader()+ " with length " +
+			//		inputSequence.getData().length());
+			//LOG.warn("Consumed memory: "+ ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024.0/1024.0)+" MB");
 			while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
 				//Sketch resultSketch = new Sketch();
 

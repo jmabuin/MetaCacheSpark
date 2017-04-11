@@ -395,12 +395,23 @@ public class Query implements Serializable {
 				LOG.warn("Processing file "+fname);
 
 
+				// Buffered mode for Native HashMap
+				if(this.param.isBuildModeHashMultiMapMCBuffered()) {
+					this.classify3(fname, d, stats);
+				} // Spark Mode
+				else if(this.param.isBuildModeParquetDataframe() || this.param.isBuildCombineByKey()) {
+					this.classify2(fname, d, stats);
+				}
+				else {
+					this.classify(fname, d, stats);
+				}
+				/*
 				if(!this.param.isBuildModeHashMultiMapMCBuffered()){
 					this.classify(fname, d, stats);
 				}
 				else {
 					this.classify3(fname, d, stats);
-				}
+				}*/
 
 
 
@@ -459,7 +470,7 @@ public class Query implements Serializable {
 			Sketch currentSketch = locations.get(i);
 			Sketch currentSketch2 = locations2.get(i);
 
-			HashMap<LocationBasic, Integer> matches = this.db.matches(currentSketch);
+			TreeMap<LocationBasic, Integer> matches = this.db.matches(currentSketch);
 
 			this.db.accumulate_matches(currentSketch2, matches);
 
@@ -470,65 +481,12 @@ public class Query implements Serializable {
 	}
 
 	public void classify(String filename, BufferedWriter d, ClassificationStatistics stats) {
-		/*try {
-			SequenceFileReader seqReader = new SequenceFileReader(filename, 0);
 
-			ArrayList<Sketch> locations = new ArrayList<Sketch>();
-			HashMap<LocationBasic, Integer> matches;
-
-			long totalReads = FilesysUtility.readsInFastaFile(filename);
-			long currentRead = 0;
-			long startRead = 0;
-			int bufferSize = 25600;
-
-
-
-			for(currentRead = startRead; currentRead < totalReads; currentRead+=bufferSize) {
-			//while((currentRead < startRead+bufferSize) && ) {
-
-				LOG.info("Parsing new reads block. Starting in: "+currentRead);
-
-				// Get corresponding hits for this buffer
-				List<HashMap<LocationBasic, Integer>> hits = this.db.matches_buffer(filename, currentRead, bufferSize, totalReads,
-						seqReader.getReadedValues());
-
-				LOG.warn("Sequences in buffer: "+hits.size());
-
-				//for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-				for(long i = 0;  i < hits.size() ; i++) {
-
-					SequenceData data = seqReader.next();
-
-					HashMap<LocationBasic, Integer> currentHits = hits.get((int)i);
-
-					if(data == null) {
-						LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
-					}
-
-
-					this.process_database_answer(data.getHeader(), data.getData(), "", currentHits,d,stats);
-
-				}
-
-				//currentRead++;
-			}
-
-			LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-			seqReader.close();
-
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			LOG.error("General error in classify: "+e.getMessage());
-			System.exit(1);
-		}
-*/
 		try {
 			SequenceFileReader seqReader = new SequenceFileReader(filename, 0);
 
 			ArrayList<Sketch> locations = new ArrayList<Sketch>();
-			HashMap<LocationBasic, Integer> matches;
+			TreeMap<LocationBasic, Integer> matches;
 
 			List<SequenceData> inputData = new ArrayList<SequenceData>();
 
@@ -541,7 +499,7 @@ public class Query implements Serializable {
 			data = seqReader.next();
 
 			for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
-				//while((currentRead < startRead+bufferSize) && ) {
+			//while((currentRead < startRead+bufferSize) && ) {
 				currentRead = startRead;
 
 				LOG.info("Parsing new reads block. Starting in: "+currentRead);
@@ -553,7 +511,7 @@ public class Query implements Serializable {
 				}
 
 				// Get corresponding hits for this buffer
-				List<HashMap<LocationBasic, Integer>> hits = this.db.matches_buffer(inputData, currentRead, bufferSize, totalReads,
+				List<TreeMap<LocationBasic, Integer>> hits = this.db.matches_buffer_treemap(inputData, currentRead, bufferSize, totalReads,
 						seqReader.getReadedValues());
 
 				//LOG.warn("Sequences in buffer: "+hits.size());
@@ -563,7 +521,7 @@ public class Query implements Serializable {
 
 					//SequenceData data = seqReader.next();
 
-					HashMap<LocationBasic, Integer> currentHits = hits.get((int)i);
+					TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
 
 					//if(data == null) {
 					//	LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
@@ -598,7 +556,7 @@ public class Query implements Serializable {
 			SequenceFileReader seqReader = new SequenceFileReader(filename, 0);
 
 			ArrayList<Sketch> locations = new ArrayList<Sketch>();
-			HashMap<LocationBasic, Integer> matches;
+			TreeMap<LocationBasic, Integer> matches;
 
 			SequenceData data = seqReader.next();
 
@@ -789,7 +747,7 @@ public class Query implements Serializable {
 
 
 
-	public void process_database_answer(String header, String query1, String query2, HashMap<LocationBasic, Integer> hits,
+	public void process_database_answer(String header, String query1, String query2, TreeMap<LocationBasic, Integer> hits,
 										BufferedWriter d, ClassificationStatistics stats) {
 			/*
      const database& db, const query_param& param,
@@ -1493,7 +1451,7 @@ public class Query implements Serializable {
 
 
 	//-------------------------------------------------------------------
-	public void show_matches(BufferedWriter os, Database db, HashMap<LocationBasic, Integer> matches,
+	public void show_matches(BufferedWriter os, Database db, TreeMap<LocationBasic, Integer> matches,
 					  Taxonomy.Rank lowest)	{
 		if(matches.isEmpty()) {
 			return;
@@ -1563,7 +1521,7 @@ public class Query implements Serializable {
 	public void show_matches(BufferedWriter os, Database db, MatchesInWindow matchesWindow,
 							 Taxonomy.Rank lowest)	{
 
-		HashMap<LocationBasic, Integer> matches = matchesWindow.getMatches();
+		TreeMap<LocationBasic, Integer> matches = matchesWindow.getMatches();
 
 		if(matches.isEmpty()) {
 			return;
