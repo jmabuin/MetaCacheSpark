@@ -13,14 +13,14 @@ public class LocationMergeCombiners implements Function2<List<LocationBasic>, Li
 	@Override
 	public List<LocationBasic> call(List<LocationBasic> v1, List<LocationBasic> v2){
 
-		if((v1.size() + v2.size()) <= 256) {
+		if((v1.size() + v2.size()) < 256) {
 			v1.addAll(v2);
 		}
-		else if (v1.size() <=256) {
+		else if (v1.size() <256) {
 
 			int i = 0;
 
-			while((i < v2.size()) &&  (v1.size() <= 256)) {
+			while((i < v2.size()) &&  (v1.size() < 256)) {
 				v1.add(v2.get(i));
 			}
 

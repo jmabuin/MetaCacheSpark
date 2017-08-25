@@ -1,8 +1,8 @@
 include ./Makefile.common
 
-.PHONY: libmetacache.so metacache libfunctions.so functions clean
+.PHONY: libmetacache.so metacache libfunctions.so functions libmymap.so mymap clean
 
-all: libmetacache.so libfunctions.so
+all: libmetacache.so libfunctions.so libmymap.so
 	@echo "================================================================================"
 	@echo "libmetacache library has been built."
 	@echo "Location    = $(LOCATION)/$(BUILD_DIR)/"
@@ -21,6 +21,10 @@ functions:
 	if [ ! -d "$(BUILD_DIR_FUNCTIONS)" ]; then mkdir $(BUILD_DIR_FUNCTIONS); fi
 	$(GCC) $(FUNCTIONS_FLAGS) MetaCacheFunctions.c -o $(BUILD_DIR_FUNCTIONS)/MetaCacheFunctions.o $(LIBFUNCTIONS_LIBS)
 
+mymap:
+	if [ ! -d "$(BUILD_DIR_MYMAP)" ]; then mkdir $(BUILD_DIR_MYMAP); fi
+	$(CC) $(MYMAP_FLAGS) mapnative.cpp -o $(BUILD_DIR_MYMAP)/mapnative.o $(LIBMYMAP_LIBS)
+
 libmetacache.so: metacache
 	$(CC) $(LIBMETACACHE_FLAGS) $(BUILD_DIR_HASHMAP)/libmetacache.so $(BUILD_DIR_HASHMAP)/*.o $(LIBMETACACHE_LIBS)
 	cp $(BUILD_DIR_HASHMAP)/libmetacache.so ../../../target/classes/
@@ -28,6 +32,10 @@ libmetacache.so: metacache
 libfunctions.so: functions
 	$(GCC) $(LIBFUNCTIONS_FLAGS) $(BUILD_DIR_FUNCTIONS)/libfunctions.so $(BUILD_DIR_FUNCTIONS)/*.o $(LIBFUNCTIONS_LIBS)
 	cp $(BUILD_DIR_FUNCTIONS)/libfunctions.so ../../../target/classes/
+
+libmymap.so: mymap
+	$(CC) $(LIBMYMAP_FLAGS) $(BUILD_DIR_MYMAP)/libmymap.so $(BUILD_DIR_MYMAP)/*.o $(LIBMYMAP_LIBS)
+	cp $(BUILD_DIR_MYMAP)/libmymap.so ../../../target/classes/
 
 clean:
 	$(RMR) $(BUILD_DIR_HASHMAP)

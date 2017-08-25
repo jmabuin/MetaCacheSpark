@@ -5,7 +5,7 @@ import java.io.Serializable;
  * Created by jabuinmo on 31.01.17.
  */
 //public class LocationBasic implements Serializable, Comparable<Location>{
-public class LocationBasic implements Serializable {
+public class LocationBasic implements Serializable, Comparable<LocationBasic> {
 
 	private int targetId;
 	private int windowId;
@@ -47,7 +47,8 @@ public class LocationBasic implements Serializable {
 		this.windowId = windowId;
 	}
 */
-	//@Override
+
+	@Override
 	public boolean equals(Object other){
 		if (other == null) return false;
 		if (other == this) return true;
@@ -65,14 +66,35 @@ public class LocationBasic implements Serializable {
 
 	}
 
-	//@Override
+	@Override
 	public int hashCode() {
 
 		return (this.targetId+"-"+this.windowId).hashCode();
 
 	}
 
+	@Override
+	public int compareTo(LocationBasic other){
 
+		if (other == null) return 1;
+
+		if(this.getTargetId() < other.getTargetId()) {
+			return -1;
+		}
+		if(this.getTargetId() > other.getTargetId()) {
+			return 1;
+		}
+
+		if(this.getWindowId() < other.getWindowId()) {
+			return -1;
+		}
+		if(this.getWindowId() > other.getWindowId()) {
+			return 1;
+		}
+
+
+		return 0;
+	}
 
 
 }

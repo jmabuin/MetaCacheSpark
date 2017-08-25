@@ -27,7 +27,7 @@ public class LocationMergeValues implements Function2<List<LocationBasic>, Locat
 	@Override
 	public List<LocationBasic> call(List<LocationBasic> list, LocationBasic value) {
 
-		if(list.size() <= 256) {
+		if(list.size() < 256) {
 			list.add(value);
 		}
 

@@ -80,6 +80,10 @@ public class SequenceReader {
 	 */
 	public static String extract_ncbi_accession_number(String text) {
 
+		if(text.isEmpty()) {
+			return "";
+		}
+
 		for(String prefix : accession_prefix) {
 			String num = extract_ncbi_accession_number(prefix, text);
 
@@ -96,6 +100,18 @@ public class SequenceReader {
 	 */
 	public static String extract_ncbi_accession_number(String prefix, String text) {
 
+		/** New Version
+		if(text.isEmpty()) return "";
+
+		int i = text.indexOf(prefix);
+		if(i != -1) {
+			int j = i + prefix.length();
+			int k = end_of_accession_number(text,j);
+			return text.substring(i, k-i);
+		}
+		return "";
+		**/
+		/** Previous version **/
 		if(text.contains(prefix)) {
 			int i = text.indexOf(prefix);
 			int j = i + prefix.length();
@@ -134,6 +150,27 @@ public class SequenceReader {
 	 * From original MetaCache
 	 */
 	public static String extract_ncbi_accession_version_number(String prefix, String text) {
+
+		/** New version
+		if(text.isEmpty()) {
+			return "";
+		}
+
+		int i = text.indexOf(prefix);
+		if(i < 20) {
+			//find separator *after* prefix
+			int s = text.indexOf('.', i+1);
+
+			if(s == -1 || (s-i) > 20) {
+				return "";
+			}
+
+			int k = end_of_accession_number(text,s+1);
+			return text.substring(i, k-i);
+		}
+		return "";
+		*/
+		/** Previous version **/
 
 		int i = text.indexOf(prefix);
 
@@ -178,12 +215,40 @@ public class SequenceReader {
 	 */
 	public static String extract_ncbi_accession_version_number(String text) {
 
+		/** New version
+		if(text.isEmpty()) {
+			return "";
+		}
+
+		//remove leading dots
+		while(!text.isEmpty() && text.startsWith(".")) {
+			text = text.substring(1, text.length());
+			//text.rem.erase(0);
+		}
+
+		//try to find any known prefix + separator
+		for(String prefix : accession_prefix) {
+			String num = extract_ncbi_accession_version_number(prefix, text);
+			if(!num.isEmpty()) {
+				return num;
+			}
+		}
+
+		//try to find version speparator
+		int s = text.indexOf('.');
+		if(s < 20) return text.substring(0, end_of_accession_number(text,s+1));
+
+		return "";
+		**/
+		/** Previous version **/
+
 		for(String prefix : accession_prefix) {
 			String num = extract_ncbi_accession_version_number(prefix, text);
 			if(!num.isEmpty()) return num;
 		}
 
 		return "";
+
 	}
 
 	/**
@@ -244,6 +309,28 @@ public class SequenceReader {
 	}
 
 
+	public static int end_of_accession_number(String text, int start) {
+		if(start >= text.length()) {
+			return text.length();
+		}
+
+		int k = text.indexOf('|', start);
+		if(k != -1) return k;
+
+		k = text.indexOf(' ', start);
+		if(k != -1) return k;
+
+		k = text.indexOf('-', start);
+		if(k != -1) return k;
+
+		k = text.indexOf('_', start);
+		if(k != -1) return k;
+
+		k = text.indexOf(',', start);
+		if(k != -1) return k;
+
+		return text.length();
+	}
 
 
 }

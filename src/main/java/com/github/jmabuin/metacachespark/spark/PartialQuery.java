@@ -135,40 +135,44 @@ public class PartialQuery implements PairFlatMapFunction<Iterator<HashMultiMapNa
 			long currentSequence = this.init;
 			//LOG.warn("[JMAbuin] Init at sequence: " + currentSequence);
 			// Theoretically there is only one HashMap per partition
-			HashMultiMapNative currentHashMap = myHashMaps.next();
+			while(myHashMaps.hasNext()){
+
+				HashMultiMapNative currentHashMap = myHashMaps.next();
 
 
-			for(SequenceData currentData: inputData){
+				for(SequenceData currentData: inputData){
 
 
-				//if(currentSequence >= this.init) {
+					//if(currentSequence >= this.init) {
 
-					locations = SequenceFileReader.getSketchStatic(currentData);
+						locations = SequenceFileReader.getSketchStatic(currentData);
 
-					List<int[]> queryResults = new ArrayList<int[]>();
+						List<int[]> queryResults = new ArrayList<int[]>();
 
-					for(Sketch currentSketch: locations) {
+						for(Sketch currentSketch: locations) {
 
-						for(int location: currentSketch.getFeatures()) {
+							for(int location: currentSketch.getFeatures()) {
 
-							int[] values = currentHashMap.get(location);
+								int[] values = currentHashMap.get(location);
 
-							if(values != null) {
+								if(values != null) {
 
-								queryResults.add(values);
+									queryResults.add(values);
 
+								}
 							}
+
 						}
 
-					}
-
-					//results.put(data.getHeader(), queryResults);
-					finalResults.add(new Tuple2<Long, List<int[]>>(currentSequence, queryResults));
-				//}
+						//results.put(data.getHeader(), queryResults);
+						finalResults.add(new Tuple2<Long, List<int[]>>(currentSequence, queryResults));
+					//}
 
 
-				//data = seqReader.next();
-				currentSequence++;
+					//data = seqReader.next();
+					currentSequence++;
+					locations.clear();
+				}
 			}
 
 			//LOG.warn("[JMAbuin] Ending buffer " + currentSequence);

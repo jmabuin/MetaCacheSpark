@@ -66,6 +66,7 @@ public class QueryOptions extends CommonOptions implements Serializable {
     private String[] infiles;
     private String outfile;
 
+    private boolean nativeMap = false;
 
     private String[] otherQueryOptions;
 
@@ -93,6 +94,7 @@ public class QueryOptions extends CommonOptions implements Serializable {
 			//Here: showDBproperties, pairedFiles, pairedSequences, coverage, precision, showLocations
 			// , showTopHits, showAllHits, taxids_only, taxid, name_only
 			// , nomap, mappedOnly, showGroundTruth, insertSizeMax ,t
+            // nativeMap
 
             if (cmd.hasOption("showDBproperties")) {
                 this.showDBproperties = true;
@@ -109,7 +111,7 @@ public class QueryOptions extends CommonOptions implements Serializable {
                 this.testCoverage = true;
             }
 
-            if (cmd.hasOption("precision")) {
+            if (cmd.hasOption('z') || cmd.hasOption("precision")) {
                 this.testPrecision = true;
             }
 
@@ -165,7 +167,9 @@ public class QueryOptions extends CommonOptions implements Serializable {
             }
 
 
-
+            if(cmd.hasOption("nativeMap")) {
+                this.nativeMap = true;
+            }
 
 
 
@@ -232,7 +236,7 @@ public class QueryOptions extends CommonOptions implements Serializable {
         Option coverage = new Option(null, "coverage", false,"Test precision coverage");
 		this.queryOptions.addOption(coverage);
 
-        Option precision = new Option(null, "precision", false, "Test precision");
+        Option precision = new Option("z", "precision", false, "Test precision");
 		this.queryOptions.addOption(precision);
 
         Option showLocations = new Option(null, "showLocations", false, "Show candidate position(s) in reference sequence(s)");
@@ -272,6 +276,9 @@ public class QueryOptions extends CommonOptions implements Serializable {
 
         Option numThreads = new Option("t", "threads", true, "Number of threads to use");
 		this.queryOptions.addOption(numThreads);
+
+		Option nativeMap = new Option(null, "nativeMap", false, "Sets the use of a native C++ Map");
+		this.queryOptions.addOption(nativeMap);
 
         //return privateOptions;
 
@@ -501,4 +508,7 @@ public class QueryOptions extends CommonOptions implements Serializable {
         this.outfile = outfile;
     }
 
+    public boolean isNativeMap() {
+        return nativeMap;
+    }
 }

@@ -244,6 +244,11 @@ public class FilesysUtility implements Serializable {
 				}
 			}
 
+			LOG.warn("The number of sequences in the file is: "+numReads);
+
+			br.close();
+			inputStream.close();
+
 			return numReads;
 
 

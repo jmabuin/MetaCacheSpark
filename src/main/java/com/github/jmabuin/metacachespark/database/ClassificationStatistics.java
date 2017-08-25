@@ -1,9 +1,14 @@
 package com.github.jmabuin.metacachespark.database;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 /**
  * Created by chema on 2/9/17.
  */
 public class ClassificationStatistics {
+
+	private static final Log LOG = LogFactory.getLog(ClassificationStatistics.class); // LOG to show messages
 
 	private int assigned_[] = new int[Taxonomy.num_ranks + 1];
 	private int known_[] = new int[Taxonomy.num_ranks + 1];
@@ -17,24 +22,24 @@ public class ClassificationStatistics {
 
 	public ClassificationStatistics() {
 
-		for(int x: assigned_) {
-			x = 0;
+		for(int x = 0; x < assigned_.length; x++) {
+			assigned_[x] = 0;
 		}
 
-		for(int x: known_) {
-			x = 0;
+		for(int x = 0; x < known_.length; x++) {
+			known_[x] = 0;
 		}
 
-		for(int x: correct_) {
-			x = 0;
+		for(int x = 0; x < correct_.length; x++) {
+			correct_[x] = 0;
 		}
 
-		for(int x: wrong_) {
-			x = 0;
+		for(int x = 0; x <  wrong_.length; x++) {
+			wrong_[x] = 0;
 		}
 
-		for(ConfusionStatistics x: this.coverage_) {
-			x = new ConfusionStatistics();
+		for(int x = 0; x < this.coverage_.length; x++) {
+			this.coverage_[x] = new ConfusionStatistics();
 		}
 
 		this.alignmentScore_ = new AlignmentStatistics();
@@ -78,6 +83,7 @@ public class ClassificationStatistics {
 
 		//if ground truth known -> count correct and wrong assignments
 		if(known == Taxonomy.Rank.none) {
+			//LOG.warn("[JMAbuin] Known is Rank.none!!");
 			++known_[Taxonomy.Rank.none.ordinal()];
 		}
 		else {
@@ -134,6 +140,8 @@ public class ClassificationStatistics {
 
 
 	public ConfusionStatistics coverage(Taxonomy.Rank r) {
+		LOG.warn("[JMAbuin] coverage length:: " + this.coverage_.length);
+		LOG.warn("[JMAbuin] current rank:: " + r.ordinal());
 		return coverage_[r.ordinal()];
 	}
 
