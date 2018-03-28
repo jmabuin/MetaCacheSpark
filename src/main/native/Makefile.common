@@ -1,4 +1,5 @@
-CC = gcc
+GCC = gcc
+CC = g++
 JAVAC = javac
 RMR = rm -Rf
 RM = rm -f
@@ -6,8 +7,12 @@ RM = rm -f
 MAKE = make
 LOCATION = `pwd`
 #SRC_DIR = ./src
-BUILD_DIR = build
+BUILD_DIR_HASHMAP = build_hasmap
+BUILD_DIR_FUNCTIONS = build_functions
+BUILD_DIR_MYMAP = build_mymap
 
+DIALECT = -std=c++11
+WARNINGS = -Wall -Wextra -Wpedantic
 
 # JAVA variables #######
 ifndef JAVA_HOME
@@ -19,6 +24,14 @@ endif
 
 #JAR_FILES = $(LIBS_DIR)/commons-cli-1.2.jar:$(LIBS_DIR)/spark-assembly-1.6.1-hadoop2.6.0.jar
 
-METACACHE_FLAGS = -c -g -Wall -Wno-unused-function -O2 -fPIC $(JAVA_HOME_INCLUDES)
-LIBMETACACHE_FLAGS = -shared -o
+METACACHE_FLAGS = $(DIALECT) -c -g $(WARNINGS) -O3 -fPIC $(JAVA_HOME_INCLUDES)
+LIBMETACACHE_FLAGS = -shared -O3 -o
 LIBMETACACHE_LIBS =
+
+FUNCTIONS_FLAGS = -c -g $(WARNINGS) -O3 -fPIC $(JAVA_HOME_INCLUDES)
+LIBFUNCTIONS_FLAGS = -shared -O3 -o
+LIBFUNCTIONS_LIBS =
+
+MYMAP_FLAGS = $(DIALECT) -c -g $(WARNINGS) -O3 -fPIC $(JAVA_HOME_INCLUDES)
+LIBMYMAP_FLAGS = -shared -O3 -o
+LIBMYMAP_LIBS =

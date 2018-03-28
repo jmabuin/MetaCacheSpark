@@ -1,0 +1,11 @@
+ - Test this options from https://community.hortonworks.com/questions/33484/spark-sql-query-execution-is-very-very-slow-when-c.html
+ sparkConf.set("spark.cores.max", "24")
+ sparkConf.set("spark.serializer", classOf[KryoSerializer].getName)
+ sparkConf.set("spark.sql.tungsten.enabled", "true")
+ sparkConf.set("spark.eventLog.enabled", "true")
+ sparkConf.set("spark.app.id", "YourApp")
+ sparkConf.set("spark.io.compression.codec", "snappy")
+ sparkConf.set("spark.rdd.compress", "true")
+ sparkConf.set("spark.streaming.backpressure.enabled", "true")
+
+ sparkConf.set("spark.sql.parquet.compression.codec", "snappy")

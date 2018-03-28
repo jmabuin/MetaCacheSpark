@@ -4,13 +4,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.github.metacachespark</groupId>
+    <groupId>com.github.jmabuin.metacachespark</groupId>
     <artifactId>MetaCacheSpark</artifactId>
-    <version>0.0.1</version>
+    <version>0.3.0</version>
 
     <properties>
         <my.native.path>./src/main/native/</my.native.path>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
     </properties>
 
     <repositories>
@@ -19,27 +21,59 @@
             <name>mvn.128.no</name>
             <url>https://mvn.128.no/maven2</url>
         </repository>
+        <repository>
+            <id>spark-packages</id>
+            <name>Spark Packages</name>
+            <url>https://dl.bintray.com/spark-packages/maven/</url>
+        </repository>
     </repositories>
+
 
     <dependencies>
         <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.11 -->
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-core_2.11</artifactId>
-            <version>2.1.0</version>
+            <artifactId>spark-core_2.10</artifactId>
+            <version>1.6.2</version>
             <scope>provided</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.apache.spark/spark-sql_2.11 -->
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_2.11</artifactId>
-            <version>2.1.0</version>
+            <artifactId>spark-sql_2.10</artifactId>
+            <version>1.6.2</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>cz.adamh.utils</groupId>
             <artifactId>native-utils</artifactId>
             <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/amplab/spark-indexedrdd -->
+        <!--<dependency>
+            <groupId>amplab</groupId>
+            <artifactId>spark-indexedrdd</artifactId>
+            <version>0.3</version>
+        </dependency> -->
+
+        <!-- https://mvnrepository.com/artifact/com.carrotsearch/java-sizeof -->
+        <!--<dependency>
+            <groupId>com.carrotsearch</groupId>
+            <artifactId>java-sizeof</artifactId>
+            <version>0.0.5</version>
+        </dependency> -->
+
+        <!-- https://mvnrepository.com/artifact/net.sf.trove4j/trove4j -->
+        <!--<dependency>
+            <groupId>net.sf.trove4j</groupId>
+            <artifactId>trove4j</artifactId>
+            <version>3.0.3</version>
+        </dependency> -->
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>21.0</version>
         </dependency>
     </dependencies>
 
@@ -97,6 +131,10 @@
                             <artifactSet>
                                 <includes>
                                     <include>cz.adamh.utils:native-utils</include>
+                                    <!--<include>amplab:spark-indexedrdd</include> -->
+                                    <!--<include>com.carrotsearch:java-sizeof</include> -->
+                                    <!--<include>net.sf.trove4j:trove4j</include> -->
+                                    <include>com.google.guava:guava</include>
                                 </includes>
                                 <excludes>
                                     <exclude>META-INF/*.DSA</exclude>
@@ -110,5 +148,6 @@
             </plugin>
         </plugins>
     </build>
+
 
 </project>
