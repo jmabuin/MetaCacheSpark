@@ -2,12 +2,13 @@ package com.github.jmabuin.metacachespark.spark;
 
 import com.github.jmabuin.metacachespark.Location;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Row;
 
 /**
  * Created by chema on 3/4/17.
  */
-public class Row2Location implements Function<Row, Location> {
+public class Row2Location implements MapFunction<Row, Location> {
 
 	@Override
 	public Location call(Row row) {

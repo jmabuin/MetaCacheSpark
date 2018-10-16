@@ -49,7 +49,7 @@ public class MetaCacheSpark implements Serializable {
 			JavaSparkContext ctx = new JavaSparkContext(sparkConf);
 			//ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
 
-			LOG.warn("Using old Spark version!! - " + ctx.version());
+			LOG.info("Using Spark :: " + ctx.version());
 
 			Build buildObject = new Build(newOptions.getBuildOptions(), ctx);
 

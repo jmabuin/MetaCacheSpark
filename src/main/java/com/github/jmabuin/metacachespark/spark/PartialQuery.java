@@ -45,7 +45,7 @@ public class PartialQuery implements PairFlatMapFunction<Iterator<HashMultiMapNa
 	}
 
 	@Override
-	public Iterable<Tuple2<Long, List<int[]>>> call(Iterator<HashMultiMapNative> myHashMaps) {
+	public Iterator<Tuple2<Long, List<int[]>>> call(Iterator<HashMultiMapNative> myHashMaps) {
 /*
 		List<Tuple2<Long, List<int[]>>> finalResults = new ArrayList<Tuple2<Long, List<int[]>>>();
 
@@ -179,7 +179,7 @@ public class PartialQuery implements PairFlatMapFunction<Iterator<HashMultiMapNa
 
 			//seqReader.close();
 
-			return finalResults;
+			return finalResults.iterator();
 
 
 		}
@@ -188,7 +188,7 @@ public class PartialQuery implements PairFlatMapFunction<Iterator<HashMultiMapNa
 			System.exit(-1);
 		}
 
-		return finalResults;
+		return finalResults.iterator();
 	}
 
 }

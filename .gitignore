@@ -1,2 +1,5 @@
 MetaCacheSpark.iml
 .idea
+*.o
+*.so
+dependency-reduced-pom.xml

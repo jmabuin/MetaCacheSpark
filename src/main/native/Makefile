@@ -40,4 +40,5 @@ libmymap.so: mymap
 clean:
 	$(RMR) $(BUILD_DIR_HASHMAP)
 	$(RMR) $(BUILD_DIR_FUNCTIONS)
+	$(RMR) $(BUILD_DIR_MYMAP)
 	#$(RM) ../resources/libmetacache.so

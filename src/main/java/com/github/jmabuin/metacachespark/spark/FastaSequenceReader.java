@@ -51,7 +51,7 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 	}
 
 	@Override
-	public Iterable<Sequence> call(Tuple2<String, String> arg0) {
+	public Iterator<Sequence> call(Tuple2<String, String> arg0) {
 		StringBuffer header = new StringBuffer();
 		StringBuffer data = new StringBuffer();
 
@@ -74,7 +74,7 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 			currentFile.append(arg0._1());
 
 			if(!currentInput.toString().startsWith(">")) {
-				return returnedValues;
+				return returnedValues.iterator();
 			}
 
 			for (String newLine : currentInput.toString().split("\n")) {
@@ -163,7 +163,7 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 
 		//}
 
-		return returnedValues;
+		return returnedValues.iterator();
 	}
 
 

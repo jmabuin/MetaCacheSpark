@@ -46,7 +46,7 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
     }
 
     @Override
-    public Iterable<Tuple2<Long, TreeMap<LocationBasic, Integer>>> call(Iterator<HashMultiMapNative> myHashMaps) {
+    public Iterator<Tuple2<Long, TreeMap<LocationBasic, Integer>>> call(Iterator<HashMultiMapNative> myHashMaps) {
 
         List<Tuple2<Long, TreeMap<LocationBasic, Integer>>> finalResults = new ArrayList<Tuple2<Long, TreeMap<LocationBasic, Integer>>>();
 
@@ -132,7 +132,7 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
 
             //seqReader.close();
 
-            return finalResults;
+            return finalResults.iterator();
 
 
         }
@@ -141,7 +141,7 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
             System.exit(-1);
         }
 
-        return finalResults;
+        return finalResults.iterator();
     }
 
 }

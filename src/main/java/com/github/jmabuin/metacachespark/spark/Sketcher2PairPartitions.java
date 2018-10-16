@@ -47,7 +47,7 @@ public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Seq
 	}
 
 	@Override
-	public Iterable<Tuple2<Integer, List<LocationBasic>>> call(Iterator<Sequence> inputSequences){
+	public Iterator<Tuple2<Integer, List<LocationBasic>>> call(Iterator<Sequence> inputSequences){
 
 		//public Iterable<Integer,Location> call(Sequence inputSequence) {
 
@@ -154,7 +154,7 @@ public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Seq
 		LOG.warn("Time for this partition is: " + ((endTime - initTime)/1e9));
 
 
-		return returnedValues;
+		return returnedValues.iterator();
 	}
 
 

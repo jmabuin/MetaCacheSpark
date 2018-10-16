@@ -26,7 +26,7 @@ public class MyWholeTextFiles implements PairFlatMapFunction<Iterator<String>, S
 	private static final Log LOG = LogFactory.getLog(MyWholeTextFiles.class);
 
 	@Override
-	public Iterable<Tuple2<String, String>> call(Iterator<String> fileNames) {
+	public Iterator<Tuple2<String, String>> call(Iterator<String> fileNames) {
 
 		List<Tuple2<String, String>> returnValues = new ArrayList<Tuple2<String, String>>();
 
@@ -73,7 +73,7 @@ public class MyWholeTextFiles implements PairFlatMapFunction<Iterator<String>, S
 			}
 
 
-			return returnValues;
+			return returnValues.iterator();
 		}
 		catch(IOException e) {
 			LOG.error("Could not acces to HDFS");
@@ -81,7 +81,7 @@ public class MyWholeTextFiles implements PairFlatMapFunction<Iterator<String>, S
 		}
 
 
-		return returnValues;
+		return returnValues.iterator();
 
 	}
 

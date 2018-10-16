@@ -43,7 +43,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 	}
 
 	@Override
-	public Iterable<LocationBasic> call(Tuple2<String, String> arg0) {
+	public Iterator<LocationBasic> call(Tuple2<String, String> arg0) {
 		//LOG.warn("[JMAbuin] Starting Call function");
 		//String header = "";
 		StringBuffer header = new StringBuffer();
@@ -58,7 +58,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 
 
 		if(!currentInput.startsWith(">")) {
-			return returnedValues;
+			return returnedValues.iterator();
 		}
 
 
@@ -189,7 +189,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 
 		//endTime = System.nanoTime();
 		//LOG.warn("Time for file "+currentFile+" is: " + ((endTime - initTime)/1e9));
-		return returnedValues;
+		return returnedValues.iterator();
 	}
 
 }

@@ -37,7 +37,7 @@ public class FastaSketcher4Query implements FlatMapFunction<Tuple2<String, Strin
 
 
 	@Override
-	public Iterable<Sketch> call(Tuple2<String, String> arg0) {
+	public Iterator<Sketch> call(Tuple2<String, String> arg0) {
 		//LOG.warn("[JMAbuin] Starting Call function");
 		//String header = "";
 		StringBuffer header = new StringBuffer();
@@ -53,7 +53,7 @@ public class FastaSketcher4Query implements FlatMapFunction<Tuple2<String, Strin
 
 
 		if(!currentInput.startsWith(">")) {
-			return returnedValues;
+			return returnedValues.iterator();
 		}
 
 
@@ -139,7 +139,7 @@ public class FastaSketcher4Query implements FlatMapFunction<Tuple2<String, Strin
 
 		//endTime = System.nanoTime();
 		//LOG.warn("Time for file "+currentFile+" is: " + ((endTime - initTime)/1e9));
-		return returnedValues;
+		return returnedValues.iterator();
 	}
 
 

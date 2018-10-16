@@ -7,7 +7,7 @@ import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import com.github.jmabuin.metacachespark.options.QueryOptions;
 import com.github.jmabuin.metacachespark.spark.FastaSketcher4Query;
 
-import com.typesafe.config.ConfigException;
+//import com.typesafe.config.ConfigException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSDataOutputStream;

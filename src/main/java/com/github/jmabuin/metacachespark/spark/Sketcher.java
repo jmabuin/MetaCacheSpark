@@ -10,6 +10,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 
 /**
  * Created by chema on 1/16/17.
@@ -40,7 +41,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 	}
 
 	@Override
-	public Iterable<Location> call(Sequence inputSequence) {
+	public Iterator<Location> call(Sequence inputSequence) {
 
 		int currentStart = 0;
 		int currentEnd = MCSConfiguration.windowSize;
@@ -105,7 +106,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 		endTime = System.nanoTime();
 		//LOG.warn("Time for file "+inputSequence.getFileName()+" is: " + ((endTime - initTime)/1e9));
 
-		return returnedValues;
+		return returnedValues.iterator();
 	}
 
 

@@ -34,6 +34,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
+import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
@@ -60,8 +61,8 @@ public class Database implements Serializable{
 	private int nextTargetId_;
 	private ArrayList<TargetProperty> targets_;
 	private Dataset<Location> features_;
-	private DataFrame featuresDataframe_;
-	private DataFrame targetPropertiesDataframe_;
+	private Dataset<Location> featuresDataframe_;
+	//private DataFrame targetPropertiesDataframe_;
 	private JavaRDD<TargetProperty> targetPropertiesJavaRDD;
 	private HashMap<String,Integer> sid2gid_;
 	private Taxonomy taxa_;
@@ -485,7 +486,11 @@ public class Database implements Serializable{
 				this.locationJavaRDD = this.inputSequences
 						.flatMap(new Sketcher(this.sid2gid_));
 
-				this.featuresDataframe_ = this.sqlContext.createDataFrame(this.locationJavaRDD, Location.class);
+				Encoder<Location> encoder_location= Encoders.bean(Location.class);
+				RDD<Location> rdd_location = this.locationJavaRDD.rdd();
+
+				this.featuresDataframe_ = this.sqlContext.createDataset(rdd_location, encoder_location);
+				// //this.sqlContext.createDataFrame(this.locationJavaRDD, Location.class);
 
 			}
 			else if(paramsBuild.isBuildCombineByKey()) {
@@ -591,10 +596,7 @@ public class Database implements Serializable{
 			this.locationJavaRDD = this.inputSequences
 					.flatMap(new Sketcher(this.sid2gid_));
 
-			this.featuresDataframe_ = this.sqlContext.createDataFrame(this.locationJavaRDD, Location.class);
-
-
-
+			this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
 
 			this.targetPropertiesJavaRDD = this.inputSequences
 					.map(new Sequence2TargetProperty(this.sid2gid_));
@@ -740,7 +742,7 @@ public class Database implements Serializable{
 				this.locationJavaRDD = this.inputSequences
 						.flatMap(new Sketcher(this.sid2gid_));
 
-				this.featuresDataframe_ = this.sqlContext.createDataFrame(this.locationJavaRDD, Location.class);
+				this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
 
 			}
 			else if(paramsBuild.isBuildCombineByKey()) {
@@ -1422,12 +1424,12 @@ public class Database implements Serializable{
 		}
 		else if(paramsQuery.isBuildModeParquetDataframe()) {
 			LOG.warn("Loading database with isBuildModeParquetDataframe");
-			DataFrame dataFrame = this.sqlContext.read().parquet(this.dbfile);
+			//DataFrame dataFrame = this.sqlContext.read().parquet(this.dbfile);
+            Dataset<Location> dataFrame = this.sqlContext.read().parquet(this.dbfile).map(new Row2Location(), Encoders.bean(Location.class));
 
-			this.locationJavaRDD = dataFrame.javaRDD()
-					.map(new Row2Location());
+			this.locationJavaRDD = dataFrame.javaRDD();
 
-			this.featuresDataframe_ = this.sqlContext.createDataFrame(this.locationJavaRDD, Location.class)
+			this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class))
 					.persist(StorageLevel.MEMORY_AND_DISK());
 
 			this.featuresDataframe_.registerTempTable("MetaCacheSpark");
@@ -1712,12 +1714,13 @@ public class Database implements Serializable{
 					queryString.append(" or key = "+i);
 				}
 */
-					Row results[] = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collect();
+					//Row results[] = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collect();
+                    List<Location> results = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collectAsList();
 
-					for (Row currentRow : results) {
-						ArrayList<LocationBasic> myList = (ArrayList<LocationBasic>) IOSerialize.fromString(currentRow.getString(1));
+					for (Location current_location : results) {
+						//ArrayList<LocationBasic> myList = (ArrayList<LocationBasic>) IOSerialize.fromString(currentRow.getString(1));
 
-						obtainedLocations.addAll(myList);
+						obtainedLocations.add(new LocationBasic(current_location.getTargetId(), current_location.getWindowId()));
 
 
 					}
@@ -1756,7 +1759,7 @@ public class Database implements Serializable{
 		//}
 
 	}
-
+/*
 	public TreeMap<LocationBasic, Integer> accumulate_matches_combine(SequenceData query) {
 
 		//TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
@@ -1773,18 +1776,12 @@ public class Database implements Serializable{
 			ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(query);
 
 			for(Sketch currentSketch : locations) {
-				for (int i : currentSketch.getFeatures()) {
-/*
-				if(queryString.toString().isEmpty()) {
-					queryString.append("select * from MetaCacheSpark where key = " + i);
-				}
-				else {
-					queryString.append(" or key = "+i);
-				}
-*/
-					Row results[] = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collect();
+				//Row results[] = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collect();
+                    List<Location> results = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collectAsList();
 
-					for (Row currentRow : results) {
+                    obtainedLocations.addAll(myList);
+
+					for (Location current_location : results) {
 						//ArrayList<LocationBasic> myList;
 
 						List<Object> newList = null;
@@ -1849,7 +1846,7 @@ public class Database implements Serializable{
 		//}
 
 	}
-
+*/
 	public TreeMap<LocationBasic, Integer> accumulate_matches_combine_RDD(SequenceData query) {
 
 		//TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
@@ -2159,7 +2156,12 @@ public class Database implements Serializable{
 
 			}
 
-			obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2Location());
+			obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Function<Row, Location>() {
+                @Override
+                public Location call(Row row) throws Exception {
+                    return new Location(row.getInt(0), row.getInt(1), row.getInt(2));
+                }
+            });
 
 			obtainedLocations = obtainedLocationsRDD.collect();
 
@@ -2256,7 +2258,12 @@ public class Database implements Serializable{
 
 					queryString.append("select * from MetaCacheSpark where key = " + i);
 
-					obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2Location());
+                    obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Function<Row, Location>() {
+                        @Override
+                        public Location call(Row row) throws Exception {
+                            return new Location(row.getInt(0), row.getInt(1), row.getInt(2));
+                        }
+                    });
 
 					obtainedLocations = obtainedLocationsRDD.collect();
 
@@ -2329,7 +2336,12 @@ public class Database implements Serializable{
 
 				}
 
-				obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2Location());
+                obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Function<Row, Location>() {
+                    @Override
+                    public Location call(Row row) throws Exception {
+                        return new Location(row.getInt(0), row.getInt(1), row.getInt(2));
+                    }
+                });
 
 				obtainedLocations = obtainedLocationsRDD.collect();
 

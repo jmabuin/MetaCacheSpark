@@ -22,7 +22,7 @@ public class SearchInHashMapNativeArray implements FlatMapFunction<Iterator<Hash
 	}
 
 	@Override
-	public Iterable<LocationBasic> call(Iterator<HashMultiMapNative> myHashMaps) {
+	public Iterator<LocationBasic> call(Iterator<HashMultiMapNative> myHashMaps) {
 
 		List<LocationBasic> returnValues = new ArrayList<LocationBasic>();
 
@@ -50,7 +50,7 @@ public class SearchInHashMapNativeArray implements FlatMapFunction<Iterator<Hash
 
 		//}
 
-		return returnValues;
+		return returnValues.iterator();
 
 	}
 

@@ -21,7 +21,7 @@ public class SearchInHashMap implements FlatMapFunction<Iterator<HashMap<Integer
 	}
 
 	@Override
-	public Iterable<LocationBasic> call(Iterator<HashMap<Integer, List<LocationBasic>>> myHashMap) {
+	public Iterator<LocationBasic> call(Iterator<HashMap<Integer, List<LocationBasic>>> myHashMap) {
 
 		// Theoretically there is only one HashMap per partition
 		while(myHashMap.hasNext()) {
@@ -30,15 +30,15 @@ public class SearchInHashMap implements FlatMapFunction<Iterator<HashMap<Integer
 
 			if (currentHashMap.containsKey(this.searchedValue)) {
 
-				return currentHashMap.get(this.searchedValue);
+				return currentHashMap.get(this.searchedValue).iterator();
 			}
 			else {
-				return new ArrayList<LocationBasic>();
+				return new ArrayList<LocationBasic>().iterator();
 			}
 
 		}
 
-		return new ArrayList<LocationBasic>();
+		return new ArrayList<LocationBasic>().iterator();
 
 	}
 

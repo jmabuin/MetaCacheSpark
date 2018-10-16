@@ -26,7 +26,7 @@ public class ReadHashMapPartitions implements FlatMapFunction<Iterator<String>, 
 	private static final Log LOG = LogFactory.getLog(ReadHashMapPartitions.class);
 
 	@Override
-	public Iterable<HashMap<Integer, List<LocationBasic>>> call(Iterator<String> fileNames) {
+	public Iterator<HashMap<Integer, List<LocationBasic>>> call(Iterator<String> fileNames) {
 
 		List<HashMap<Integer, List<LocationBasic>>> returnValue = new ArrayList<HashMap<Integer, List<LocationBasic>>>();
 
@@ -83,7 +83,7 @@ public class ReadHashMapPartitions implements FlatMapFunction<Iterator<String>, 
 
 		}
 
-		return returnValue;
+		return returnValue.iterator();
 
 	}
 
