@@ -1,5 +1,6 @@
 package com.github.jmabuin.metacachespark.io;
 
+import com.github.jmabuin.metacachespark.EnumModes;
 import com.github.jmabuin.metacachespark.HashFunctions;
 import com.github.jmabuin.metacachespark.MCSConfiguration;
 import com.github.jmabuin.metacachespark.Sketch;
@@ -33,7 +34,7 @@ public class SequenceFileReader implements Serializable{
 
 	private BufferedReader br;				// BufferedReader to read input file
 	private FSDataInputStream inputStream;	// InputStream to read input file
-	private MetaCacheOptions.InputFormat 	currentFormat;	// File format, FASTQ or FASTA
+	private EnumModes.InputFormat 	currentFormat;	// File format, FASTQ or FASTA
 
 	private long readedValues;
 
@@ -72,10 +73,10 @@ public class SequenceFileReader implements Serializable{
 
 			// Obtain the sequences file format
 			if (this.inputFile.endsWith(".fastq") || this.inputFile.endsWith(".fq") || this.inputFile.endsWith(".fnq")) {
-				this.currentFormat = MetaCacheOptions.InputFormat.FASTQ;
+				this.currentFormat = EnumModes.InputFormat.FASTQ;
 			}
 			else {
-				this.currentFormat = MetaCacheOptions.InputFormat.FASTA;
+				this.currentFormat = EnumModes.InputFormat.FASTA;
 			}
 
 
@@ -103,7 +104,7 @@ public class SequenceFileReader implements Serializable{
 	 */
 	public SequenceData next() {
 		//LOG.warn("[JMAbuin] Call to next");
-		if(this.currentFormat == MetaCacheOptions.InputFormat.FASTA) {
+		if(this.currentFormat == EnumModes.InputFormat.FASTA) {
 
 			// Get a new FASTA record from file
 			try {
@@ -165,7 +166,7 @@ public class SequenceFileReader implements Serializable{
 			}
 
 		}
-		else if (this.currentFormat == MetaCacheOptions.InputFormat.FASTQ) {
+		else if (this.currentFormat == EnumModes.InputFormat.FASTQ) {
 
 			// Get a new FASTQ record from file
 			try {

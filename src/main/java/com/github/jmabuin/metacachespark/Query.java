@@ -4,7 +4,6 @@ package com.github.jmabuin.metacachespark;
 import com.github.jmabuin.metacachespark.database.*;
 import com.github.jmabuin.metacachespark.io.*;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
-import com.github.jmabuin.metacachespark.options.QueryOptions;
 import com.github.jmabuin.metacachespark.spark.FastaSketcher4Query;
 
 //import com.typesafe.config.ConfigException;
@@ -28,15 +27,15 @@ public class Query implements Serializable {
     private static final Log LOG = LogFactory.getLog(Query.class);
 
     // Default options values
-    private QueryOptions param;
+    private MetaCacheOptions param;
 
     private Database db;
     private JavaSparkContext jsc;
 
-    private MetaCacheOptions.InputFormat inputFormat;
+    private EnumModes.InputFormat inputFormat;
 	private HashMap<Location, Integer> hits;
 
-    public Query(QueryOptions param, JavaSparkContext jsc) {
+    public Query(MetaCacheOptions param, JavaSparkContext jsc) {
 
         this.param = param;
 
@@ -52,17 +51,17 @@ public class Query implements Serializable {
 			db.remove_features_with_more_locations_than(param.maxTargetsPerSketchVal);
 		}*/
 
-        if(this.param.getHitsMin() < 1) {
+        if(this.param.getProperties().getHitsMin() < 1) {
         	int sks = MCSConfiguration.sketchSize;
 
 			if(sks >= 6) {
-				this.param.setHitsMin((int) (sks/3.0));
+				this.param.getProperties().setHitsMin((int) (sks/3.0));
 			}
 			else if (sks >= 4) {
-				this.param.setHitsMin(2);
+				this.param.getProperties().setHitsMin(2);
 			}
 			else {
-				this.param.setHitsMin(1);
+				this.param.getProperties().setHitsMin(1);
 			}
 		}
 
@@ -77,13 +76,13 @@ public class Query implements Serializable {
         StringBuffer outfile = new StringBuffer();
 
         //process files / file pairs separately
-        if(this.param.isSplitOutput()) {
+        if(this.param.getProperties().isSplitOutput()) {
             //std::string outfile;
             //process each input file pair separately
-            if(this.param.getPairing() == MetaCacheOptions.pairing_mode.files && this.param.getInfiles().length > 1) {
-                for(int i = 0; i < this.param.getInfiles().length; i += 2) {
-                    String f1 = this.param.getInfiles()[i];
-                    String f2 = this.param.getInfiles()[i+1];
+            if(this.param.getProperties().getPairing() == EnumModes.pairing_mode.files && this.param.getInfiles_query().length > 1) {
+                for(int i = 0; i < this.param.getInfiles_query().length; i += 2) {
+                    String f1 = this.param.getInfiles_query()[i];
+                    String f2 = this.param.getInfiles_query()[i+1];
 
                     if(!this.param.getOutfile().isEmpty()) {
                         outfile.delete(0,outfile.length());
@@ -109,7 +108,7 @@ public class Query implements Serializable {
             }
             //process each input file separately
             else {
-                for(String f : this.param.getInfiles()) {
+                for(String f : this.param.getInfiles_query()) {
                     if(!this.param.getOutfile().isEmpty()) {
                         outfile.delete(0,outfile.length());
                         outfile.append(this.param.getOutfile());
@@ -134,7 +133,7 @@ public class Query implements Serializable {
             outfile.append(this.param.getOutfile());
 
             //process_input_files(db, param, param.infiles, param.outfile);
-            this.process_input_files(this.param.getInfiles(), outfile.toString());
+            this.process_input_files(this.param.getInfiles_query(), outfile.toString());
         }
     }
 
@@ -176,12 +175,12 @@ public class Query implements Serializable {
 
 			StringBuffer comment = new StringBuffer();
 
-			if(this.param.getMapViewMode() != MetaCacheOptions.map_view_mode.none) {
+			if(this.param.getProperties().getMapViewMode() != EnumModes.map_view_mode.none) {
 				comment.append("Reporting per-read mappings (non-mapping lines start with '').\n");
 				comment.append("Output will be constrained to ranks from 'taxonomy::rank_name(param.lowestRank)' to" +
 						"'taxonomy::rank_name(param.highestRank)'.\n");
 
-				if(this.param.isShowLineage()) {
+				if(this.param.getProperties().isShowLineage()) {
 					comment.append("The complete lineage will be reported "
 							+ "starting with the lowest match.\n");
 				}
@@ -193,23 +192,23 @@ public class Query implements Serializable {
 				comment.append("Per-Read mappings will not be shown.\n");
 			}
 
-			if(this.param.getExcludedRank() != Taxonomy.Rank.none) {
+			if(this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none) {
 				comment.append("Clade Exclusion on Rank: " +
-						Taxonomy.rank_name(this.param.getExcludedRank()));
+						Taxonomy.rank_name(this.param.getProperties().getExcludedRank()));
 			}
 
-			if(this.param.getPairing() == MetaCacheOptions.pairing_mode.files) {
+			if(this.param.getProperties().getPairing() == EnumModes.pairing_mode.files) {
 				comment.append("File based paired-end mode:\n" +
 						"  Reads from two consecutive files will be interleaved.\n" +
-						"  Max insert size considered " + this.param.getInsertSizeMax() + ".\n");
+						"  Max insert size considered " + this.param.getProperties().getInsertSizeMax() + ".\n");
 			}
-			else if(this.param.getPairing() == MetaCacheOptions.pairing_mode.sequences) {
+			else if(this.param.getProperties().getPairing() == EnumModes.pairing_mode.sequences) {
 				comment.append("Per file paired-end mode:\n"
 						+ "  Reads from two consecutive sequences in each file will be paired up.\n"
 						+ "  Max insert size considered \" + this.param.getInsertSizeMax() + \".\n");
 			}
 
-			if(this.param.isTestAlignment()) {
+			if(this.param.getProperties().isTestAlignment()) {
 				comment.append("Query sequences will be aligned to best candidate target => SLOW!\\n");
 			}
 
@@ -219,7 +218,7 @@ public class Query implements Serializable {
 
 			ClassificationStatistics stats = new ClassificationStatistics();
 
-			if(this.param.getPairing() == MetaCacheOptions.pairing_mode.files) {
+			if(this.param.getProperties().getPairing() == EnumModes.pairing_mode.files) {
 				classify_on_file_pairs(infilenames, d, stats);
 			}
 			else {
@@ -229,7 +228,7 @@ public class Query implements Serializable {
 			long endTime = System.nanoTime();
 
 			//show results
-			int numQueries = (this.param.getPairing() == MetaCacheOptions.pairing_mode.none) ? stats.total() :
+			int numQueries = (this.param.getProperties().getPairing() == EnumModes.pairing_mode.none) ? stats.total() :
 					2 * stats.total();
 
 			double speed = (double)numQueries / ((double)(endTime - initTime)/1e9/60.0);
@@ -341,20 +340,6 @@ public class Query implements Serializable {
 
 			}
 
-			/*
-
-    auto alscore = stats.alignment_scores();
-    if(!alscore.empty()) {
-        os << prefix << "semi-global alignment of query to best candidates:\n"
-           << prefix << "  score: " << alscore.mean()
-                     << " +/- " << alscore.stddev()
-                     << " <> " << alscore.skewness() << '\n';
-    }
-
-}
-     */
-
-
 			d.write(prefix.toString());
 		}
 		catch (IOException e) {
@@ -396,19 +381,23 @@ public class Query implements Serializable {
 
 
 				// Buffered mode for Native HashMap
-				if(this.param.isBuildModeHashMultiMapMCBuffered()) {
-					if(this.param.isNativeMap()) {
+				if ((this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) && (this.param.getBuffer_size() > 0)){
+					/*if(this.param.getProperties().isNativeMap()) {
 						LOG.warn("JMAbuin entering classify4");
 						this.classify4(fname, d, stats);
 					}
 					else {
 						LOG.warn("JMAbuin entering classify3");
 						this.classify3(fname, d, stats);
-					}
+					}*/
+
+					LOG.warn("JMAbuin entering classify3 with native hashmap");
+					this.classify3(fname, d, stats);
+
 
 				} // Spark Mode
-				else if(this.param.isBuildModeParquetDataframe() || this.param.isBuildCombineByKey()
-						|| this.param.isBuildModeHashMultiMapMC()) {
+				else if((this.param.getDatabase_type() == EnumModes.DatabaseType.PARQUET) || (this.param.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY)
+						|| (this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE)) {
 					LOG.warn("JMAbuin entering classify2");
 					this.classify2(fname, d, stats);
 				}
@@ -468,10 +457,10 @@ public class Query implements Serializable {
 		JavaRDD<Sketch> featuresRDD1 = null;
 		JavaRDD<Sketch> featuresRDD2 = null;
 
-		if(this.inputFormat == MetaCacheOptions.InputFormat.FASTA) {
+		if(this.inputFormat == EnumModes.InputFormat.FASTA) {
 			featuresRDD1 = inputData1.flatMap(new FastaSketcher4Query());
 		}
-		else if (this.inputFormat == MetaCacheOptions.InputFormat.FASTQ) {
+		else if (this.inputFormat == EnumModes.InputFormat.FASTQ) {
 			//featuresRDD = inputData.mapPartitions(new FastaSketcher());
 		}
 
@@ -510,7 +499,7 @@ public class Query implements Serializable {
 			long totalReads = FilesysUtility.readsInFastaFile(filename);
 			long currentRead = 0;
 			long startRead = 0;
-			int bufferSize = 51200;
+			int bufferSize = this.param.getBuffer_size();
 
 			SequenceData data;
 			data = seqReader.next();
@@ -644,7 +633,7 @@ public class Query implements Serializable {
 			long currentRead = 0;
 			long startRead = 0;
 			//int bufferSize = 51200;
-			int bufferSize = 100200;
+			int bufferSize = this.param.getBuffer_size();
 
 			SequenceData data;
 			data = seqReader.next();
@@ -841,11 +830,11 @@ public class Query implements Serializable {
 
         if (pathToFile.endsWith(".fastq") || pathToFile.endsWith(".fq") || pathToFile.endsWith(".fnq")) {
             reads = this.jsc.newAPIHadoopFile(pathToFile, FastqInputFormat.class, String.class, String.class, this.jsc.hadoopConfiguration());
-            this.inputFormat = MetaCacheOptions.InputFormat.FASTQ;
+            this.inputFormat = EnumModes.InputFormat.FASTQ;
         }
         else {
             reads = this.jsc.newAPIHadoopFile(pathToFile, FastaInputFormat.class, String.class, String.class, this.jsc.hadoopConfiguration());
-            this.inputFormat = MetaCacheOptions.InputFormat.FASTA;
+            this.inputFormat = EnumModes.InputFormat.FASTA;
         }
 
         return reads;
@@ -891,33 +880,33 @@ public class Query implements Serializable {
 		//preparation -------------------------------
 		Classification groundTruth = new Classification();
 
-		if(this.param.isTestPrecision() ||
-				(this.param.getMapViewMode() != MetaCacheOptions.map_view_mode.none && this.param.isShowGroundTruth()) ||
-				(this.param.getExcludedRank() != Taxonomy.Rank.none) ) {
+		if(this.param.getProperties().isTestPrecision() ||
+				(this.param.getProperties().getMapViewMode() != EnumModes.map_view_mode.none && this.param.getProperties().isShowGroundTruth()) ||
+				(this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none) ) {
 
 			groundTruth = this.db.ground_truth(header);
 
 		}
 
 		//clade exclusion
-		if(this.param.getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
-			long exclTaxid = this.db.ranks(groundTruth.tax())[this.param.getExcludedRank().ordinal()];
-			remove_hits_on_rank( this.param.getExcludedRank(), exclTaxid); //Todo: Look what this function does
+		if(this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
+			long exclTaxid = this.db.ranks(groundTruth.tax())[this.param.getProperties().getExcludedRank().ordinal()];
+			remove_hits_on_rank( this.param.getProperties().getExcludedRank(), exclTaxid); //Todo: Look what this function does
 		}
 
 		//classify ----------------------------------
-		long numWindows = ( 2 + Math.max(query1.length() + query2.length(),this.param.getInsertSizeMax()) / this.db.getTargetWindowStride_());
+		long numWindows = ( 2 + Math.max(query1.length() + query2.length(),this.param.getProperties().getInsertSizeMax()) / this.db.getTargetWindowStride_());
 
 		MatchesInWindow tophits = new MatchesInWindow(hits, numWindows);
 		Classification cls = this.sequence_classification(tophits);
 
-		if(param.isTestPrecision()) {
+		if(this.param.getProperties().isTestPrecision()) {
 			Taxonomy.Rank lowestCorrectRank = db.lowest_common_rank( cls, groundTruth);
 
 			stats.assign_known_correct(cls.rank(), groundTruth.rank(), lowestCorrectRank);
 
 			//check if taxa of assigned target are covered
-			if(param.isTestCoverage() && groundTruth.has_taxon()) {
+			if(param.getProperties().isTestCoverage() && groundTruth.has_taxon()) {
 				update_coverage_statistics(cls, groundTruth, stats);
 			}
 		}
@@ -926,8 +915,8 @@ public class Query implements Serializable {
 			stats.assign(cls.rank());
 		}
 
-		boolean showMapping = (param.getMapViewMode() == MetaCacheOptions.map_view_mode.all) ||
-				(param.getMapViewMode() == MetaCacheOptions.map_view_mode.mapped_only && !cls.none());
+		boolean showMapping = (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.all) ||
+				(this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.mapped_only && !cls.none());
 
 		try{
 			if(showMapping) {
@@ -947,51 +936,48 @@ public class Query implements Serializable {
 
 				}
 
-				d.write(param.getOutSeparator());
+				d.write(this.param.getProperties().getOutSeparator());
 
-				if(param.isShowTopHits() || param.isShowAllHits()) {
+				if(this.param.getProperties().isShowTopHits() || this.param.getProperties().isShowAllHits()) {
 
-
-
-
-					if(param.isShowGroundTruth()) {
+					if(this.param.getProperties().isShowGroundTruth()) {
 						if(groundTruth.sequence_level()) {
-							show_ranks_of_target(d, db, groundTruth.target(),
-									param.getShowTaxaAs(), param.getLowestRank(),
-									param.isShowLineage() ? param.getHighestRank() : param.getLowestRank());
+							this.show_ranks_of_target(d, this.db, groundTruth.target(),
+									this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+									this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
 						}
 						else if(groundTruth.has_taxon()) {
-							show_ranks(d, db, db.ranks(groundTruth.tax()),
-									param.getShowTaxaAs(), param.getLowestRank(),
-									param.isShowLineage() ? param.getHighestRank() : param.getLowestRank());
+							this.show_ranks(d, this.db, this.db.ranks(groundTruth.tax()),
+									this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+									this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
 						}
 						else {
 							d.write("n/a");
 						}
 
-						d.write(param.getOutSeparator());
+						d.write(this.param.getProperties().getOutSeparator());
 					}
 				}
 
 				//print results
-				if(param.isShowAllHits()) {
-					show_matches(d, db, hits, param.getLowestRank());
-					d.write(param.getOutSeparator());
+				if(this.param.getProperties().isShowAllHits()) {
+					show_matches(d, this.db, hits, this.param.getProperties().getLowestRank());
+					d.write(this.param.getProperties().getOutSeparator());
 				}
-				if(param.isShowTopHits()) {
-					show_matches(d, db, tophits, param.getLowestRank());
-					d.write(param.getOutSeparator());
+				if(this.param.getProperties().isShowTopHits()) {
+					show_matches(d, this.db, tophits, this.param.getProperties().getLowestRank());
+					d.write(param.getProperties().getOutSeparator());
 				}
-				if(param.isShowLocations()) {
-					show_candidate_ranges(d, db, tophits);
-					d.write(param.getOutSeparator());
+				if(this.param.getProperties().isShowLocations()) {
+					show_candidate_ranges(d, this.db, tophits);
+					d.write(this.param.getProperties().getOutSeparator());
 				}
-				show_classification(d, db, cls);
+				show_classification(d, this.db, cls);
 
 			}
 
 			// BUSCA //HERE CHEMA mais abaixo
-			if(this.param.isTestAlignment() && !cls.none()) {
+			if(this.param.getProperties().isTestAlignment() && !cls.none()) {
 				SequenceOrigin origin = this.db.origin_of_target(tophits.target_id(0));
 
 				SequenceFileReader reader = new SequenceFileReader(origin.getFilename(), 0);
@@ -1077,33 +1063,33 @@ public class Query implements Serializable {
 		//preparation -------------------------------
 		Classification groundTruth = new Classification();
 
-		if(this.param.isTestPrecision() ||
-				(this.param.getMapViewMode() != MetaCacheOptions.map_view_mode.none && this.param.isShowGroundTruth()) ||
-				(this.param.getExcludedRank() != Taxonomy.Rank.none) ) {
+		if(this.param.getProperties().isTestPrecision() ||
+				(this.param.getProperties().getMapViewMode() != EnumModes.map_view_mode.none && this.param.getProperties().isShowGroundTruth()) ||
+				(this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none) ) {
 
 			groundTruth = this.db.ground_truth(header);
 
 		}
 
 		//clade exclusion
-		if(this.param.getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
-			long exclTaxid = this.db.ranks(groundTruth.tax())[this.param.getExcludedRank().ordinal()];
-			remove_hits_on_rank( this.param.getExcludedRank(), exclTaxid); //Todo: Look what this function does
+		if(this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
+			long exclTaxid = this.db.ranks(groundTruth.tax())[this.param.getProperties().getExcludedRank().ordinal()];
+			remove_hits_on_rank( this.param.getProperties().getExcludedRank(), exclTaxid); //Todo: Look what this function does
 		}
 
 		//classify ----------------------------------
-		long numWindows = ( 2 + Math.max(query1.length() + query2.length(),this.param.getInsertSizeMax()) / this.db.getTargetWindowStride_());
+		long numWindows = ( 2 + Math.max(query1.length() + query2.length(),this.param.getProperties().getInsertSizeMax()) / this.db.getTargetWindowStride_());
 
 		MatchesInWindowBasic tophits = new MatchesInWindowBasic(hits, numWindows);
 		Classification cls = this.sequence_classification(tophits);
 
-		if(param.isTestPrecision()) {
-			Taxonomy.Rank lowestCorrectRank = db.lowest_common_rank( cls, groundTruth);
+		if(this.param.getProperties().isTestPrecision()) {
+			Taxonomy.Rank lowestCorrectRank = this.db.lowest_common_rank( cls, groundTruth);
 
 			stats.assign_known_correct(cls.rank(), groundTruth.rank(), lowestCorrectRank);
 
 			//check if taxa of assigned target are covered
-			if(param.isTestCoverage() && groundTruth.has_taxon()) {
+			if(this.param.getProperties().isTestCoverage() && groundTruth.has_taxon()) {
 				update_coverage_statistics(cls, groundTruth, stats);
 			}
 		}
@@ -1112,8 +1098,8 @@ public class Query implements Serializable {
 			stats.assign(cls.rank());
 		}
 
-		boolean showMapping = (param.getMapViewMode() == MetaCacheOptions.map_view_mode.all) ||
-				(param.getMapViewMode() == MetaCacheOptions.map_view_mode.mapped_only && !cls.none());
+		boolean showMapping = (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.all) ||
+				(this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.mapped_only && !cls.none());
 
 		try{
 			if(showMapping) {
@@ -1133,48 +1119,48 @@ public class Query implements Serializable {
 
 				}
 
-				d.write(param.getOutSeparator());
+				d.write(this.param.getProperties().getOutSeparator());
 
-				if(param.isShowTopHits() || param.isShowAllHits()) {
+				if(this.param.getProperties().isShowTopHits() || this.param.getProperties().isShowAllHits()) {
 
-					if(param.isShowGroundTruth()) {
+					if(this.param.getProperties().isShowGroundTruth()) {
 						if(groundTruth.sequence_level()) {
-							show_ranks_of_target(d, db, groundTruth.target(),
-									param.getShowTaxaAs(), param.getLowestRank(),
-									param.isShowLineage() ? param.getHighestRank() : param.getLowestRank());
+							show_ranks_of_target(d, this.db, groundTruth.target(),
+									this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+									this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
 						}
 						else if(groundTruth.has_taxon()) {
-							show_ranks(d, db, db.ranks(groundTruth.tax()),
-									param.getShowTaxaAs(), param.getLowestRank(),
-									param.isShowLineage() ? param.getHighestRank() : param.getLowestRank());
+							show_ranks(d, this.db, this.db.ranks(groundTruth.tax()),
+									this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+									this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
 						}
 						else {
 							d.write("n/a");
 						}
 
-						d.write(param.getOutSeparator());
+						d.write(this.param.getProperties().getOutSeparator());
 					}
 				}
 
 				//print results
-				if(param.isShowAllHits()) {
-					show_matches_basic(d, db, hits, param.getLowestRank());
-					d.write(param.getOutSeparator());
+				if (this.param.getProperties().isShowAllHits()) {
+					show_matches_basic(d, this.db, hits, this.param.getProperties().getLowestRank());
+					d.write(this.param.getProperties().getOutSeparator());
 				}
-				if(param.isShowTopHits()) {
-					show_matches_basic(d, db, tophits, param.getLowestRank());
-					d.write(param.getOutSeparator());
+				if (this.param.getProperties().isShowTopHits()) {
+					show_matches_basic(d, this.db, tophits, this.param.getProperties().getLowestRank());
+					d.write(this.param.getProperties().getOutSeparator());
 				}
-				if(param.isShowLocations()) {
-					show_candidate_ranges(d, db, tophits);
-					d.write(param.getOutSeparator());
+				if (this.param.getProperties().isShowLocations()) {
+					show_candidate_ranges(d, this.db, tophits);
+					d.write(this.param.getProperties().getOutSeparator());
 				}
-				show_classification(d, db, cls);
+				show_classification(d, this.db, cls);
 
 			}
 
 			// BUSCA //HERE CHEMA mais abaixo
-			if(this.param.isTestAlignment() && !cls.none()) {
+			if(this.param.getProperties().isTestAlignment() && !cls.none()) {
 				SequenceOrigin origin = this.db.origin_of_target(tophits.target_id(0));
 
 				SequenceFileReader reader = new SequenceFileReader(origin.getFilename(), 0);
@@ -1218,33 +1204,33 @@ public class Query implements Serializable {
 		//preparation -------------------------------
 		Classification groundTruth = new Classification();
 
-		if(this.param.isTestPrecision() ||
-				(this.param.getMapViewMode() != MetaCacheOptions.map_view_mode.none && this.param.isShowGroundTruth()) ||
-				(this.param.getExcludedRank() != Taxonomy.Rank.none) ) {
+		if(this.param.getProperties().isTestPrecision() ||
+				(this.param.getProperties().getMapViewMode() != EnumModes.map_view_mode.none && this.param.getProperties().isShowGroundTruth()) ||
+				(this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none) ) {
 
 			groundTruth = this.db.ground_truth(header);
 
 		}
 
 		//clade exclusion
-		if(this.param.getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
-			long exclTaxid = this.db.ranks(groundTruth.tax())[this.param.getExcludedRank().ordinal()];
-			remove_hits_on_rank( this.param.getExcludedRank(), exclTaxid); //Todo: Look what this function does
+		if(this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
+			long exclTaxid = this.db.ranks(groundTruth.tax())[this.param.getProperties().getExcludedRank().ordinal()];
+			remove_hits_on_rank( this.param.getProperties().getExcludedRank(), exclTaxid); //Todo: Look what this function does
 		}
 
 		//classify ----------------------------------
-		long numWindows = ( 2 + Math.max(query1.length() + query2.length(),this.param.getInsertSizeMax()) / this.db.getTargetWindowStride_());
+		long numWindows = ( 2 + Math.max(query1.length() + query2.length(),this.param.getProperties().getInsertSizeMax()) / this.db.getTargetWindowStride_());
 
 		MatchesInWindowNative tophits = new MatchesInWindowNative(hits, numWindows);
 		Classification cls = this.sequence_classification(tophits);
 
-		if(param.isTestPrecision()) {
+		if(this.param.getProperties().isTestPrecision()) {
 			Taxonomy.Rank lowestCorrectRank = db.lowest_common_rank( cls, groundTruth);
 
 			stats.assign_known_correct(cls.rank(), groundTruth.rank(), lowestCorrectRank);
 
 			//check if taxa of assigned target are covered
-			if(param.isTestCoverage() && groundTruth.has_taxon()) {
+			if(this.param.getProperties().isTestCoverage() && groundTruth.has_taxon()) {
 				update_coverage_statistics(cls, groundTruth, stats);
 			}
 		}
@@ -1253,8 +1239,8 @@ public class Query implements Serializable {
 			stats.assign(cls.rank());
 		}
 
-		boolean showMapping = (param.getMapViewMode() == MetaCacheOptions.map_view_mode.all) ||
-				(param.getMapViewMode() == MetaCacheOptions.map_view_mode.mapped_only && !cls.none());
+		boolean showMapping = (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.all) ||
+				(this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.mapped_only && !cls.none());
 
 		try{
 			if(showMapping) {
@@ -1274,48 +1260,48 @@ public class Query implements Serializable {
 
 				}
 
-				d.write(param.getOutSeparator());
+				d.write(this.param.getProperties().getOutSeparator());
 
-				if(param.isShowTopHits() || param.isShowAllHits()) {
+				if(this.param.getProperties().isShowTopHits() || this.param.getProperties().isShowAllHits()) {
 
-					if(param.isShowGroundTruth()) {
+					if(this.param.getProperties().isShowGroundTruth()) {
 						if(groundTruth.sequence_level()) {
-							show_ranks_of_target(d, db, groundTruth.target(),
-									param.getShowTaxaAs(), param.getLowestRank(),
-									param.isShowLineage() ? param.getHighestRank() : param.getLowestRank());
+							show_ranks_of_target(d, this.db, groundTruth.target(),
+									this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+									this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
 						}
 						else if(groundTruth.has_taxon()) {
-							show_ranks(d, db, db.ranks(groundTruth.tax()),
-									param.getShowTaxaAs(), param.getLowestRank(),
-									param.isShowLineage() ? param.getHighestRank() : param.getLowestRank());
+							show_ranks(d, this.db, this.db.ranks(groundTruth.tax()),
+									this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+									this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
 						}
 						else {
 							d.write("n/a");
 						}
 
-						d.write(param.getOutSeparator());
+						d.write(this.param.getProperties().getOutSeparator());
 					}
 				}
 
 				//print results
-				if(param.isShowAllHits()) {
-					show_matches_native(d, db, hits, param.getLowestRank());
-					d.write(param.getOutSeparator());
+				if(this.param.getProperties().isShowAllHits()) {
+					show_matches_native(d, this.db, hits, this.param.getProperties().getLowestRank());
+					d.write(this.param.getProperties().getOutSeparator());
 				}
-				if(param.isShowTopHits()) {
-					show_matches_native(d, db, tophits, param.getLowestRank());
-					d.write(param.getOutSeparator());
+				if(this.param.getProperties().isShowTopHits()) {
+					show_matches_native(d, this.db, tophits, this.param.getProperties().getLowestRank());
+					d.write(this.param.getProperties().getOutSeparator());
 				}
-				if(param.isShowLocations()) {
-					show_candidate_ranges(d, db, tophits);
-					d.write(param.getOutSeparator());
+				if(this.param.getProperties().isShowLocations()) {
+					show_candidate_ranges(d, this.db, tophits);
+					d.write(this.param.getProperties().getOutSeparator());
 				}
-				show_classification(d, db, cls);
+				show_classification(d, this.db, cls);
 
 			}
 
 			// BUSCA //HERE CHEMA mais abaixo
-			if(this.param.isTestAlignment() && !cls.none()) {
+			if(this.param.getProperties().isTestAlignment() && !cls.none()) {
 				SequenceOrigin origin = this.db.origin_of_target(tophits.target_id(0));
 
 				SequenceFileReader reader = new SequenceFileReader(origin.getFilename(), 0);
@@ -1345,12 +1331,12 @@ public class Query implements Serializable {
 	}
 
 
-	public void show_ranks_of_target(BufferedWriter os, Database db, long tid, MetaCacheOptions.taxon_print_mode mode, Taxonomy.Rank lowest,
+	public void show_ranks_of_target(BufferedWriter os, Database db, long tid, EnumModes.taxon_print_mode mode, Taxonomy.Rank lowest,
 									 Taxonomy.Rank highest) {
 		//since targets don't have their own taxonId, print their sequence id
 		try {
 			if(lowest == Taxonomy.Rank.Sequence) {
-				if(mode != MetaCacheOptions.taxon_print_mode.id_only) {
+				if(mode != EnumModes.taxon_print_mode.id_only) {
 					os.write("sequence:"+db.sequence_id_of_target(tid));
 					os.newLine();
 
@@ -1380,10 +1366,10 @@ public class Query implements Serializable {
 
 	public Classification sequence_classification(MatchesInWindow cand) {
 
-		long wc = this.param.isWeightHitsWithWindows() ? cand.covered_windows() > 1 ? cand.covered_windows() - 1 : 1 : 1;
+		long wc = this.param.getProperties().isWeightHitsWithWindows() ? cand.covered_windows() > 1 ? cand.covered_windows() - 1 : 1 : 1;
 
 		//sum of top-2 hits < threshold => considered not classifiable
-		if((cand.hits(0) + cand.hits(1)) < wc*param.getHitsMin()) {
+		if((cand.hits(0) + cand.hits(1)) < wc * this.param.getProperties().getHitsMin()) {
 			//LOG.warn("[JMAbuin] First if");
 			return new Classification();
 		}
@@ -1391,7 +1377,7 @@ public class Query implements Serializable {
 		//either top 2 are the same sequences with at least 'hitsMin' many hits
 		//(checked before) or hit difference between these top 2 is above threshhold
 		if( (cand.target_id(0) == cand.target_id(1))
-				|| (cand.hits(0) - cand.hits(1)) >= wc*param.getHitsMin())
+				|| (cand.hits(0) - cand.hits(1)) >= wc * this.param.getProperties().getHitsMin())
 		{
 			//return top candidate
 			int tid = cand.target_id(0);
@@ -1400,17 +1386,18 @@ public class Query implements Serializable {
 		}
 
 		//LOG.warn("[JMAbuin] Last if");
-		return new Classification(this.lowest_common_taxon(MatchesInWindow.maxNo, cand, (float)param.getHitsDiff(), param.getLowestRank(), param.getHighestRank()));
+		return new Classification(this.lowest_common_taxon(MatchesInWindow.maxNo, cand, (float)this.param.getProperties().getHitsDiff(),
+				this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
 
 
 	}
 
 	public Classification sequence_classification(MatchesInWindowBasic cand) {
 
-		long wc = this.param.isWeightHitsWithWindows() ? cand.covered_windows() > 1 ? cand.covered_windows() - 1 : 1 : 1;
+		long wc = this.param.getProperties().isWeightHitsWithWindows() ? cand.covered_windows() > 1 ? cand.covered_windows() - 1 : 1 : 1;
 
 		//sum of top-2 hits < threshold => considered not classifiable
-		if((cand.hits(0) + cand.hits(1)) < wc*param.getHitsMin()) {
+		if((cand.hits(0) + cand.hits(1)) < wc* this.param.getProperties().getHitsMin()) {
 			//LOG.warn("[JMAbuin] First if");
 			return new Classification();
 		}
@@ -1418,7 +1405,7 @@ public class Query implements Serializable {
 		//either top 2 are the same sequences with at least 'hitsMin' many hits
 		//(checked before) or hit difference between these top 2 is above threshhold
 		if( (cand.target_id(0) == cand.target_id(1))
-				|| (cand.hits(0) - cand.hits(1)) >= wc*param.getHitsMin())
+				|| (cand.hits(0) - cand.hits(1)) >= wc * this.param.getProperties().getHitsMin())
 		{
 			//return top candidate
 			int tid = cand.target_id(0);
@@ -1427,17 +1414,18 @@ public class Query implements Serializable {
 		}
 
 		//LOG.warn("[JMAbuin] Last if");
-		return new Classification(lowest_common_taxon(MatchesInWindowBasic.maxNo, cand, (float)param.getHitsDiff(), param.getLowestRank(), param.getHighestRank()));
+		return new Classification(lowest_common_taxon(MatchesInWindowBasic.maxNo, cand, (float)this.param.getProperties().getHitsDiff(),
+                this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
 
 
 	}
 
 	public Classification sequence_classification(MatchesInWindowNative cand) {
 
-		long wc = this.param.isWeightHitsWithWindows() ? cand.covered_windows() > 1 ? cand.covered_windows() - 1 : 1 : 1;
+		long wc = this.param.getProperties().isWeightHitsWithWindows() ? cand.covered_windows() > 1 ? cand.covered_windows() - 1 : 1 : 1;
 
 		//sum of top-2 hits < threshold => considered not classifiable
-		if((cand.hits(0) + cand.hits(1)) < wc*param.getHitsMin()) {
+		if((cand.hits(0) + cand.hits(1)) < wc * this.param.getProperties().getHitsMin()) {
 			//LOG.warn("[JMAbuin] First if");
 			return new Classification();
 		}
@@ -1445,7 +1433,7 @@ public class Query implements Serializable {
 		//either top 2 are the same sequences with at least 'hitsMin' many hits
 		//(checked before) or hit difference between these top 2 is above threshhold
 		if( (cand.target_id(0) == cand.target_id(1))
-				|| (cand.hits(0) - cand.hits(1)) >= wc*param.getHitsMin())
+				|| (cand.hits(0) - cand.hits(1)) >= wc * this.param.getProperties().getHitsMin())
 		{
 			//return top candidate
 			int tid = cand.target_id(0);
@@ -1454,7 +1442,8 @@ public class Query implements Serializable {
 		}
 
 		//LOG.warn("[JMAbuin] Last if");
-		return new Classification(lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float)param.getHitsDiff(), param.getLowestRank(), param.getHighestRank()));
+		return new Classification(lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
+                this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
 
 
 	}
@@ -1773,14 +1762,14 @@ public class Query implements Serializable {
 	}
 
 	public void show_ranks(BufferedWriter os, Database db, Long[] lineage,
-						   MetaCacheOptions.taxon_print_mode mode, Taxonomy.Rank lowest, Taxonomy.Rank highest) {
+						   EnumModes.taxon_print_mode mode, Taxonomy.Rank lowest, Taxonomy.Rank highest) {
 		//one rank only
 		try{
 			//if(lowest == highest) { // ordinal?
 			if(lowest.equals(highest)) {
 				long taxid = lineage[lowest.ordinal()];
 				os.write(Taxonomy.rank_name(lowest) +  ':');
-				if(mode != MetaCacheOptions.taxon_print_mode.id_only) {
+				if(mode != EnumModes.taxon_print_mode.id_only) {
 					if(taxid > 1) {
 						os.write(db.taxon_with_id(taxid).getTaxonName());
 					}
@@ -1790,7 +1779,7 @@ public class Query implements Serializable {
 
 					os.newLine();
 
-					if(mode != MetaCacheOptions.taxon_print_mode.name_only) {
+					if(mode != EnumModes.taxon_print_mode.name_only) {
 						os.write("(" + taxid + ")");
 						os.newLine();
 					}
@@ -1808,9 +1797,9 @@ public class Query implements Serializable {
 						Taxon taxon = db.taxon_with_id(taxid);
 						if(taxon.getRank().ordinal() >= lowest.ordinal() && taxon.getRank().ordinal() <= highest.ordinal()) {
 							os.write(taxon.rank_name() + ':');
-							if(mode != MetaCacheOptions.taxon_print_mode.id_only) {
+							if(mode != EnumModes.taxon_print_mode.id_only) {
 								os.write(taxon.getTaxonName());
-								if(mode != MetaCacheOptions.taxon_print_mode.name_only) {
+								if(mode != EnumModes.taxon_print_mode.name_only) {
 									os.write("(" + taxon.getTaxonId() + ")");
 								}
 							}
@@ -2139,22 +2128,22 @@ public class Query implements Serializable {
 	void show_classification(BufferedWriter os, Database db, Classification cls) {
 		try {
 			if(cls.sequence_level()) {
-				Taxonomy.Rank rmax = param.isShowLineage() ? param.getHighestRank() : param.getLowestRank();
+				Taxonomy.Rank rmax = this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank();
 
 				show_ranks_of_target(os, db, cls.target(),
-						param.getShowTaxaAs(), param.getLowestRank(), rmax);
+                        this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(), rmax);
 			}
 			else if(cls.has_taxon()) {
-				if(cls.rank().ordinal() > param.getHighestRank().ordinal()) {
+				if(cls.rank().ordinal() > this.param.getProperties().getHighestRank().ordinal()) {
 					os.write("--");
 					os.newLine();
 				}
 				else {
-					Taxonomy.Rank rmin = param.getLowestRank().ordinal() < cls.rank().ordinal() ? cls.rank() : param.getLowestRank();
-					Taxonomy.Rank rmax = param.isShowLineage() ? param.getHighestRank() : rmin;
+					Taxonomy.Rank rmin = this.param.getProperties().getLowestRank().ordinal() < cls.rank().ordinal() ? cls.rank() : this.param.getProperties().getLowestRank();
+					Taxonomy.Rank rmax = this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : rmin;
 
 					show_ranks(os, db, db.ranks(cls.tax()),
-							param.getShowTaxaAs(), rmin, rmax);
+                            this.param.getProperties().getShowTaxaAs(), rmin, rmax);
 				}
 			}
 			else {

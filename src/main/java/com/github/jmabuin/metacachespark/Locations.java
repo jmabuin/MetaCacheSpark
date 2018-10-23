@@ -8,6 +8,11 @@ public class Locations implements Serializable{
     private Integer key;
     private List<LocationBasic> locations;
 
+    public Locations(Integer key, List<LocationBasic> values) {
+        this.key = key;
+        this.locations = values;
+    }
+
     public Integer getKey() {
         return key;
     }

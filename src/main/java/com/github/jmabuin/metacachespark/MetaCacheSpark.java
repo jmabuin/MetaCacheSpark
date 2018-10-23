@@ -21,10 +21,10 @@ public class MetaCacheSpark implements Serializable {
 
 		MetaCacheOptions newOptions = new MetaCacheOptions(args);
 
-		if(newOptions.getMode() == MetaCacheOptions.Mode.HELP) {
+		if(newOptions.getMode() == EnumModes.Mode.HELP) {
 			newOptions.printHelp();
 		}
-		else if(newOptions.getMode() == MetaCacheOptions.Mode.BUILD) {
+		else if(newOptions.getMode() == EnumModes.Mode.BUILD) {
 			// Build mode entry point
 
 			SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Build");
@@ -51,14 +51,14 @@ public class MetaCacheSpark implements Serializable {
 
 			LOG.info("Using Spark :: " + ctx.version());
 
-			Build buildObject = new Build(newOptions.getBuildOptions(), ctx);
+			Build buildObject = new Build(newOptions, ctx);
 
 			buildObject.buildDatabase();
 			LOG.warn("End of program ...");
 
 			///ctx.close();
 		}
-		else if(newOptions.getMode() == MetaCacheOptions.Mode.QUERY) {
+		else if(newOptions.getMode() == EnumModes.Mode.QUERY) {
 			SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Query");
 
 			//sparkConf.set("spark.sql.parquet.mergeSchema", "false");
@@ -112,7 +112,7 @@ sparkConf.set("spark.sql.parquet.compression.codec", "snappy")
 
 			// Get arguments and do my stuff
 			//String queryArgs[] = newOptions.getOtherOptions();
-			Query queryObject = new Query(newOptions.getQueryOptions(), ctx);
+			Query queryObject = new Query(newOptions, ctx);
 
 
 			LOG.warn("End of program ...");

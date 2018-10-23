@@ -18,8 +18,7 @@
 package com.github.jmabuin.metacachespark.database;
 import com.github.jmabuin.metacachespark.*;
 import com.github.jmabuin.metacachespark.io.*;
-import com.github.jmabuin.metacachespark.options.BuildOptions;
-import com.github.jmabuin.metacachespark.options.QueryOptions;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import com.github.jmabuin.metacachespark.spark.*;
 import com.google.common.collect.HashMultimap;
 //import edu.berkeley.cs.amplab.spark.indexedrdd.IndexedRDD;
@@ -30,10 +29,7 @@ import org.apache.spark.RangePartitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
@@ -72,11 +68,11 @@ public class Database implements Serializable{
 
 	private JavaRDD<Sequence> inputSequences;
 
-	private QueryOptions paramsQuery;
-	private BuildOptions paramsBuild;
+	private MetaCacheOptions params;
 	//private IndexedRDD<Integer, LocationBasic> indexedRDD;
 	private JavaPairRDD<Integer, LocationBasic> locationJavaPairRDD;
 	private JavaPairRDD<Integer, List<LocationBasic>> locationJavaPairListRDD;
+    private JavaPairRDD<Integer, Iterable<LocationBasic>> locationJavaPairIterableRDD;
 	private JavaRDD<HashMultiMapNative> locationJavaRDDHashMultiMapNative;
 	private JavaRDD<Location> locationJavaRDD;
 	private JavaRDD<HashMap<Integer, List<LocationBasic>>> locationJavaHashRDD;
@@ -110,7 +106,7 @@ public class Database implements Serializable{
 	}
 
 
-	public Database(JavaSparkContext jsc, TaxonomyParam taxonomyParam, BuildOptions paramsBuild, int numPartitions, String dbfile) {
+	public Database(JavaSparkContext jsc, TaxonomyParam taxonomyParam, MetaCacheOptions params, int numPartitions, String dbfile) {
 		this.jsc = jsc;
 		this.taxonomyParam = taxonomyParam;
 		this.numPartitions = numPartitions;
@@ -121,7 +117,7 @@ public class Database implements Serializable{
 		this.targets_ = new ArrayList<TargetProperty>();
 		this.sid2gid_ = new HashMap<String,Integer>();
 
-		this.paramsBuild = paramsBuild;
+		this.params = params;
 
 	}
 
@@ -131,27 +127,19 @@ public class Database implements Serializable{
 	 * @param dbFile
 	 * @param params
 	 */
-	public Database(JavaSparkContext jsc, String dbFile, QueryOptions params) {
+	public Database(JavaSparkContext jsc, String dbFile, MetaCacheOptions params) {
 
 		this.jsc = jsc;
 		this.dbfile = dbFile;
 
 		this.sqlContext = new SQLContext(this.jsc);
 
-		this.paramsQuery = params;
+		this.params = params;
 
-		this.queryWindowSize_ = params.getWinlen();
-		this.queryWindowStride_ = params.getWinstride();
+		this.queryWindowSize_ = params.getProperties().getWinlen();
+		this.queryWindowStride_ = params.getProperties().getWinstride();
 
-		if(this.queryWindowStride_ == 0) {
-			this.queryWindowStride_ = MCSConfiguration.winstride;
-		}
-
-		if(this.targetWindowStride_ == 0) {
-			this.targetWindowStride_ = MCSConfiguration.winstride;
-		}
-
-		this.numPartitions = this.paramsQuery.getNumPartitions();
+		this.numPartitions = this.params.getPartitions();
 
 
 /*
@@ -464,24 +452,24 @@ public class Database implements Serializable{
 			this.featuresDataframe_ = this.sqlContext.createDataFrame(this.locationJavaRDD, Location.class);
 */
 
-			if(paramsBuild.isBuildModeHashMap()) {
+			if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) { //.isBuildModeHashMap()) {
 				LOG.warn("Building database with isBuildModeHashMap");
 				this.locationJavaHashRDD = this.inputSequences
 						.mapPartitionsWithIndex(new Sketcher2HashMap(this.sid2gid_), true);
 			}
-			else if(paramsBuild.isBuildModeHashMultiMapG()) {
+			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {//(paramsBuild.isBuildModeHashMultiMapG()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapG");
 				this.locationJavaHashMMRDD = this.inputSequences
 						.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.sid2gid_), true);
 			}
-			else if(paramsBuild.isBuildModeHashMultiMapMC()) {
+			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapMC");
 				//this.locationJavaPairListRDD = this.inputSequences
 				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
 				this.locationJavaRDDHashMultiMapNative = this.inputSequences
 						.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
 			}
-			else if(paramsBuild.isBuildModeParquetDataframe()) {
+			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
 				LOG.warn("Building database with isBuildModeParquetDataframe");
 				this.locationJavaRDD = this.inputSequences
 						.flatMap(new Sketcher(this.sid2gid_));
@@ -493,14 +481,15 @@ public class Database implements Serializable{
 				// //this.sqlContext.createDataFrame(this.locationJavaRDD, Location.class);
 
 			}
-			else if(paramsBuild.isBuildCombineByKey()) {
+			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {//(paramsBuild.isBuildCombineByKey()) {
 				LOG.warn("Building database with isBuildCombineByKey");
 				this.locationJavaPairListRDD = this.inputSequences
 						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
-						.partitionBy(new MyCustomPartitioner(this.paramsBuild.getNumPartitions()))
+						.partitionBy(new MyCustomPartitioner(this.numPartitions))
 						.combineByKey(new LocationCombiner(),
 								new LocationMergeValues(),
 								new LocationMergeCombiners());
+
 
 			}
 
@@ -629,15 +618,12 @@ public class Database implements Serializable{
 			//JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
 
 
-			if(this.paramsBuild.isMyWholeTextFiles()) {
-
-				//LOG.warn("Starting to build database from with MyWholeTextFiles");
-
+			if(this.params.getProperties().isMyWholeTextFiles()) {
 
 				JavaPairRDD<String, String> tmpInput = null;
 
 				for (String currentDir : infiles) {
-					//LOG.warn("Starting to build database from " + currentDir + " ...");
+                    LOG.warn("Starting to build database from " + currentDir + " with MyWholeTextFiles");
 
 					if (tmpInput == null) {
 						tmpInput = this.jsc.wholeTextFiles(currentDir);
@@ -649,7 +635,7 @@ public class Database implements Serializable{
 
 				inputData = tmpInput
 						.keys()
-						.repartition(this.paramsBuild.getNumPartitions())
+						.repartition(this.numPartitions)
 						.mapPartitionsToPair(new MyWholeTextFiles(), true)
 						.persist(StorageLevel.DISK_ONLY());
 
@@ -662,7 +648,7 @@ public class Database implements Serializable{
 			else {
 
 				for (String currentDir : infiles) {
-					//LOG.warn("Starting to build database from " + currentDir + " ...");
+					LOG.warn("Starting to build database from " + currentDir + " ...");
 
 					if (inputData == null) {
 						inputData = this.jsc.wholeTextFiles(currentDir);
@@ -673,12 +659,14 @@ public class Database implements Serializable{
 				}
 
 				if(this.numPartitions != 1) {
+					LOG.info("Repartitioning into " + this.numPartitions + " partitions.");
 					this.inputSequences = inputData.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
 							.repartition(this.numPartitions)
 							//.persist(StorageLevel.MEMORY_AND_DISK_SER());
 							.persist(StorageLevel.DISK_ONLY());
 				}
 				else {
+                    LOG.info("No repartitioning");
 					this.inputSequences = inputData.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
 							//.persist(StorageLevel.MEMORY_AND_DISK_SER());
 							.persist(StorageLevel.DISK_ONLY());
@@ -687,8 +675,6 @@ public class Database implements Serializable{
 
 			}
 			//inputData = inputData.coalesce(this.numPartitions);
-
-
 
 			List<String> data = this.inputSequences.map(new Sequence2SequenceId()).collect();
 
@@ -707,17 +693,17 @@ public class Database implements Serializable{
 			this.nextTargetId_ = this.sid2gid_.size();
 
 
-			if(paramsBuild.isBuildModeHashMap()) {
+			if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
 				LOG.warn("Building database with isBuildModeHashMap");
 				this.locationJavaHashRDD = this.inputSequences
 						.mapPartitionsWithIndex(new Sketcher2HashMap(this.sid2gid_), true);
 			}
-			else if(paramsBuild.isBuildModeHashMultiMapG()) {
+			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapG");
 				this.locationJavaHashMMRDD = this.inputSequences
 						.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.sid2gid_), true);
 			}
-			else if(paramsBuild.isBuildModeHashMultiMapMC()) {
+			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapMC");
 				//this.locationJavaPairListRDD = this.inputSequences
 				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
@@ -727,17 +713,7 @@ public class Database implements Serializable{
 						//.partitionBy(new MyCustomPartitioner(this.paramsBuild.getNumPartitions()))
 						.mapPartitionsWithIndex(new Pair2HashMapNative(), true);
 			}
-			else if(paramsBuild.isBuildModeHashMultiMapMCBuffered()) {
-				LOG.warn("Building database with isBuildModeHashMultiMapMCBuffered");
-				//this.locationJavaPairListRDD = this.inputSequences
-				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
-				this.locationJavaRDDHashMultiMapNative = this.inputSequences
-						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
-						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
-						.partitionBy(new MyCustomPartitioner(this.paramsBuild.getNumPartitions()))
-						.mapPartitionsWithIndex(new Pair2HashMapNative(), true);
-			}
-			else if(paramsBuild.isBuildModeParquetDataframe()) {
+			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
 				LOG.warn("Building database with isBuildModeParquetDataframe");
 				this.locationJavaRDD = this.inputSequences
 						.flatMap(new Sketcher(this.sid2gid_));
@@ -745,14 +721,18 @@ public class Database implements Serializable{
 				this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
 
 			}
-			else if(paramsBuild.isBuildCombineByKey()) {
+			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
 				LOG.warn("Building database with isBuildCombineByKey");
-				this.locationJavaPairListRDD = this.inputSequences
+				/*this.locationJavaPairListRDD = this.inputSequences
 						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
-						.partitionBy(new MyCustomPartitioner(this.paramsBuild.getNumPartitions()))
+						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
 						.combineByKey(new LocationCombiner(),
 								new LocationMergeValues(),
 								new LocationMergeCombiners());
+								*/
+				this.locationJavaPairIterableRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.sid2gid_)).groupByKey();
+
 
 			}
 
@@ -1258,7 +1238,7 @@ public class Database implements Serializable{
 
 			long startTime = System.nanoTime();
 
-			if(paramsBuild.isBuildModeHashMap()) {
+			if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
 				//this.locationJavaHashRDD.saveAsObjectFile(path+"/"+this.dbfile);
 
 				List<String> outputs = this.locationJavaHashRDD
@@ -1270,10 +1250,10 @@ public class Database implements Serializable{
 				}
 
 			}
-			else if(paramsBuild.isBuildModeHashMultiMapG()) {
+			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {//(paramsBuild.isBuildModeHashMultiMapG()) {
 				this.locationJavaHashMMRDD.saveAsObjectFile(path+"/"+this.dbfile);
 			}
-			else if(paramsBuild.isBuildModeHashMultiMapMC() || paramsBuild.isBuildModeHashMultiMapMCBuffered()) {
+			else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
 				//this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
 				//this.locationJavaRDDHashMultiMapNative.saveAsObjectFile(path+"/"+this.dbfile);
 
@@ -1285,12 +1265,23 @@ public class Database implements Serializable{
 				}
 
 			}
-			else if(paramsBuild.isBuildModeParquetDataframe()) {
+			else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
 				this.featuresDataframe_.write().parquet(path+"/"+this.dbfile);
 				//this.featuresDataframe_.write().partitionBy("key").parquet(path+"/"+this.dbfile);
 			}
-			else if(paramsBuild.isBuildCombineByKey()) {
-				this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
+			else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
+				//this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
+
+                JavaRDD<Locations> data = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
+                        this.params.getProperties().getMax_locations_per_feature()));
+
+                Encoder<Locations> encoder_location= Encoders.bean(Locations.class);
+                RDD<Locations> rdd_locations = data.rdd();
+
+                Dataset<Locations> my_dataset;
+                my_dataset = this.sqlContext.createDataset(rdd_locations, encoder_location);
+
+                my_dataset.write().parquet(path+"/"+this.dbfile);
 
 			}
 
@@ -1326,14 +1317,14 @@ public class Database implements Serializable{
 		/*
 		 * Ordering<Integer> ordering = Ordering$.MODULE$.comparatorToOrdering(Comparator.<Integer>naturalOrder());
 		 */
-		if(paramsQuery.isBuildModeHashMap()) {
+		if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {
 			LOG.warn("Loading database with isBuildModeHashMap");
 			//this.locationJavaHashRDD = this.jsc.objectFile(this.dbfile).map(new Obj2HashMap());
 
 			JavaRDD<HashMap<Integer, List<LocationBasic>>> tmpRDD;
 
-			if(this.paramsQuery.getNumPartitions() != 1) {
-				tmpRDD = this.jsc.wholeTextFiles(this.dbfile, this.paramsQuery.getNumPartitions())
+			if(this.numPartitions != 1) {
+				tmpRDD = this.jsc.wholeTextFiles(this.dbfile, this.numPartitions)
 						.keys()
 						.mapPartitions(new ReadHashMapPartitions(), true)
 						//.map(new ReadHashMap())
@@ -1357,7 +1348,7 @@ public class Database implements Serializable{
 
 
 		}
-		else if(paramsQuery.isBuildModeHashMultiMapG()) {
+		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {
 			LOG.warn("Loading database with isBuildModeHashMultiMapG");
 			this.locationJavaHashMMRDD = this.jsc.objectFile(this.dbfile);
 
@@ -1394,7 +1385,7 @@ public class Database implements Serializable{
 			LOG.warn("The number of paired persisted entries is: " + this.locationJavaRDDHashMultiMapNative.count());
 			*/
 		}
-		else if(paramsQuery.isBuildModeHashMultiMapMC() || paramsQuery.isBuildModeHashMultiMapMCBuffered()) {
+		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
 			LOG.warn("Loading database with isBuildModeHashMultiMapMC");
 			//this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
@@ -1406,13 +1397,12 @@ public class Database implements Serializable{
 
 			JavaRDD<String> filesNamesRDD;
 
-			if(this.paramsQuery.getNumPartitions() != 1) {
-				filesNamesRDD = this.jsc.parallelize(filesNames, this.paramsQuery.getNumPartitions());
+			if(this.numPartitions != 1) {
+				filesNamesRDD = this.jsc.parallelize(filesNames, this.numPartitions);
 			}
 			else {
 				filesNamesRDD = this.jsc.parallelize(filesNames);
 			}
-
 
 
 			this.locationJavaRDDHashMultiMapNative = filesNamesRDD
@@ -1422,7 +1412,7 @@ public class Database implements Serializable{
 
 			LOG.warn("The number of paired persisted entries is: " + this.locationJavaRDDHashMultiMapNative.count());
 		}
-		else if(paramsQuery.isBuildModeParquetDataframe()) {
+		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
 			LOG.warn("Loading database with isBuildModeParquetDataframe");
 			//DataFrame dataFrame = this.sqlContext.read().parquet(this.dbfile);
             Dataset<Location> dataFrame = this.sqlContext.read().parquet(this.dbfile).map(new Row2Location(), Encoders.bean(Location.class));
@@ -1438,14 +1428,14 @@ public class Database implements Serializable{
 			LOG.warn("The number of paired persisted entries is: " + this.featuresDataframe_.count());
 
 		}
-		else if(paramsQuery.isBuildCombineByKey()) {
+		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
 			LOG.warn("Loading database with isBuildCombineByKey");
 			//JavaPairRDD<Integer, List<LocationBasic>> myRDDList =
 			//		JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
 			this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
-			if(this.paramsQuery.getNumPartitions() != 1) {
+			if(this.numPartitions != 1) {
 				this.locationJavaPairListRDD = this.locationJavaPairListRDD.partitionBy(new MyCustomPartitioner(this.numPartitions))
 						.persist(StorageLevel.MEMORY_ONLY());
 			}
@@ -1654,19 +1644,19 @@ public class Database implements Serializable{
 	//public TreeMap<LocationBasic, Integer> matches(Sketch query) {
 	public TreeMap<LocationBasic, Integer> matches(SequenceData query) {
 
-		if(this.paramsQuery.isBuildModeHashMap()) {
+		if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {
 			return this.accumulate_matches_hashmapmode(query);
 		}
-		else if(paramsQuery.isBuildModeHashMultiMapG()) {
+		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {
 			return null;
 		}
-		else if(paramsQuery.isBuildModeHashMultiMapMC()) {
+		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
 			return this.accumulate_matches_hashmapnativemode(query);
 		}
-		else if(this.paramsQuery.isBuildModeParquetDataframe()) {
+		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
 			return this.accumulate_matches_filter(query);
 		}
-		else if(this.paramsQuery.isBuildCombineByKey()) {
+		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
 			//return this.accumulate_matches_combinemode(query);
 			//return this.accumulate_matches_filter(query);
 			//return this.accumulate_matches_combine(query);
@@ -1680,7 +1670,7 @@ public class Database implements Serializable{
 
 	public List<TreeMap<LocationBasic, Integer>> matches_buffered(List<SequenceData> queries, long init, int size, long total, long readed) {
 
-		if(paramsQuery.isBuildModeHashMultiMapMC() || paramsQuery.isBuildModeHashMultiMapMCBuffered()) {
+		if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
 			LOG.warn("[JMAbuin] Using buffered mode");
 			return this.accumulate_matches_buffer_treemap2(queries, init, size, total, readed);
 			//return this.accumulate_matches_buffer_treemap(queries, init, size, total, readed);

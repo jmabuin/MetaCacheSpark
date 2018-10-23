@@ -18,7 +18,7 @@ package com.github.jmabuin.metacachespark;
 
 import com.github.jmabuin.metacachespark.database.Database;
 import com.github.jmabuin.metacachespark.database.Taxonomy;
-import com.github.jmabuin.metacachespark.options.BuildOptions;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -48,23 +48,25 @@ public class Build implements Serializable {
 	private static final Log LOG = LogFactory.getLog(Build.class);
 
 	// Default options values
-	private BuildOptions param;
+	private MetaCacheOptions param;
 
 	private Database db;
 	private JavaSparkContext jsc;
 
+	private TaxonomyParam taxonomy_param;
 	public enum build_info {
 		silent, moderate, verbose
 	};
 
 
-	public Build(BuildOptions param, JavaSparkContext jsc) {
+	public Build(MetaCacheOptions param, JavaSparkContext jsc) {
 
 		this.param = param;
 
 		this.jsc = jsc;
 
-		this.db = new Database(this.jsc, this.param.getTaxonomyParam(), this.param, this.param.getNumPartitions(), this.param.getDbfile());
+        this.taxonomy_param = new TaxonomyParam(this.param.getTaxonomy(), "");
+		this.db = new Database(this.jsc, this.taxonomy_param, this.param, this.param.getPartitions(), this.param.getDbfile());
 
 		//configure sketching scheme
 		/*
@@ -89,10 +91,9 @@ public class Build implements Serializable {
 	}
 
 	public void load_taxonomy_into_database(Database db) {
-		db.apply_taxonomy( make_taxonomic_hierarchy(this.param.getTaxonomyParam().getNodesFile(),
-				this.param.getTaxonomyParam().getNamesFile(),
-				this.param.getTaxonomyParam().getMergeFile()));
-
+		db.apply_taxonomy( make_taxonomic_hierarchy(this.taxonomy_param .getNodesFile(),
+                this.taxonomy_param .getNamesFile(),
+                this.taxonomy_param .getMergeFile()));
 
 		LOG.info("Taxonomy applied to database.");
 	}
@@ -304,15 +305,15 @@ public class Build implements Serializable {
 		LOG.info("Beginning add to database");
 		long startTime = System.nanoTime();
 
-		if(this.param.getMax_locations_per_feature() > 0){
-			db.setMaxLocsPerFeature_((long)this.param.getMax_locations_per_feature());
+		if(this.param.getProperties().getMax_locations_per_feature() > 0){
+			db.setMaxLocsPerFeature_((long)this.param.getProperties().getMax_locations_per_feature());
 		}
 
-		if(this.param.getMax_load_fac() > 0) {
+		if(this.param.getProperties().getMax_load_fac() > 0) {
 			//db.max_load_factor(param.maxLoadFactor);
 		}
 
-		if(!this.param.getTaxonomyParam().getPath().isEmpty()) {
+		if(!this.taxonomy_param.getPath().isEmpty()) {
 			this.load_taxonomy_into_database(this.db);
 		}
 
@@ -322,9 +323,9 @@ public class Build implements Serializable {
 					"./metacache add <database> -taxonomy <directory>");
 		}
 
-		if(this.param.getRemoveAmbigFeaturesOnRank() != Taxonomy.Rank.none) {
+		if(this.param.getProperties().getRemoveAmbigFeaturesOnRank() != Taxonomy.Rank.none) {
 			if(db.taxon_count() > 1) {
-				LOG.info("Ambiguous features on rank " + Taxonomy.rank_name(this.param.getRemoveAmbigFeaturesOnRank())
+				LOG.info("Ambiguous features on rank " + Taxonomy.rank_name(this.param.getProperties().getRemoveAmbigFeaturesOnRank())
 				+ "will be removed afterwards.\n");
 			}
 			else {
@@ -347,7 +348,7 @@ public class Build implements Serializable {
 			}*/
 
 			this.add_targets_to_database(db, db.make_sequence_to_taxon_id_map(
-					this.param.getTaxonomyParam().getMappingPreFiles(),
+					this.taxonomy_param.getMappingPreFiles(),
 					inFilesTaxonIdMap),
 					build_info.moderate);
 
@@ -356,10 +357,10 @@ public class Build implements Serializable {
 
 			db.try_to_rank_unranked_targets();
 
-			if(this.param.getRemoveAmbigFeaturesOnRank() != Taxonomy.Rank.none && db.taxon_count() > 1) {
+			if(this.param.getProperties().getRemoveAmbigFeaturesOnRank() != Taxonomy.Rank.none && db.taxon_count() > 1) {
 
 				// TODO: To be implemented in Spark!!
-				db.remove_ambiguous_features(this.param.getRemoveAmbigFeaturesOnRank(), this.param.getMaxTaxaPerFeature());
+				db.remove_ambiguous_features(this.param.getProperties().getRemoveAmbigFeaturesOnRank(), this.param.getProperties().getMaxTaxaPerFeature());
 				//db.print_properties();
 			}
 
@@ -382,7 +383,11 @@ public class Build implements Serializable {
 
 		ArrayList<String> inputDirs = FilesysUtility.directories_in_directory_hdfs(this.param.getInfiles(), this.jsc);
 
-		LOG.warn("JMAbuin: Number of subdirs: " + inputDirs.size());
+		LOG.info("Number of subdirs to process: " + inputDirs.size());
+
+		for(String current_dir : inputDirs) {
+            LOG.info(current_dir);
+        }
 
 
 		if(inputDirs.isEmpty()) {

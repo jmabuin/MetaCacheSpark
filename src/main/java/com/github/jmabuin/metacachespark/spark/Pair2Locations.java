@@ -11,10 +11,7 @@ public class Pair2Locations implements Function<Tuple2<Integer, List<LocationBas
     @Override
     public Locations call(Tuple2<Integer, List<LocationBasic>> integerListTuple2) throws Exception {
 
-        Locations newLocs = new Locations();
-
-        newLocs.setKey(integerListTuple2._1);
-        newLocs.setLocations(integerListTuple2._2);
+        Locations newLocs = new Locations(integerListTuple2._1, integerListTuple2._2);
 
         return newLocs;
 

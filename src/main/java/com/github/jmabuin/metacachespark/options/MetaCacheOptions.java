@@ -17,18 +17,21 @@
 
 package com.github.jmabuin.metacachespark.options;
 
+import com.github.jmabuin.metacachespark.EnumModes;
 import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import java.io.Serializable;
+import java.io.*;
+import java.util.Arrays;
+import java.util.Properties;
 
 public class MetaCacheOptions implements Serializable {
 
 	private static final Log LOG = LogFactory.getLog(MetaCacheOptions.class);
 
 	private Options options = null;
-
+/*
 	public enum Mode { HELP, QUERY, BUILD, ADD, INFO, ANNOTATE}
 
 	public enum pairing_mode { none, files, sequences} // Pairing of queries
@@ -40,11 +43,24 @@ public class MetaCacheOptions implements Serializable {
 	public enum taxon_print_mode { name_only, id_only, id_name} // how taxon formatting will be done
 
 	public enum InputFormat {FASTA, FASTQ}
+*/
+	private EnumModes.Mode operation_mode;
+	private EnumModes.DatabaseType database_type;
+	private String taxonomy;
+	private int partitions = 0;
+	private String configuration;
+    private int buffer_size = 0; //51200;
+	private MetaCacheProperties properties;
 
-	private Mode mode;
+    private String dbfile			= "";
+    private String infiles			= "";
+    private String outfile         = "";
+    private String[] infiles_query;
+
+    private int numThreads = 1;
 
 	private String correctUse =
-			"spark-submit --class com.github.metachachespark.MetaCacheSpark MetaCacheSpark-0.0.2.jar";// [SparkBWA Options] Input.fastq [Input2.fastq] Output\n";
+			"spark-submit --class com.github.metachachespark.MetaCacheSpark MetaCacheSpark-0.3.0.jar";// [SparkBWA Options] Input.fastq [Input2.fastq] Output\n";
 
 
 	// Header to show when the program is not launched correctly
@@ -52,9 +68,6 @@ public class MetaCacheOptions implements Serializable {
 
 	// Footer to show when the program is not launched correctly
 	private String footer = "\nPlease report issues at josemanuel.abuin@usc.es";
-
-	private BuildOptions buildOptions;
-	private QueryOptions queryOptions;
 
 	private String[] otherOptions;
 
@@ -71,7 +84,7 @@ public class MetaCacheOptions implements Serializable {
 		CommandLineParser parser = new BasicParser();
 		CommandLine cmd = null;
 
-		this.mode = Mode.HELP;
+		this.operation_mode = EnumModes.Mode.HELP;
 
 		try {
 			cmd = parser.parse(this.options, args, true);
@@ -79,35 +92,130 @@ public class MetaCacheOptions implements Serializable {
 			//We look for the operation mode
 			if (cmd.hasOption('h') || cmd.hasOption("help")) {
 				//Case of showing the help
-				this.mode = Mode.HELP;
-			} else if (cmd.hasOption('q') || cmd.hasOption("query")) {
-				// Case of query
-				this.mode = Mode.QUERY;
-			} else if (cmd.hasOption('b') || cmd.hasOption("build")) {
-				// Case of build
-				this.mode = Mode.BUILD;
-			} else if (cmd.hasOption('a') || cmd.hasOption("add")) {
-				// Case of add
-				this.mode = Mode.ADD;
-			} else if (cmd.hasOption('i') || cmd.hasOption("info")) {
-				// Case of info
-				this.mode = Mode.INFO;
-			} else if (cmd.hasOption('n') || cmd.hasOption("annotate")) {
-				// Case of annotate
-				this.mode = Mode.ANNOTATE;
-			} else {
-				// Default case. Help
-				LOG.warn("[" + this.getClass().getName() + "] :: No operation mode selected. Using help ");
+				this.operation_mode = EnumModes.Mode.HELP;
 			}
+			else {
+			    if (cmd.hasOption('m') || cmd.hasOption("mode")) {
+                    // Choose the mode
+                    String selected_mode = cmd.getOptionValue("mode");
+
+                    switch (selected_mode) {
+                        case "build":
+                            this.operation_mode = EnumModes.Mode.BUILD;
+                            break;
+                        case "query":
+                            this.operation_mode = EnumModes.Mode.QUERY;
+                            break;
+                        case "add":
+                            this.operation_mode = EnumModes.Mode.ADD;
+                            break;
+                        case "info":
+                            this.operation_mode = EnumModes.Mode.INFO;
+                            break;
+                        case "annotate":
+                            this.operation_mode = EnumModes.Mode.ANNOTATE;
+                            break;
+                        default:
+                            this.operation_mode = EnumModes.Mode.HELP;
+                            break;
+
+                    }
+                }
+                else {
+                    this.operation_mode = EnumModes.Mode.HELP;
+                }
+
+                if (cmd.hasOption('d') || cmd.hasOption("database_type")) {
+
+                    String selected_database_type = cmd.getOptionValue("database_type");
+
+                    switch (selected_database_type) {
+                        case "hashmap":
+                            this.database_type = EnumModes.DatabaseType.HASHMAP;
+                            break;
+                        case "hashmultimap":
+                            this.database_type = EnumModes.DatabaseType.HASHMULTIMAP_GUAVA;
+                            break;
+                        case "hashmultimap_native":
+                            this.database_type = EnumModes.DatabaseType.HASHMULTIMAP_NATIVE;
+                            break;
+                        case "parquet":
+                            this.database_type = EnumModes.DatabaseType.PARQUET;
+                            break;
+                        case "combine":
+                            this.database_type = EnumModes.DatabaseType.COMBINE_BY_KEY;
+                        default:
+                            this.database_type = EnumModes.DatabaseType.HASHMAP;
+                            break;
+                    }
+                }
+                else {
+                    this.database_type = EnumModes.DatabaseType.HASHMAP;
+                }
+
+                if ( cmd.hasOption('t') || cmd.hasOption("taxonomy")) {
+                    this.taxonomy = cmd.getOptionValue("taxonomy");
+                }
+
+                if ( cmd.hasOption('p') || cmd.hasOption("partitions")) {
+                    this.partitions = Integer.parseInt(cmd.getOptionValue("partitions"));
+                }
+
+                if ( cmd.hasOption('c') || cmd.hasOption("configuration")) {
+                    this.configuration = cmd.getOptionValue("configuration");
+                    this.getPropertiesFromFile();
+                }
+                else {
+                    this.getDefaultProperties();
+                }
+
+                if (cmd.hasOption('b') || cmd.hasOption("buffer_size")) {
+                    this.buffer_size = Integer.parseInt(cmd.getOptionValue("buffer_size"));
+                }
+
+            }
 
 			// Get and parse the rest of the arguments
 			this.otherOptions = cmd.getArgs(); //With this we get the rest of the arguments
 
-			if(this.mode == Mode.BUILD) {
-				this.buildOptions = new BuildOptions(this.otherOptions);
+			if(this.operation_mode == EnumModes.Mode.BUILD) {
+                // Check if the numbe rof arguments is correct. This is, dbname and infiles
+                if (this.otherOptions.length != 2) {
+                    LOG.error("["+this.getClass().getName()+"] No input reference and output database name have been found. Aborting.");
+
+                    for (String tmpString : this.otherOptions) {
+                        LOG.error("["+this.getClass().getName()+"] Other args:: " + tmpString);
+                    }
+
+                    //formatter.printHelp(correctUse, header, options, footer, true);
+                    System.exit(1);
+                }
+                else {
+
+                    this.dbfile 	= this.otherOptions[0];
+                    this.infiles 	= this.otherOptions[1];
+
+                }
 			}
-			else if (this.mode == Mode.QUERY) {
-				this.queryOptions = new QueryOptions(this.otherOptions);
+			else if (this.operation_mode == EnumModes.Mode.QUERY) {
+                // Check if the number of arguments is correct. This is, dbname, outfile and infiles
+                if (this.otherOptions.length < 3) {
+                    LOG.error("["+this.getClass().getName()+"] No database, input data and output file name have been found. Aborting.");
+
+                    for (String tmpString : this.otherOptions) {
+                        LOG.error("["+this.getClass().getName()+"] Other args:: " + tmpString);
+                    }
+
+                    //formatter.printHelp(correctUse, header, options, footer, true);
+                    System.exit(1);
+                }
+                else {
+
+                    this.dbfile 	= this.otherOptions[0];
+                    this.outfile    = this.otherOptions[1];
+                    this.infiles_query = Arrays.copyOfRange(this.otherOptions, 2, this.otherOptions.length);
+
+                }
 			}
 
 		}
@@ -138,33 +246,36 @@ public class MetaCacheOptions implements Serializable {
 
 		Options privateOptions = new Options();
 
-		OptionGroup modes = new OptionGroup();
+		//OptionGroup modes = new OptionGroup();
 
 		Option help = new Option("h","help", false,"Shows documentation");
-		modes.addOption(help);
+		privateOptions.addOption(help);
 
-		Option query = new Option("q","query", false,"Classify read sequences using pre-built database");
-		modes.addOption(query);
+        Option mode = new Option("m", "mode", true, "Operation mode to use with MetaCacheSpark.\nAvailable options are: build, query, add, info, annotate.");
+        privateOptions.addOption(mode);
 
-		Option build = new Option("b", "build", false, "Build new database from reference genomes");
-		modes.addOption(build);
+        Option database_type = new Option("d", "database_type", true, "Construction method of the database to be used.\nAvailable options: hashmap, hashmultimap," +
+                "hashmultimap_native, parquet, combine.");
+        privateOptions.addOption(database_type);
 
-		Option add = new Option("a", "add", false, "Add reference genomes and/or taxonomy to existing database");
-		modes.addOption(add);
+        Option taxonomy = new Option("t", "taxonomy", true, "Path to the taxonomy to be used in the HDFS.");
+        taxonomy.setRequired(true);
+        privateOptions.addOption(taxonomy);
 
-		Option info = new Option("i", "info", false, "Shows database and reference genome properties");
-		modes.addOption(info);
+        Option partitions =  new Option("p", "partitions", true, "Number of partitions to use.");
+        privateOptions.addOption(partitions);
 
-		Option annotate = new Option("n", "annotate", false, "Annotate sequences with taxonomic information");
-		modes.addOption(annotate);
+        Option configuration = new Option("c", "configuration", true, "Configuration file with parameters to be used inside MetaCacheSpark.");
+        privateOptions.addOption(configuration);
 
-		privateOptions.addOptionGroup(modes);
+        Option buffer_size = new Option("b", "buffer_size", true, "Buffer size to perform query operations. if not specified, no buffer mode.");
+        privateOptions.addOption(buffer_size);
 
 		return privateOptions;
 	}
 
-	public Mode getMode() {
-		return this.mode;
+	public EnumModes.Mode getMode() {
+		return this.operation_mode;
 	}
 
 	public void printHelp() {
@@ -179,12 +290,101 @@ public class MetaCacheOptions implements Serializable {
 		return this.otherOptions;
 	}
 
-	public BuildOptions getBuildOptions() {
-		return buildOptions;
-	}
+	private void getPropertiesFromFile() {
+        InputStream inputStream ;
 
-	public QueryOptions getQueryOptions() {
-		return queryOptions;
-	}
+        try {
+            Properties prop = new Properties();
+            String propFileName = this.configuration;
 
+            File initialFile = new File(propFileName);
+            inputStream = new FileInputStream(initialFile);
+
+            prop.load(inputStream);
+
+            this.properties = new MetaCacheProperties(prop);
+
+            inputStream.close();
+        } catch (IOException e) {
+            System.out.println("IOException: " + e);
+        } catch (Exception e) {
+            System.out.println("Exception: " + e);
+        }
+    }
+
+    private void getDefaultProperties() {
+
+        InputStream inputStream;
+
+        try {
+            Properties prop = new Properties();
+            String propFileName = "config.properties";
+
+            inputStream = getClass().getClassLoader().getResourceAsStream(propFileName);
+
+            if (inputStream != null) {
+                prop.load(inputStream);
+            } else {
+                throw new FileNotFoundException("Property file '" + propFileName + "' not found in the classpath");
+            }
+
+            this.properties = new MetaCacheProperties(prop);
+
+            inputStream.close();
+        } catch (IOException e) {
+            System.out.println("IOException: " + e);
+        } catch (Exception e) {
+            System.out.println("Exception: " + e);
+        }
+
+
+    }
+
+    public EnumModes.Mode getOperation_mode() {
+        return operation_mode;
+    }
+
+    public EnumModes.DatabaseType getDatabase_type() {
+        return database_type;
+    }
+
+    public String getTaxonomy() {
+        return taxonomy;
+    }
+
+    public int getPartitions() {
+        return partitions;
+    }
+
+    public String getConfiguration() {
+        return configuration;
+    }
+
+    public MetaCacheProperties getProperties() {
+        return properties;
+    }
+
+    public String getDbfile() {
+        return dbfile;
+    }
+
+    public String getInfiles() {
+        return infiles;
+    }
+
+    public String getOutfile() {
+        return outfile;
+    }
+
+    public String[] getInfiles_query() {
+        return infiles_query;
+    }
+
+    public int getNumThreads() {
+        return numThreads;
+    }
+
+    public int getBuffer_size() {
+        return buffer_size;
+    }
 }
