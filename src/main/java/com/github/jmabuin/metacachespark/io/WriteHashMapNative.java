@@ -37,9 +37,9 @@ public class WriteHashMapNative implements Function2<Integer, Iterator<HashMulti
 
 			while (values.hasNext()) {
 				HashMultiMapNative currentMap = values.next();
-
+				LOG.info("Starting to write file " + filename + "_" + i + " to local disk");
 				currentMap.write(filename + "_" + i);
-
+				LOG.info("Finished writing file " + filename + "_" + i + " to local disk. Copying to HDFS ...");
 				fs.copyFromLocalFile(true, true, new Path(filename + "_" + i), new Path(this.path + "/"+filename + "_" + i));
 
 				i++;

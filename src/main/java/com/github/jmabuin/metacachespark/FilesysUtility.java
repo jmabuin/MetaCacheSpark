@@ -17,33 +17,19 @@ public class FilesysUtility implements Serializable {
 	private static final Log LOG = LogFactory.getLog(FilesysUtility.class);
 
 
-	public static ArrayList<String> files_in_directory(String directory, int recursion_level) {
-/*
-		File folder = new File(directory);
-
-		LOG.warn("Loading files in: "+directory);
-
-		ArrayList<String> returnedFiles = new ArrayList<String>();
-
-		if(folder.isDirectory()) {
-
-			File[] listOfFiles = folder.listFiles();
-
-			for (File currentFile: listOfFiles) {
-				if (currentFile.isFile()) {
-					returnedFiles.add(directory + "/" +currentFile.getName());
-				} else if (currentFile.isDirectory() && recursion_level < 10) {
-					returnedFiles.addAll(FilesysUtility.files_in_directory(directory + "/" +currentFile.getName(), recursion_level + 1));
-				}
-			}
-		}
-
-		return returnedFiles;
-*/
+	public static ArrayList<String> files_in_directory(String directory, int recursion_level, JavaSparkContext jsc) {
 
 		try {
-			//JavaSparkContext javaSparkContext = new JavaSparkContext(sparkS.sparkContext());
-			Configuration conf = new Configuration();
+
+		    Configuration conf;
+
+			if (jsc == null) {
+				conf = new Configuration();
+			}
+			else {
+			    conf = jsc.hadoopConfiguration();
+            }
+
 			FileSystem fs = FileSystem.get(conf);
 
 			ArrayList<String> returnedItems = new ArrayList<String>();
@@ -65,8 +51,8 @@ public class FilesysUtility implements Serializable {
 					returnedItems.add(newFile.getPath().toString());
 				}
 				else if(fs.isDirectory(newFile.getPath()) && (recursion_level < 10)) {
-					List<String> newValues = FilesysUtility.files_in_directory(directory + "/" +newFile.getPath().toString(),
-							recursion_level + 1);
+					List<String> newValues = FilesysUtility.files_in_directory(directory + "/" + newFile.getPath().toString(),
+							recursion_level + 1, jsc);
 
 					if(newValues != null) {
 						returnedItems.addAll(newValues);

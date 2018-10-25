@@ -29,7 +29,9 @@ import org.apache.spark.RangePartitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
@@ -58,6 +60,7 @@ public class Database implements Serializable{
 	private ArrayList<TargetProperty> targets_;
 	private Dataset<Location> features_;
 	private Dataset<Location> featuresDataframe_;
+	private Dataset<Locations> featuresDataset;
 	//private DataFrame targetPropertiesDataframe_;
 	private JavaRDD<TargetProperty> targetPropertiesJavaRDD;
 	private HashMap<String,Integer> sid2gid_;
@@ -73,6 +76,7 @@ public class Database implements Serializable{
 	private JavaPairRDD<Integer, LocationBasic> locationJavaPairRDD;
 	private JavaPairRDD<Integer, List<LocationBasic>> locationJavaPairListRDD;
     private JavaPairRDD<Integer, Iterable<LocationBasic>> locationJavaPairIterableRDD;
+    private JavaRDD<Locations> locationsRDD;
 	private JavaRDD<HashMultiMapNative> locationJavaRDDHashMultiMapNative;
 	private JavaRDD<Location> locationJavaRDD;
 	private JavaRDD<HashMap<Integer, List<LocationBasic>>> locationJavaHashRDD;
@@ -138,6 +142,7 @@ public class Database implements Serializable{
 
 		this.queryWindowSize_ = params.getProperties().getWinlen();
 		this.queryWindowStride_ = params.getProperties().getWinstride();
+        this.targetWindowStride_ = params.getProperties().getWinstride();
 
 		this.numPartitions = this.params.getPartitions();
 
@@ -483,13 +488,23 @@ public class Database implements Serializable{
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {//(paramsBuild.isBuildCombineByKey()) {
 				LOG.warn("Building database with isBuildCombineByKey");
-				this.locationJavaPairListRDD = this.inputSequences
-						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
-						.partitionBy(new MyCustomPartitioner(this.numPartitions))
-						.combineByKey(new LocationCombiner(),
-								new LocationMergeValues(),
-								new LocationMergeCombiners());
 
+				if (this.numPartitions != 1) {
+                    this.locationJavaPairListRDD = this.inputSequences
+                            .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                            .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                            .combineByKey(new LocationCombiner(),
+                                    new LocationMergeValues(),
+                                    new LocationMergeCombiners());
+                }
+                else {
+                    this.locationJavaPairListRDD = this.inputSequences
+                            .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                            //.partitionBy(new MyCustomPartitioner(this.numPartitions))
+                            .combineByKey(new LocationCombiner(),
+                                    new LocationMergeValues(),
+                                    new LocationMergeCombiners());
+                }
 
 			}
 
@@ -618,26 +633,46 @@ public class Database implements Serializable{
 			//JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
 
 
-			if(this.params.getProperties().isMyWholeTextFiles()) {
+			if(this.params.isMyWholeTextFiles()) {
+				/*
+			    if(this.numPartitions != 1) {
+                    inputData = this.jsc.parallelize(infiles, this.numPartitions)
+                            .mapPartitionsToPair(new MyWholeTextFiles(), true);
+                }
+                else {
+                    inputData = this.jsc.parallelize(infiles)
+                            .mapPartitionsToPair(new MyWholeTextFiles() );
+                }
+                */
+                JavaPairRDD<String, String> tmpInput = null;
 
-				JavaPairRDD<String, String> tmpInput = null;
-
-				for (String currentDir : infiles) {
+                for (String currentDir : infiles) {
                     LOG.warn("Starting to build database from " + currentDir + " with MyWholeTextFiles");
 
-					if (tmpInput == null) {
-						tmpInput = this.jsc.wholeTextFiles(currentDir);
-					} else {
-						tmpInput = this.jsc.wholeTextFiles(currentDir)
-								.union(tmpInput);
-					}
-				}
+                    if (tmpInput == null) {
+                        tmpInput = this.jsc.wholeTextFiles(currentDir);
+                    } else {
+                        tmpInput = this.jsc.wholeTextFiles(currentDir)
+                                .union(tmpInput);
+                    }
+                }
 
-				inputData = tmpInput
-						.keys()
-						.repartition(this.numPartitions)
-						.mapPartitionsToPair(new MyWholeTextFiles(), true)
-						.persist(StorageLevel.DISK_ONLY());
+                int repartition_files = 1;
+
+                if (this.numPartitions == 1) {
+                    repartition_files = this.jsc.getConf().getInt("spark.executor.instances", 1);
+                }
+                else {
+                    repartition_files = this.numPartitions;
+                }
+
+                inputData = tmpInput
+                        .keys()
+                        .repartition(repartition_files)
+                        .mapPartitionsToPair(new MyWholeTextFiles(), true)
+                        .persist(StorageLevel.DISK_ONLY());
+
+
 
 				//LOG.warn("Number of partitions for input files:" + inputData.count());
 
@@ -710,7 +745,7 @@ public class Database implements Serializable{
 				this.locationJavaRDDHashMultiMapNative = this.inputSequences
 						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
 						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
-						//.partitionBy(new MyCustomPartitioner(this.paramsBuild.getNumPartitions()))
+						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
 						.mapPartitionsWithIndex(new Pair2HashMapNative(), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
@@ -733,6 +768,8 @@ public class Database implements Serializable{
 				this.locationJavaPairIterableRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.sid2gid_)).groupByKey();
 
+                this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
+                        this.params.getProperties().getMax_locations_per_feature()));
 
 			}
 
@@ -1246,7 +1283,7 @@ public class Database implements Serializable{
 						.collect();
 
 				for(String output: outputs) {
-					LOG.warn("Writed file: "+output);
+					LOG.warn("Wrote file: "+output);
 				}
 
 			}
@@ -1272,16 +1309,13 @@ public class Database implements Serializable{
 			else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
 				//this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
 
-                JavaRDD<Locations> data = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
-                        this.params.getProperties().getMax_locations_per_feature()));
+                //this.locationsRDD.saveAsObjectFile(path+"/"+this.dbfile);
+                List<String> outputs = this.locationsRDD.mapPartitionsWithIndex(new WriteLocations(path+"/"+this.dbfile), true)
+                        .collect();
 
-                Encoder<Locations> encoder_location= Encoders.bean(Locations.class);
-                RDD<Locations> rdd_locations = data.rdd();
-
-                Dataset<Locations> my_dataset;
-                my_dataset = this.sqlContext.createDataset(rdd_locations, encoder_location);
-
-                my_dataset.write().parquet(path+"/"+this.dbfile);
+                for(String file_name: outputs) {
+                    LOG.info("File written: " + file_name);
+                }
 
 			}
 
@@ -1389,7 +1423,7 @@ public class Database implements Serializable{
 			LOG.warn("Loading database with isBuildModeHashMultiMapMC");
 			//this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
-			List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0);
+			List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
 
 			for(String newFile : filesNames) {
 				LOG.warn("New file added: "+newFile);
@@ -1430,41 +1464,41 @@ public class Database implements Serializable{
 		}
 		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
 			LOG.warn("Loading database with isBuildCombineByKey");
-			//JavaPairRDD<Integer, List<LocationBasic>> myRDDList =
-			//		JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
-			this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
+            Dataset<Location> dataFrame = this.sqlContext.read().parquet(this.dbfile).map(new Row2Location(), Encoders.bean(Location.class));
 
-			if(this.numPartitions != 1) {
-				this.locationJavaPairListRDD = this.locationJavaPairListRDD.partitionBy(new MyCustomPartitioner(this.numPartitions))
-						.persist(StorageLevel.MEMORY_ONLY());
-			}
-			else {
-				this.locationJavaPairListRDD = this.locationJavaPairListRDD.persist(StorageLevel.MEMORY_ONLY());
-			}
+            /*
+            if(this.numPartitions != 1) {
+                this.locationJavaRDD = dataFrame.javaRDD().repartition(this.numPartitions);
+            }
+            else {
+                this.locationJavaRDD = dataFrame.javaRDD();
+            }
+            */
+            this.locationJavaRDD = dataFrame.javaRDD();
 
+            this.locationsRDD = this.locationJavaRDD.mapPartitionsToPair(new Location2Pair(), true)
+                    .groupByKey()
+                    .map(new LocationKeyIterable2Locations(this.params.getProperties().getMax_locations_per_feature()));
 
-
-			LOG.warn("Starting RDD created with " + this.locationJavaPairListRDD.count() + " entries and "
-					+ this.locationJavaPairListRDD.getNumPartitions() + " partitions.");
-			//this.locationJavaPairListRDD.persist(StorageLevel.MEMORY_AND_DISK());
-
-			/**
-			 * Commented 22-08-2017
-			 */
-			//JavaRDD<LocationKeyValues> newRDD = myRDDList.map(new Pair2KeyValues());
-			//this.featuresDataframe_ = this.sqlContext.createDataFrame(newRDD, LocationKeyValues.class)
-			//		.persist(StorageLevel.MEMORY_AND_DISK());
-
-			//JavaRDD<Locations> newRDD = myRDDList.map(new Pair2Locations());
-			//LOG.warn("Starting RDD maped to Locations with " + newRDD.count() + " entries.");
-
-			//this.featuresDataframe_ = this.sqlContext.createDataFrame(newRDD, Locations.class)
-			//		.persist(StorageLevel.MEMORY_AND_DISK());
+            if(this.numPartitions != 1) {
+                this.featuresDataset = this.sqlContext.createDataset(this.locationsRDD.rdd(), Encoders.bean(Locations.class))
+                        .repartition(this.numPartitions)
+                        .persist(StorageLevel.MEMORY_AND_DISK());
+            }
+            else {
+                this.featuresDataset = this.sqlContext.createDataset(this.locationsRDD.rdd(), Encoders.bean(Locations.class))
+                        .persist(StorageLevel.MEMORY_AND_DISK());
+            }
 
 
-			//LOG.warn("The number of paired persisted entries is: " + this.locationJavaPairListRDD.count());
-			//.warn("The number of paired persisted entries is: " + this.featuresDataframe_.count());
+
+            this.featuresDataset.registerTempTable("MetaCacheSpark");
+            //this.sqlContext.cacheTable("MetaCacheSpark");
+
+            LOG.warn("The number of paired persisted entries is: " + this.featuresDataset.count());
+
+
 		}
 
 	}
@@ -1657,10 +1691,10 @@ public class Database implements Serializable{
 			return this.accumulate_matches_filter(query);
 		}
 		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
-			//return this.accumulate_matches_combinemode(query);
+			return this.accumulate_matches_combinemode(query);
 			//return this.accumulate_matches_filter(query);
 			//return this.accumulate_matches_combine(query);
-			return this.accumulate_matches_combine_RDD(query);
+			//return this.accumulate_matches_combine_RDD(query);
 		}
 
 		return null;
@@ -1947,48 +1981,60 @@ public class Database implements Serializable{
 		//}
 	}
 
-	public TreeMap<LocationBasic, Integer> accumulate_matches_combinemode(Sketch query) {
+	public TreeMap<LocationBasic, Integer> accumulate_matches_combinemode(SequenceData query) {
 
-		//TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
-		TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>();
+        //TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
+        TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>();
 
-		try {
+        try {
 
+            ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(query);
 
-			//for(Sketch currentSketch : query) {
-				for (int i : query.getFeatures()) {
+            for(Sketch currentSketch : locations) {
+                //for (int i : currentSketch.getFeatures()) {
 
-					List<List<LocationBasic>> obtainedValues = this.locationJavaPairListRDD.lookup(i);
+                int[] current_features = currentSketch.getFeatures();
 
-					for(List<LocationBasic> obtainedLocations: obtainedValues){
-						for (LocationBasic obtainedLocation : obtainedLocations) {
+                List<Locations> obtainedValues = new ArrayList<Locations>();
 
-							//Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
+                for(int current_feature: current_features) {
+                    obtainedValues.addAll(this.featuresDataset.filter( "key=" + current_feature).collectAsList());
+                }
 
-							if (res.containsKey(obtainedLocation)) {
-								res.put(obtainedLocation, res.get(obtainedLocation) + 1);
-							} else {
-								res.put(obtainedLocation, 1);
-							}
-						}
+                if(obtainedValues.size() > 1) {
+                    LOG.warn("The obtained values from query is bigger than one!!!");
+                }
+                else if(obtainedValues.size() == 0) {
+                    LOG.warn("The obtained values from query zero!!!");
+                }
 
-					}
+                for(Locations current_locations: obtainedValues) {
+                    for (LocationBasic newLocation : current_locations.getLocations()) {
 
-				}
+                        if (res.containsKey(newLocation)) {
+                            res.put(newLocation, res.get(newLocation) + 1);
+                        } else {
+                            res.put(newLocation, 1);
+                        }
+                    }
 
-				LOG.warn("[JMAbuin] Number of locations: "+res.size());
+                 }
 
-				return res;
-			//}
+                //LOG.warn("[JMAbuin] Number of locations: "+res.size());
+                //}
+            }
 
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-			LOG.error("General error in accumulate_matches: "+e.getMessage());
-			System.exit(1);
-		}
+            return res;
+            //}
 
-		return res;
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in accumulate_matches: "+e.getMessage());
+            System.exit(1);
+        }
+
+        return res;
 
 	}
 

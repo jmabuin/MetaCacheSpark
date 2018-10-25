@@ -383,6 +383,10 @@ public class Build implements Serializable {
 
 		ArrayList<String> inputDirs = FilesysUtility.directories_in_directory_hdfs(this.param.getInfiles(), this.jsc);
 
+        ArrayList<String> input_files = FilesysUtility.files_in_directory(this.param.getInfiles(), 0, this.jsc);
+
+        LOG.info("Number of files is: " + input_files.size());
+
 		LOG.info("Number of subdirs to process: " + inputDirs.size());
 
 		for(String current_dir : inputDirs) {
@@ -396,7 +400,14 @@ public class Build implements Serializable {
 		}
 		else {
 			//db.buildDatabaseMulti2(inputDirs, sequ2taxid, infoMode);
-			db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
+            /*if (this.param.isMyWholeTextFiles()) {
+                db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
+            }
+            else {
+                db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
+            }
+            */
+            db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
 		}
 
 

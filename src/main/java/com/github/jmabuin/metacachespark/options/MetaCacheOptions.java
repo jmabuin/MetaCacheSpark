@@ -47,7 +47,7 @@ public class MetaCacheOptions implements Serializable {
 	private EnumModes.Mode operation_mode;
 	private EnumModes.DatabaseType database_type;
 	private String taxonomy;
-	private int partitions = 0;
+	private int partitions = 1;
 	private String configuration;
     private int buffer_size = 0; //51200;
 	private MetaCacheProperties properties;
@@ -58,6 +58,7 @@ public class MetaCacheOptions implements Serializable {
     private String[] infiles_query;
 
     private int numThreads = 1;
+    private boolean myWholeTextFiles = false;
 
 	private String correctUse =
 			"spark-submit --class com.github.metachachespark.MetaCacheSpark MetaCacheSpark-0.3.0.jar";// [SparkBWA Options] Input.fastq [Input2.fastq] Output\n";
@@ -144,6 +145,7 @@ public class MetaCacheOptions implements Serializable {
                             break;
                         case "combine":
                             this.database_type = EnumModes.DatabaseType.COMBINE_BY_KEY;
+                            break;
                         default:
                             this.database_type = EnumModes.DatabaseType.HASHMAP;
                             break;
@@ -171,6 +173,10 @@ public class MetaCacheOptions implements Serializable {
 
                 if (cmd.hasOption('b') || cmd.hasOption("buffer_size")) {
                     this.buffer_size = Integer.parseInt(cmd.getOptionValue("buffer_size"));
+                }
+
+                if (cmd.hasOption('w') || cmd.hasOption("myWholeTextFiles")) {
+                    this.myWholeTextFiles = true;
                 }
 
             }
@@ -270,6 +276,9 @@ public class MetaCacheOptions implements Serializable {
 
         Option buffer_size = new Option("b", "buffer_size", true, "Buffer size to perform query operations. if not specified, no buffer mode.");
         privateOptions.addOption(buffer_size);
+
+        Option myWholeTextFiles = new Option("w", "myWholeTextFiles", false, "Use customize wholetextfiles or not");
+        privateOptions.addOption(myWholeTextFiles);
 
 		return privateOptions;
 	}
@@ -386,5 +395,9 @@ public class MetaCacheOptions implements Serializable {
 
     public int getBuffer_size() {
         return buffer_size;
+    }
+
+    public boolean isMyWholeTextFiles() {
+        return myWholeTextFiles;
     }
 }

@@ -1,6 +1,7 @@
 package com.github.jmabuin.metacachespark;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Locations implements Serializable{
@@ -11,6 +12,10 @@ public class Locations implements Serializable{
     public Locations(Integer key, List<LocationBasic> values) {
         this.key = key;
         this.locations = values;
+    }
+
+    public Locations(){
+        this.locations = new ArrayList<LocationBasic>();
     }
 
     public Integer getKey() {

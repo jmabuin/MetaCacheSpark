@@ -70,7 +70,7 @@ public class MetaCacheProperties {
 
     private int maxTaxaPerFeature = 1;
 
-    private boolean myWholeTextFiles = false;
+    //private boolean myWholeTextFiles = false;
 
     public MetaCacheProperties(Properties properties) {
 
@@ -115,7 +115,7 @@ public class MetaCacheProperties {
 
         this.maxTaxaPerFeature = Integer.parseInt(properties.getProperty("max_ambig_per_feature"));
 
-        this.myWholeTextFiles = Boolean.parseBoolean(properties.getProperty("wholetextfiles"));
+        //this.myWholeTextFiles = Boolean.parseBoolean(properties.getProperty("wholetextfiles"));
 
     }
 
@@ -259,10 +259,11 @@ public class MetaCacheProperties {
         return maxTaxaPerFeature;
     }
 
+    /*
     public boolean isMyWholeTextFiles() {
         return myWholeTextFiles;
     }
-
+    */
     public void setHitsMin(int hitsMin) {
         this.hitsMin = hitsMin;
     }

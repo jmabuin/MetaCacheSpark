@@ -58,7 +58,7 @@ public class TaxonomyParam implements Serializable {
 
 		//find additional maps by file extension ".accession2taxid"
 		// Change to use HDFS version
-		for(String f : FilesysUtility.files_in_directory(this.path, 0)) {
+		for(String f : FilesysUtility.files_in_directory(this.path, 0, null)) {
 		//for(String f : FilesysUtility.findInHDFS(this.path,"*.accession2taxid", sparkS)) {
 			if(f.contains(".accession2taxid")) {
 				this.mappingPostFiles.add(f);
