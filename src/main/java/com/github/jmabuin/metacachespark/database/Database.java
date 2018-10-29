@@ -133,6 +133,7 @@ public class Database implements Serializable{
 	 */
 	public Database(JavaSparkContext jsc, String dbFile, MetaCacheOptions params) {
 
+        LOG.info("Loading database from HDFS...");
 		this.jsc = jsc;
 		this.dbfile = dbFile;
 
@@ -1502,7 +1503,7 @@ public class Database implements Serializable{
 		}
 
 	}
-
+/*
 	public List<HashMap<LocationBasic, Integer>> matches_buffer( List<SequenceData> inputData, long init, int size, long total, long readed) {
 
 		// Get results for this buffer
@@ -1547,8 +1548,8 @@ public class Database implements Serializable{
 		return returnValues;
 
 	}
-
-
+*/
+/*
 	//public List<TreeMap<LocationBasic, Integer>> matches_buffer_treemap( List<SequenceData> inputData, long init, int size, long total, long readed) {
 	public List<TreeMap<LocationBasic, Integer>> accumulate_matches_buffer_treemap( List<SequenceData> inputData, long init, int size, long total, long readed) {
 
@@ -1603,7 +1604,7 @@ public class Database implements Serializable{
 		return returnValues;
 
 	}
-
+*/
 	public List<TreeMap<LocationBasic, Integer>> accumulate_matches_buffer_treemap2( List<SequenceData> inputData, long init, int size, long total, long readed) {
 
 		long initTime = System.nanoTime();
@@ -1625,6 +1626,94 @@ public class Database implements Serializable{
 
 	}
 
+    public List<TreeMap<LocationBasic, Integer>> accumulate_matches_buffer_treemap_local( String file_name, long init, int size, long total, long readed) {
+
+        long initTime = System.nanoTime();
+
+        // Get results for this buffer
+        List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+                .mapPartitionsToPair(new PartialQueryTreeMapLocal(file_name, init, size, total, readed))
+                .reduceByKey(new QueryReducerTreeMap())
+                .sortByKey()
+                .values()
+                .collect();
+
+        long endTime = System.nanoTime();
+
+        LOG.warn("JMAbuin time in insert into treeMap is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+        return results;
+
+
+    }
+
+    public List<TreeMap<LocationBasic, Integer>> accumulate_matches_native_full( String fileName) {
+
+        long initTime = System.nanoTime();
+
+        // Get results for this buffer
+        List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+                .mapPartitionsToPair(new FullQueryTreeMap(fileName))
+                .reduceByKey(new QueryReducerTreeMap())
+                .sortByKey()
+                .values()
+                .collect();
+
+        long endTime = System.nanoTime();
+
+        LOG.warn("JMAbuin time in insert into TreeMap full is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+        return results;
+
+
+    }
+
+	public List<HashMap<LocationBasic, Integer>>  accumulate_matches_basic_native_full( String fileName) {
+
+		long initTime = System.nanoTime();
+
+        // Get results for this buffer
+        List<HashMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+                //.mapPartitionsToPair(new FullQuery(fileName))
+				.mapPartitionsToPair(new FullQueryNativeLocal(fileName))
+                .reduceByKey(new QueryReducer())
+                .sortByKey()
+                .values()
+                .collect();
+
+        long endTime = System.nanoTime();
+
+        LOG.warn("JMAbuin time in insert into HashMap full is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+        return results;
+
+
+	}
+
+    public List<HashMap<LocationBasic, Integer>>  accumulate_matches_basic_native_buffered( String fileName, long init, int size, long total, long readed) {
+
+        long initTime = System.nanoTime();
+
+        // Get results for this buffer
+        //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
+        List<HashMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+                //.mapPartitionsToPair(new FullQuery(fileName))
+                .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, total, readed))
+                .reduceByKey(new QueryReducer())
+                .sortByKey()
+                .values()
+                .collect();
+
+        long endTime = System.nanoTime();
+
+        LOG.warn("JMAbuin time in insert into HashMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+        return results;
+
+
+    }
+
+/*
 	public List<List<int[]>> matches_buffer_native( List<SequenceData> inputData, long init, int size, long total, long readed) {
 
 		// Get results for this buffer
@@ -1672,7 +1761,7 @@ public class Database implements Serializable{
 		return returnValues;
 
 	}
-
+*/
 
 
 	//public TreeMap<LocationBasic, Integer> matches(Sketch query) {
@@ -1712,6 +1801,28 @@ public class Database implements Serializable{
 
 		return null;
 	}
+
+    public List<TreeMap<LocationBasic, Integer>> matches_buffered_local(String file_name, long init, int size, long total, long readed) {
+
+        if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
+            LOG.warn("[JMAbuin] Using buffered_local mode");
+            return this.accumulate_matches_buffer_treemap_local(file_name, init, size, total, readed);
+            //return this.accumulate_matches_buffer_treemap(queries, init, size, total, readed);
+        }
+
+        return null;
+    }
+
+    public List<TreeMap<LocationBasic, Integer>> matches_native_full(String fileName) {
+
+        if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
+            LOG.warn("[JMAbuin] Using native full mode");
+            return this.accumulate_matches_native_full(fileName);
+            //return this.accumulate_matches_buffer_treemap(queries, init, size, total, readed);
+        }
+
+        return null;
+    }
 
 	public TreeMap<LocationBasic, Integer> accumulate_matches_filter(SequenceData query) {
 

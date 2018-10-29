@@ -7,6 +7,7 @@ import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
 import com.github.jmabuin.metacachespark.database.LocationBasicComparator;
 import com.github.jmabuin.metacachespark.io.SequenceData;
 import com.github.jmabuin.metacachespark.io.SequenceFileReader;
+import com.github.jmabuin.metacachespark.io.SequenceFileReaderLocal;
 import com.github.jmabuin.metacachespark.io.SequenceReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -22,7 +23,7 @@ import java.util.*;
 /**
  * Created by chema on 3/28/17.
  */
-public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, TreeMap<LocationBasic, Integer>> {
+public class PartialQueryTreeMapLocal implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, TreeMap<LocationBasic, Integer>> {
 
     private static final Log LOG = LogFactory.getLog(PartialQueryTreeMap.class);
 
@@ -32,17 +33,19 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
     private long total;
     //private SequenceFileReader seqReader;
     private long readed;
+    private SequenceFileReaderLocal seqReader;
 
-    List<SequenceData> inputData;
+    //List<SequenceData> inputData;
 
-    public PartialQueryTreeMap(List<SequenceData> inputData, long init, int bufferSize, long total, long readed) {
+    public PartialQueryTreeMapLocal(String fileName, long init, int bufferSize, long total, long readed) {
         //this.seqReader = seqReader;
-        //this.fileName = fileName;
+        this.fileName = fileName;
         this.init = init;
         this.bufferSize = bufferSize;
         this.total = total;
         this.readed = readed;
-        this.inputData = inputData;
+        //this.inputData = inputData;
+        this.seqReader = new SequenceFileReaderLocal(this.fileName, init);
     }
 
     @Override
@@ -51,7 +54,6 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
         List<Tuple2<Long, TreeMap<LocationBasic, Integer>>> finalResults = new ArrayList<Tuple2<Long, TreeMap<LocationBasic, Integer>>>();
 
         try{
-
 
 
             ArrayList<Sketch> locations = new ArrayList<Sketch>();
@@ -71,10 +73,11 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
                 HashMultiMapNative currentHashMap = myHashMaps.next();
                 //LOG.warn("[JMAbuin] New HashMultiMapNative: " + currentSequence);
 
-                for(SequenceData currentData: inputData){
+                SequenceData currentData = this.seqReader.next();
+                while((currentData != null) && (currentSequence < this.bufferSize + this.init) && (currentSequence < this.total)) {
 
 
-                    //if(currentSequence >= this.init) {
+                    LOG.info("Processing sequence: " + currentSequence);
 
                     locations = SequenceFileReader.getSketchStatic(currentData);
 
@@ -123,6 +126,7 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
 
                     //data = seqReader.next();
                     currentSequence++;
+                    currentData = this.seqReader.next();
                     locations.clear();
                 }
                 LOG.warn("[JMAbuin] Finished bunch of sequences");

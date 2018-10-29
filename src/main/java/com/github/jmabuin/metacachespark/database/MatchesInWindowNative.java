@@ -19,10 +19,10 @@ public class MatchesInWindowNative {
     private int tgt_[];
     private IndexRange pos_[];
     public static int maxNo = 2;
-    private List<int[]> matches;
+    private HashMap<LocationBasic, Integer> matches;
     //private TreeMap<LocationBasic, Integer> matches_HM;
 
-    public MatchesInWindowNative(List<int[]> matches, long numWindows) {
+    public MatchesInWindowNative(HashMap<LocationBasic, Integer> matches, long numWindows) {
         this.hits_ = new long[maxNo];
         this.tgt_ = new int[maxNo];
         this.pos_ = new IndexRange[maxNo];
@@ -48,36 +48,30 @@ public class MatchesInWindowNative {
         long maxWinEnd = 0;
 
         //check hits per query sequence
-        //TODO: Iterate over native map
-        /*Map.Entry<LocationBasic, Integer> fst = matches.firstEntry();
+        Map.Entry<LocationBasic, Integer> fst = matches.entrySet().iterator().next();
         Map.Entry<LocationBasic, Integer> lst = fst;
 
         ArrayList<Map.Entry<LocationBasic, Integer>> arrayListMatches = new ArrayList<Map.Entry<LocationBasic, Integer>>(matches.entrySet());
-        */
-
-        int fst[] = matches.get(0);
-        int lst[] = matches.get(0);
 
         int entryFST = 0;
 
-        for(int entryLST = 0; entryLST< matches.size(); entryLST++) {
-            lst = matches.get(entryLST);
+        for(int entryLST = 0; entryLST< arrayListMatches.size(); entryLST++) {
+            lst = arrayListMatches.get(entryLST);
 
             //look for neighboring windows with the highest total hit count
             //as long as we are in the same target and the windows are in a
             //contiguous range
-            if(lst[0] == tgt) {
+            if(lst.getKey().getTargetId() == tgt) {
                 //add new hits to the right
-                hits += lst[2];
+                hits += lst.getValue();
                 //subtract hits to the left that fall out of range
-                while(fst != lst &&	(lst[1] - fst[1]) >= numWindows)
+                while(fst != lst &&	(lst.getKey().getWindowId() - fst.getKey().getWindowId()) >= numWindows)
                 {
-                    hits -= fst[2];
+                    hits -= fst.getValue();
                     //move left side of range
                     ++entryFST;
-
-                    fst = matches.get(entryFST);
-                    win = fst[1];
+                    fst = arrayListMatches.get(entryFST);
+                    win = fst.getKey().getWindowId();
                 }
                 //track best of the local sub-ranges
                 if(hits > maxHits) {
@@ -89,22 +83,14 @@ public class MatchesInWindowNative {
             else {
                 //reset to new target
                 ++numTgts_;
-                /*
                 win = arrayListMatches.get(entryLST).getKey().getWindowId();
                 tgt = arrayListMatches.get(entryLST).getKey().getTargetId();
                 hits = arrayListMatches.get(entryLST).getValue();
-                */
-                win = lst[1];
-                tgt = lst[0];
-                hits = lst[2];
-
-
                 maxHits = hits;
                 maxWinBeg = win;
                 maxWinEnd = win;
                 //fst = lst;
                 entryFST = entryLST;
-
             }
             //keep track of 'maxNo' largest
             //TODO binary search for large maxNo?
@@ -125,69 +111,7 @@ public class MatchesInWindowNative {
                 }
             }
 
-
         }
-
-
-		/* Original code
-		//check hits per query sequence
-        auto fst = begin(matches);
-        auto lst = fst;
-        while(lst != end(matches)) {
-            //look for neighboring windows with the highest total hit count
-            //as long as we are in the same target and the windows are in a
-            //contiguous range
-            if(lst->first.tgt == tgt) {
-                //add new hits to the right
-                hits += lst->second;
-                //subtract hits to the left that fall out of range
-                while(fst != lst &&
-                     (lst->first.win - fst->first.win) >= numWindows)
-                {
-                    hits -= fst->second;
-                    //move left side of range
-                    ++fst;
-                    win = fst->first.win;
-                }
-                //track best of the local sub-ranges
-                if(hits > maxHits) {
-                    maxHits = hits;
-                    maxWinBeg = win;
-                    maxWinEnd = win + distance(fst,lst);
-                }
-            }
-            else {
-                //reset to new target
-                ++numTgts_;
-                win = lst->first.win;
-                tgt = lst->first.tgt;
-                hits = lst->second;
-                maxHits = hits;
-                maxWinBeg = win;
-                maxWinEnd = win;
-                fst = lst;
-            }
-            //keep track of 'maxNo' largest
-            //TODO binary search for large maxNo?
-            for(int i = 0; i < maxNo; ++i) {
-                if(maxHits >= hits_[i]) {
-                    //shift to the right
-                    for(int j = maxNo-1; j > i; --j) {
-                        hits_[j] = hits_[j-1];
-                        tgt_[j] = tgt_[j-1];
-                        pos_[j] = pos_[j-1];
-                    }
-                    //set hits & associated sequence (position)
-                    hits_[i] = maxHits;
-                    tgt_[i] = tgt;
-                    pos_[i].beg = maxWinBeg;
-                    pos_[i].end = maxWinEnd;
-                    break;
-                }
-            }
-            ++lst;
-        }
-		 */
 
 
     }
@@ -244,7 +168,7 @@ public class MatchesInWindowNative {
         return coveredWins_;
     }
 
-    public List<int[]> getMatches() {
+    public HashMap<LocationBasic, Integer> getMatches() {
         return matches;
     }
 }

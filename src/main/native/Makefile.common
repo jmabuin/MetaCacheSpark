@@ -10,6 +10,7 @@ LOCATION = `pwd`
 BUILD_DIR_HASHMAP = build_hasmap
 BUILD_DIR_FUNCTIONS = build_functions
 BUILD_DIR_MYMAP = build_mymap
+BUILD_DIR_SEQUENCEREADER = build_seqreader
 
 DIALECT = -std=c++11
 WARNINGS = -Wall -Wextra -Wpedantic

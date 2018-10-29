@@ -30,7 +30,8 @@ public class QueryReducerTreeMap implements Function2<TreeMap<LocationBasic, Int
             }
             else {
                 //if(v1.size()<256 || currentEntry.getValue() >= 2) {
-                    v1.put(currentEntry.getKey(), currentEntry.getValue());
+                //if(v1.size()<256) {
+                v1.put(currentEntry.getKey(), currentEntry.getValue());
                 //}
 
             }

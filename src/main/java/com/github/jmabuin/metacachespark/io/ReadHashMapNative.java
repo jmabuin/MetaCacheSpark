@@ -41,7 +41,7 @@ public class ReadHashMapNative implements Function2<Integer, Iterator<String>, I
 				String parts[] = filename.split("/");
 				onlyFileName = parts[parts.length-1];
 
-				LOG.warn("Processing file: " + filename+" <> "+onlyFileName);
+				LOG.info("Processing file to insert into native hashmap: " + filename+" <> "+onlyFileName);
 
 				HashMultiMapNative newMap = new HashMultiMapNative();
 

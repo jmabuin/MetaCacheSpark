@@ -205,6 +205,7 @@ public class MetaCacheOptions implements Serializable {
 			}
 			else if (this.operation_mode == EnumModes.Mode.QUERY) {
                 // Check if the number of arguments is correct. This is, dbname, outfile and infiles
+                LOG.info("Query mode...");
                 if (this.otherOptions.length < 3) {
                     LOG.error("["+this.getClass().getName()+"] No database, input data and output file name have been found. Aborting.");
 
@@ -265,7 +266,7 @@ public class MetaCacheOptions implements Serializable {
         privateOptions.addOption(database_type);
 
         Option taxonomy = new Option("t", "taxonomy", true, "Path to the taxonomy to be used in the HDFS.");
-        taxonomy.setRequired(true);
+        //taxonomy.setRequired(true);
         privateOptions.addOption(taxonomy);
 
         Option partitions =  new Option("p", "partitions", true, "Number of partitions to use.");

@@ -1,10 +1,10 @@
 package com.github.jmabuin.metacachespark.spark;
 
+import com.github.jmabuin.metacachespark.FilesysUtility;
 import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.Sketch;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
-import com.github.jmabuin.metacachespark.database.LocationBasicComparator;
 import com.github.jmabuin.metacachespark.io.SequenceData;
 import com.github.jmabuin.metacachespark.io.SequenceFileReader;
 import com.github.jmabuin.metacachespark.io.SequenceReader;
@@ -22,27 +22,14 @@ import java.util.*;
 /**
  * Created by chema on 3/28/17.
  */
-public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, TreeMap<LocationBasic, Integer>> {
+public class FullQueryTreeMap implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, TreeMap<LocationBasic, Integer>> {
 
-    private static final Log LOG = LogFactory.getLog(PartialQueryTreeMap.class);
+    private static final Log LOG = LogFactory.getLog(FullQueryTreeMap.class);
 
     private String fileName;
-    private long init;
-    private int bufferSize;
-    private long total;
-    //private SequenceFileReader seqReader;
-    private long readed;
 
-    List<SequenceData> inputData;
-
-    public PartialQueryTreeMap(List<SequenceData> inputData, long init, int bufferSize, long total, long readed) {
-        //this.seqReader = seqReader;
-        //this.fileName = fileName;
-        this.init = init;
-        this.bufferSize = bufferSize;
-        this.total = total;
-        this.readed = readed;
-        this.inputData = inputData;
+    public FullQueryTreeMap(String fileName) {
+        this.fileName = fileName;
     }
 
     @Override
@@ -52,29 +39,36 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
 
         try{
 
-
-
             ArrayList<Sketch> locations = new ArrayList<Sketch>();
+            TreeMap<LocationBasic, Integer> matches;
 
-            //HashMap<String, List<int[]>> results = new HashMap<String, List<int[]>>();
+            long totalReads = FilesysUtility.readsInFastaFile(this.fileName);
+            long startRead = 0;
 
-            //finalResults.add(results);
 
-            long currentSequence = this.init;
-            LOG.info("[JMAbuin] Init at sequence: " + currentSequence);
             // Theoretically there is only one HashMap per partition
-
-            //List<TreeMap<LocationBasic, Integer>> queryResults = new ArrayList<TreeMap<LocationBasic, Integer>>();
+            long currentSequence = 0;
+            LOG.info("Init at sequence: " + currentSequence);
 
             while(myHashMaps.hasNext()){
 
                 HashMultiMapNative currentHashMap = myHashMaps.next();
-                //LOG.warn("[JMAbuin] New HashMultiMapNative: " + currentSequence);
-
-                for(SequenceData currentData: inputData){
+                LOG.info("New hasmap");
 
 
+
+                SequenceFileReader seqReader = new SequenceFileReader(this.fileName, 0);
+
+                SequenceData currentData;
+
+                for(startRead = 0; startRead < totalReads; startRead++) {
+
+                    currentData = seqReader.next();
+                    LOG.info("Processing sequence " + startRead);
                     //if(currentSequence >= this.init) {
+
+                    //TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
+                    TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>();
 
                     locations = SequenceFileReader.getSketchStatic(currentData);
 
@@ -82,8 +76,6 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
                         LOG.warn("[JMAbuin] Locations is null!!");
                     }
 
-                    //TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
-                    TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>();
 
                     for(Sketch currentSketch: locations) {
 
@@ -117,27 +109,22 @@ public class PartialQueryTreeMap implements PairFlatMapFunction<Iterator<HashMul
                     //queryResults.add(res);
 
                     //results.put(data.getHeader(), queryResults);
-                    finalResults.add(new Tuple2<Long, TreeMap<LocationBasic, Integer>>(currentSequence, res));
+                    finalResults.add(new Tuple2<Long, TreeMap<LocationBasic, Integer>>(startRead, res));
                     //}
 
 
-                    //data = seqReader.next();
-                    currentSequence++;
                     locations.clear();
                 }
-                LOG.warn("[JMAbuin] Finished bunch of sequences");
+                seqReader.close();
+                LOG.warn("[JMAbuin] Finished all sequences");
             }
-
-            //LOG.warn("[JMAbuin] Ending buffer " + currentSequence);
-
-            //seqReader.close();
 
             return finalResults.iterator();
 
 
         }
         catch(Exception e) {
-            LOG.error("ERROR in PartialQueryTreeMap: "+e.getMessage());
+            LOG.error("ERROR in FullQueryTreeMap: "+e.getMessage());
             System.exit(-1);
         }
 
