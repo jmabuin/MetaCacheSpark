@@ -1713,6 +1713,30 @@ public class Database implements Serializable{
 
     }
 
+
+	public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_basic_native_buffered_treemap( String fileName, long init, int size, long total, long readed) {
+
+		long initTime = System.nanoTime();
+
+		// Get results for this buffer
+		//List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
+		List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+				//.mapPartitionsToPair(new FullQuery(fileName))
+				.mapPartitionsToPair(new PartialQueryNativeTreeMap(fileName, init, size, total, readed))
+				.reduceByKey(new QueryReducerTreeMapNative())
+				.sortByKey()
+				.values()
+				.collect();
+
+		long endTime = System.nanoTime();
+
+		LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+		return results;
+
+
+	}
+
 /*
 	public List<List<int[]>> matches_buffer_native( List<SequenceData> inputData, long init, int size, long total, long readed) {
 

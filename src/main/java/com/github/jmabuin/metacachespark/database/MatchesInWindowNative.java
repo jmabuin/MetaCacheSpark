@@ -47,11 +47,11 @@ public class MatchesInWindowNative {
         long maxWinBeg = 0;
         long maxWinEnd = 0;
 
-        //check hits per query sequence
-        Map.Entry<LocationBasic, Integer> fst = matches.entrySet().iterator().next();
-        Map.Entry<LocationBasic, Integer> lst = fst;
+        ArrayList<Map.Entry<LocationBasic, Integer>> arrayListMatches = new ArrayList<Map.Entry<LocationBasic, Integer>>(this.matches.entrySet());
 
-        ArrayList<Map.Entry<LocationBasic, Integer>> arrayListMatches = new ArrayList<Map.Entry<LocationBasic, Integer>>(matches.entrySet());
+        //check hits per query sequence
+        Map.Entry<LocationBasic, Integer> fst = arrayListMatches.get(0);
+        Map.Entry<LocationBasic, Integer> lst = fst;
 
         int entryFST = 0;
 

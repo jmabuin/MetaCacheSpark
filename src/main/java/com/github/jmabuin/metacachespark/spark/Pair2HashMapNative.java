@@ -28,8 +28,6 @@ public class Pair2HashMapNative implements Function2<Integer, Iterator<Tuple2<In
 
 		HashMultiMapNative map = new HashMultiMapNative();
 
-		returnedValues.add(map);
-
 		while(tuple2Iterator.hasNext()) {
 			Tuple2<Integer, LocationBasic> currentItem = tuple2Iterator.next();
 
@@ -37,6 +35,7 @@ public class Pair2HashMapNative implements Function2<Integer, Iterator<Tuple2<In
 
 		}
 
+		returnedValues.add(map);
 
 		return returnedValues.iterator();
 	}

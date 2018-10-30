@@ -32,22 +32,6 @@ public class QueryReducer implements Function2<HashMap<LocationBasic, Integer>, 
 
         return v1;
 
-		/*if(v1.size() + v2.size() < 256) {
-			v1.addAll(v2);
-		}
-		else {
-			if (v1.size() <= 256) {
-
-				int currentSize;
-				int i;
-				for(currentSize = v1.size(), i = 0; currentSize < 256 && i< v2.size(); currentSize++, i++) {
-					v1.add(v2.get(i));
-				}
-			}
-
-		}
-		return v1;
-		*/
 	}
 
 }

@@ -19,6 +19,8 @@ public class MetaCacheSpark implements Serializable {
 
 	public static void main(String[] args) {
 
+		long initTime = System.nanoTime();
+
 		MetaCacheOptions newOptions = new MetaCacheOptions(args);
 
 		if(newOptions.getMode() == EnumModes.Mode.HELP) {
@@ -54,7 +56,10 @@ public class MetaCacheSpark implements Serializable {
 			Build buildObject = new Build(newOptions, ctx);
 
 			buildObject.buildDatabase();
-			LOG.warn("End of program ...");
+
+            long endTime = System.nanoTime();
+
+            LOG.info("End of program. Total time: " + ((endTime - initTime) / 1e9) + " seconds");
 
 			///ctx.close();
 		}
@@ -115,7 +120,9 @@ sparkConf.set("spark.sql.parquet.compression.codec", "snappy")
 			Query queryObject = new Query(newOptions, ctx);
 
 
-			LOG.warn("End of program ...");
+            long endTime = System.nanoTime();
+
+            LOG.info("End of program. Total time: " + ((endTime - initTime) / 1e9) + " seconds");
 		}
 		else {
 			System.out.println("Not recognized option");

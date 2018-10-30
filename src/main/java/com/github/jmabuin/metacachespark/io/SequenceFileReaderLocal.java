@@ -33,7 +33,7 @@ public class SequenceFileReaderLocal implements Serializable{
     //private FSDataInputStream inputStream;	// InputStream to read input file
     private EnumModes.InputFormat 	currentFormat;	// File format, FASTQ or FASTA
 
-    private long readedValues;
+    private long readedValues = 0;
 
     /**
      * @brief Basic builder
@@ -89,7 +89,10 @@ public class SequenceFileReaderLocal implements Serializable{
                 this.currentFormat = EnumModes.InputFormat.FASTA;
             }
 
-            this.skip(offset);
+            if(offset > 0) {
+                this.skip(offset);
+            }
+
 
         }
         catch (IOException e) {
@@ -102,8 +105,6 @@ public class SequenceFileReaderLocal implements Serializable{
             e.printStackTrace();
             //System.exit(1);
         }
-
-
 
     }
 
@@ -124,8 +125,6 @@ public class SequenceFileReaderLocal implements Serializable{
                     // Case of first header in file
                     if((line.startsWith(">")) && (this.bufferHeader.toString().isEmpty())) {
                         this.bufferHeader.append(line.subSequence(1,line.length()));
-                        //this.readedValues += (line.length() + 1);
-                        //LOG.warn("[JMAbuin] Header");
                     }
                     // Case of new header found after a new sequence data. We build the new SequenceData to return and store the new header
                     else if ((line.startsWith(">")) && (!this.bufferHeader.toString().isEmpty())) {
@@ -136,7 +135,7 @@ public class SequenceFileReaderLocal implements Serializable{
 
                         this.bufferHeader.append(line.subSequence(1,line.length()));
                         //LOG.warn("[JMAbuin] New header and return");
-                        //this.readedValues += (line.length() + 1);
+                        this.readedValues += 1;
                         return currentSequenceData;
 
                     }
@@ -161,6 +160,7 @@ public class SequenceFileReaderLocal implements Serializable{
                 this.bufferHeader.delete(0, this.bufferHeader.length());
                 this.bufferData.delete(0, this.bufferData.length());
 
+                this.readedValues += 1;
                 return currentSequenceData;
             }
             catch (IOException e) {
