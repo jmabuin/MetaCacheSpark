@@ -35,14 +35,16 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
     private SequenceFileReaderNative seqReader;
     private long readed;
     private String local_file_name;
+    private int result_size;
 
-    public PartialQueryNativeTreeMap(String file_name, long init, int bufferSize, long total, long readed) {
+    public PartialQueryNativeTreeMap(String file_name, long init, int bufferSize, long total, long readed, int result_size) {
         //this.seqReader = seqReader;
         this.fileName = file_name;
         this.init = init;
         this.bufferSize = bufferSize;
         this.total = total;
         this.readed = readed;
+        this.result_size = result_size;
 
     }
 
@@ -110,9 +112,9 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
                         LOG.warn("Locations is null!!");
                     }
 
-                    //List<int[]> queryResults = new ArrayList<int[]>();
+                    //HashMap<LocationBasic, Integer> tmp_hashmap = new HashMap<>();
 
-                    HashMap<LocationBasic, Integer> tmp_hashmap = new HashMap<>();
+                    int block_size = locations.size() * this.result_size;
 
                     for(Sketch currentSketch: locations) {
 
@@ -129,11 +131,16 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
 
                                     LocationBasic loc = new LocationBasic(values[i], values[i + 1]);
 
-                                    if (tmp_hashmap.containsKey(loc)) {
-                                        tmp_hashmap.put(loc, tmp_hashmap.get(loc) + 1);
+                                    // Store only some results. Try to improve this
+                                    if (current_results.containsKey(loc)) {
+                                        current_results.put(loc, current_results.get(loc) + 1);
                                     }
                                     else {
-                                        tmp_hashmap.put(loc, 1);
+                                        current_results.put(loc, 1);
+                                    }
+
+                                    if (current_results.size() >= block_size) {
+                                        break;
                                     }
 
                                 }
@@ -143,31 +150,36 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
                         }
 
                     }
-
+/*
                     // Select only best data
+                    // TODO: Improve this!!
                     for(LocationBasic tmp_location: tmp_hashmap.keySet()) {
 
-                        if((tmp_hashmap.get(tmp_location) > 1) && (current_results.size() < 32)) {
+                        if((tmp_hashmap.get(tmp_location) > 1) && (current_results.size() < this.result_size)) {
                             current_results.put(tmp_location, tmp_hashmap.get(tmp_location));
+                        }
+
+                        if (current_results.size() >= this.result_size) {
+                            break;
                         }
 
                     }
 
-                    if(current_results.size() < 32) {
+                    if(current_results.size() < this.result_size) {
                         for(LocationBasic tmp_location: tmp_hashmap.keySet()) {
 
                             if(tmp_hashmap.get(tmp_location) == 1) {
                                 current_results.put(tmp_location, tmp_hashmap.get(tmp_location));
                             }
 
-                            if(current_results.size() >= 32) {
+                            if(current_results.size() >= this.result_size) {
                                 break;
                             }
 
 
                         }
                     }
-
+*/
 
 
                     finalResults.add(new Tuple2<Long, TreeMap<LocationBasic, Integer>>(currentSequence, current_results));

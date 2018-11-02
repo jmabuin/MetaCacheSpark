@@ -50,6 +50,7 @@ public class MetaCacheOptions implements Serializable {
 	private int partitions = 1;
 	private String configuration;
     private int buffer_size = 0; //51200;
+    private int result_size = 32;
 	private MetaCacheProperties properties;
 
     private String dbfile			= "";
@@ -179,6 +180,10 @@ public class MetaCacheOptions implements Serializable {
                     this.myWholeTextFiles = true;
                 }
 
+                if (cmd.hasOption('s') || cmd.hasOption("result_size")) {
+                    this.result_size = Integer.parseInt(cmd.getOptionValue("result_size"));
+                }
+
             }
 
 			// Get and parse the rest of the arguments
@@ -280,6 +285,9 @@ public class MetaCacheOptions implements Serializable {
 
         Option myWholeTextFiles = new Option("w", "myWholeTextFiles", false, "Use customize wholetextfiles or not");
         privateOptions.addOption(myWholeTextFiles);
+
+        Option result_size = new Option("s", "result_size", true, "Number of possible target number per location when performing query phase");
+        privateOptions.addOption(result_size);
 
 		return privateOptions;
 	}
@@ -400,5 +408,9 @@ public class MetaCacheOptions implements Serializable {
 
     public boolean isMyWholeTextFiles() {
         return myWholeTextFiles;
+    }
+
+    public int getResult_size() {
+        return result_size;
     }
 }

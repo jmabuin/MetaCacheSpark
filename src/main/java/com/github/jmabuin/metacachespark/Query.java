@@ -886,7 +886,7 @@ public class Query implements Serializable {
                 List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_basic_native_buffered_treemap(filename,
                         startRead, bufferSize, totalReads, startRead);
 
-                LOG.warn("Results in buffer: "+hits.size()+". Buffer size is:: "+bufferSize);
+                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
 
                 //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
                 long initTime = System.nanoTime();
@@ -915,11 +915,17 @@ public class Query implements Serializable {
                     //if(data == null) {
                     //	LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
                     //}
-
+                    /*
                     if(currentHits.size() > 0) {
                         this.process_database_answer_basic(data.getHeader(), data.getData(),
                                 "", currentHits, d, stats);
                     }
+                    else {
+                        LOG.warn("Hits size is zero!");
+                    }
+                    */
+                    this.process_database_answer_basic(data.getHeader(), data.getData(),
+                            "", currentHits, d, stats);
                 }
 
                 long endTime = System.nanoTime();
@@ -1445,6 +1451,7 @@ public class Query implements Serializable {
 		Classification cls = this.sequence_classification(tophits);
 
 		if(this.param.getProperties().isTestPrecision()) {
+			//LOG.warn("[JMAbuin] Enter into assign precision with rank: " + Taxonomy.rank_name(cls.rank()));
 			Taxonomy.Rank lowestCorrectRank = this.db.lowest_common_rank( cls, groundTruth);
 
 			stats.assign_known_correct(cls.rank(), groundTruth.rank(), lowestCorrectRank);

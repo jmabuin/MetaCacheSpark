@@ -21,7 +21,7 @@ public class Classification {
 
 	public Classification() {
 		this.tid_ = Database.invalid_target_id();
-		this.tax_ = null;
+		this.tax_ = new Taxon();//null;
 	}
 
 	public boolean has_taxon() {

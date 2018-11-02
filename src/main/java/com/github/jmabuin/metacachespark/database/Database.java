@@ -1722,7 +1722,7 @@ public class Database implements Serializable{
 		//List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
 		List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
 				//.mapPartitionsToPair(new FullQuery(fileName))
-				.mapPartitionsToPair(new PartialQueryNativeTreeMap(fileName, init, size, total, readed))
+				.mapPartitionsToPair(new PartialQueryNativeTreeMap(fileName, init, size, total, readed, this.params.getResult_size()))
 				.reduceByKey(new QueryReducerTreeMapNative())
 				.sortByKey()
 				.values()
