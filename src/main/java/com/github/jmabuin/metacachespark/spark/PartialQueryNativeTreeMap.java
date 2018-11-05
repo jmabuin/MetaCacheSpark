@@ -112,15 +112,17 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
                         LOG.warn("Locations is null!!");
                     }
 
-                    //HashMap<LocationBasic, Integer> tmp_hashmap = new HashMap<>();
+                    HashMap<LocationBasic, Integer> all_hits = new HashMap<>();
 
                     int block_size = locations.size() * this.result_size;
 
                     for(Sketch currentSketch: locations) {
 
+                        all_hits.clear();
+
                         for(int location: currentSketch.getFeatures()) {
 
-                            //tmp_hashmap.clear();
+
 
                             int[] values = currentHashMap.get(location);
 
@@ -131,7 +133,15 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
 
                                     LocationBasic loc = new LocationBasic(values[i], values[i + 1]);
 
+                                    if (all_hits.containsKey(loc)) {
+                                        all_hits.put(loc, all_hits.get(loc) + 1);
+                                    }
+                                    else{
+                                        all_hits.put(loc, 1);
+                                    }
+
                                     // Store only some results. Try to improve this
+                                    /*
                                     if (current_results.containsKey(loc)) {
                                         current_results.put(loc, current_results.get(loc) + 1);
                                     }
@@ -142,12 +152,40 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
                                     if (current_results.size() >= block_size) {
                                         break;
                                     }
+                                    */
 
                                 }
 
 
                             }
                         }
+
+                        List<Map.Entry<LocationBasic, Integer>> list = new ArrayList<>(all_hits.entrySet());
+                        list.sort(Map.Entry.comparingByValue());
+                        //Collections.reverse(list);
+
+                        ;
+
+                        //for(Map.Entry<LocationBasic, Integer> current_entry : list) {
+                        for( int i = list.size()-1, current_number_of_values = 0; (current_number_of_values < this.result_size) && (i>=0); --i, ++current_number_of_values){
+                            Map.Entry<LocationBasic, Integer> current_entry = list.get(i);
+
+                            //if(current_number_of_values < this.result_size) {
+                                //current_results.put(current_entry.getKey(), current_entry.getValue());
+                                if (current_results.containsKey(current_entry.getKey())) {
+                                    current_results.put(current_entry.getKey(), current_results.get(current_entry.getKey()) + current_entry.getValue());
+                                }
+                                else {
+                                    current_results.put(current_entry.getKey(), current_entry.getValue());
+                                }
+                            //}
+                            //else {
+                            //    break;
+                            //}
+
+                            ;
+                        }
+
 
                     }
 /*
