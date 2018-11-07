@@ -399,14 +399,7 @@ public class Build implements Serializable {
 			db.buildDatabase2(this.param.getInfiles(), sequ2taxid, infoMode);
 		}
 		else {
-			//db.buildDatabaseMulti2(inputDirs, sequ2taxid, infoMode);
-            /*if (this.param.isMyWholeTextFiles()) {
-                db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
-            }
-            else {
-                db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
-            }
-            */
+
             db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
 		}
 

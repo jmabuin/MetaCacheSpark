@@ -1,7 +1,7 @@
 #ifndef LOCATION_H
 #define LOCATION_H
 
-#include "io_serialize.h"
+#include "metacache_hashmap/io_serialize.h"
 
 struct location {
         constexpr

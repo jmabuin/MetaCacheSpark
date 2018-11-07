@@ -2,7 +2,7 @@
 #define CHUNCK_H
 
 #include <memory>
-#include "location.h"
+#include "../location.h"
 
 class Chunck
 {

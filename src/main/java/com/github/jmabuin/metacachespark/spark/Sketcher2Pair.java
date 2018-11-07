@@ -42,76 +42,59 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
 	@Override
 	public Iterator<Tuple2<Integer, LocationBasic>> call(Sequence inputSequence){
 
-	//public Iterable<Integer,Location> call(Sequence inputSequence) {
+		//public Iterable<Integer,Location> call(Sequence inputSequence) {
 
 		ArrayList<Tuple2<Integer, LocationBasic>> returnedValues = new ArrayList<Tuple2<Integer, LocationBasic>>();
 
-		long initTime = System.nanoTime();
-		long endTime;
+		int currentStart = 0;
+		int currentEnd = MCSConfiguration.windowSize;
 
-		//while(inputSequences.hasNext()){
-		//for(Sequence inputSequence: inputSequences) {
+		String currentWindow = "";
+		int numWindows = 0;
 
-			//Sequence inputSequence = inputSequences.next();
+		String kmer;
+		String reversed_kmer;
+		int kmer32;
 
-			int currentStart = 0;
-			int currentEnd = MCSConfiguration.windowSize;
+		// We iterate over windows (with overlap)
 
-			String currentWindow = "";
-			int numWindows = 0;
+		while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
+			//Sketch resultSketch = new Sketch();
 
-			String kmer;
-			String reversed_kmer;
-			int kmer32;
+			if (currentEnd > inputSequence.getData().length()) {
+				currentEnd = inputSequence.getData().length();
+			}
 
+			if ((currentEnd - currentStart) >= MCSConfiguration.kmerSize) {
 
-			// We iterate over windows (with overlap)
-			//while (currentEnd <= inputSequence.getData().length()) {
+				currentWindow = inputSequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
 
-		//LOG.warn("[JMAbuin] Processing sequence: "+inputSequence.getHeader()+ " with length " +
-				//inputSequence.getData().length());
-		//LOG.warn("Consumed memory: "+ ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024.0/1024.0)+" MB");
+				// Compute k-mers
+				kmer = "";
+				kmer32 = 0;
 
-			while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
-				//Sketch resultSketch = new Sketch();
+				// We compute the k-mers. In C
+				int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
 
-				if (currentEnd > inputSequence.getData().length()) {
-					currentEnd = inputSequence.getData().length();
-				}
+				//LOG.warn("[JMAbuin] CurrentWindow sketch size: "+sketchValues.length);
 
-				if ((currentEnd - currentStart) >= MCSConfiguration.kmerSize) {
+				for (int newValue : sketchValues) {
 
-					currentWindow = inputSequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
-
-					// Compute k-mers
-					kmer = "";
-					kmer32 = 0;
-
-					// We compute the k-mers. In C
-					int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
-
-					//LOG.warn("[JMAbuin] CurrentWindow sketch size: "+sketchValues.length);
-
-					for (int newValue : sketchValues) {
-
-						returnedValues.add(new Tuple2<Integer, LocationBasic>(newValue,
-								new LocationBasic(this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows)));
-
-					}
-
+					returnedValues.add(new Tuple2<Integer, LocationBasic>(newValue,
+							new LocationBasic(this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows)));
 
 				}
-				numWindows++;
-				currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
-				currentEnd = currentStart + MCSConfiguration.windowSize;
+
 
 			}
-			//LOG.warn("[JMAbuin] Total windows: "+numWindows);
+			numWindows++;
+			currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
+			currentEnd = currentStart + MCSConfiguration.windowSize;
+
+		}
+		//LOG.warn("[JMAbuin] Total windows: "+numWindows);
 
 		//}
-
-		endTime = System.nanoTime();
-		//LOG.warn("Time for this partition is: " + ((endTime - initTime)/1e9));
 
 
 		return returnedValues.iterator();

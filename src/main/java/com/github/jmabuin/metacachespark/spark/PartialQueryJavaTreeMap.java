@@ -24,9 +24,9 @@ import java.util.*;
 /**
  * Created by Jose M. Abuin on 3/28/17.
  */
-public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, TreeMap<LocationBasic, Integer>> {
+public class PartialQueryJavaTreeMap implements PairFlatMapFunction<Iterator<HashMap<Integer, List<LocationBasic>>>, Long, TreeMap<LocationBasic, Integer>> {
 
-    private static final Log LOG = LogFactory.getLog(PartialQueryNativeTreeMap.class);
+    private static final Log LOG = LogFactory.getLog(PartialQueryJavaTreeMap.class);
 
     private String fileName;
     private long init;
@@ -37,7 +37,7 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
     private String local_file_name;
     private int result_size;
 
-    public PartialQueryNativeTreeMap(String file_name, long init, int bufferSize, long total, long readed, int result_size) {
+    public PartialQueryJavaTreeMap(String file_name, long init, int bufferSize, long total, long readed, int result_size) {
         this.fileName = file_name;
         this.init = init;
         this.bufferSize = bufferSize;
@@ -48,7 +48,7 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
     }
 
     @Override
-    public Iterator<Tuple2<Long, TreeMap<LocationBasic, Integer>>> call(Iterator<HashMultiMapNative> myHashMaps) {
+    public Iterator<Tuple2<Long, TreeMap<LocationBasic, Integer>>> call(Iterator<HashMap<Integer, List<LocationBasic>>> myHashMaps) {
 
         List<Tuple2<Long, TreeMap<LocationBasic, Integer>>> finalResults = new ArrayList<Tuple2<Long, TreeMap<LocationBasic, Integer>>>();
 
@@ -87,7 +87,7 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
             // Theoretically there is only one HashMap per partition
             while(myHashMaps.hasNext()){
 
-                HashMultiMapNative currentHashMap = myHashMaps.next();
+                HashMap<Integer, List<LocationBasic>> currentHashMap = myHashMaps.next();
 
                 LOG.info("Processing hashmap " + currentSequence );
                 //for(SequenceData currentData: inputData){
@@ -119,16 +119,14 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
 
                         for(int location: currentSketch.getFeatures()) {
 
-
-
-                            int[] values = currentHashMap.get(location);
+                            List<LocationBasic> values = currentHashMap.get(location);
 
                             if(values != null) {
 
 
-                                for (int i = 0; i < values.length; i += 2) {
+                                for (LocationBasic loc:values) {
 
-                                    LocationBasic loc = new LocationBasic(values[i], values[i + 1]);
+                                    //LocationBasic loc = new LocationBasic(values[i], values[i + 1]);
 
                                     if (all_hits.containsKey(loc)) {
                                         all_hits.put(loc, all_hits.get(loc) + 1);

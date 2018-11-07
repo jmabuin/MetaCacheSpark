@@ -148,7 +148,7 @@ public class Query implements Serializable {
 			FSDataOutputStream outputStream = fs.create(new Path(outputfile), true);
 
 			BufferedWriter d = new BufferedWriter(new OutputStreamWriter(outputStream));
-			// JMAbuin here
+
 			this.classify_sequences(inputfiles, d);
 
 
@@ -373,73 +373,14 @@ public class Query implements Serializable {
 
 
     	try {
-			//pair up reads from two consecutive files in the list
-			for(int i = 0; i < infilenames.length; i ++) {
+
+			for(int i = 0; i < infilenames.length; i++) {
 				String fname = infilenames[i];
 
 				LOG.warn("Processing file "+fname);
 
+                this.classify_main(fname, d, stats);
 
-				// Buffered mode for Native HashMap
-				if ((this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) && (this.param.getBuffer_size() > 0)){
-					/*if(this.param.getProperties().isNativeMap()) {
-						LOG.warn("JMAbuin entering classify4");
-						this.classify4(fname, d, stats);
-					}
-					else {
-						LOG.warn("JMAbuin entering classify3");
-						this.classify3(fname, d, stats);
-					}*/
-
-					LOG.warn("JMAbuin entering classify3 with native hashmap");
-					//this.classify3(fname, d, stats);
-                    //this.classify_local(fname, d, stats);
-                    //this.classify_local_native_basic(fname, d, stats);
-                    this.classify_local_native_basic_treemap(fname, d, stats);
-
-				}
-				else if ((this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) && (this.param.getBuffer_size() == 0)) {
-                    LOG.warn("JMAbuin entering classify_full");
-                    //this.classify_full(fname, d, stats);
-                    this.classify_full_basic(fname, d, stats);
-                }
-
-
-				// Spark Mode
-				else if((this.param.getDatabase_type() == EnumModes.DatabaseType.PARQUET) || (this.param.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY)
-						|| (this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE)) {
-					LOG.warn("JMAbuin entering classify2");
-					this.classify2(fname, d, stats);
-				}
-				else {
-					LOG.warn("JMAbuin entering classify");
-					this.classify(fname, d, stats);
-				}
-				/*
-				if(!this.param.isBuildModeHashMultiMapMCBuffered()){
-					this.classify(fname, d, stats);
-				}
-				else {
-					this.classify3(fname, d, stats);
-				}*/
-
-
-
-/*
-            if(this.param.getPairing() == MetaCacheOptions.pairing_mode.sequences){
-				this.classify_pairs();
-			}
-			else {
-            	this.classify(fname, d, stats);
-			}
-*/
-/*
-			if(param.pairing == pairing_mode::sequences) {
-				classify_pairs(queue, db, param, *reader, *reader, os, stats);
-			} else {
-				classify(queue, db, param, *reader, os, stats);
-			}
-*/
 			}
 		}
 		catch (Exception e) {
@@ -495,6 +436,38 @@ public class Query implements Serializable {
 
 
 	}
+
+	public void classify_main(String filename, BufferedWriter d, ClassificationStatistics stats){
+
+        // Buffered mode for Native HashMap
+        if ((this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) && (this.param.getBuffer_size() > 0)){
+            LOG.info("Classifying per file with native hashmap buffered");
+            this.classify_native_buffer(filename, d, stats);
+
+        }
+        // Native hashmap without buffer
+        else if ((this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) && (this.param.getBuffer_size() == 0)) {
+            LOG.info("Classifying per file with native hashmap single");
+            this.classify_native_single(filename, d, stats);
+        }
+        else if ((this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) && (this.param.getBuffer_size() > 0)){
+            this.classify_java_hashmap_buffered(filename, d, stats);
+        }
+        else if ((this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) && (this.param.getBuffer_size() == 0)){
+            this.classify_java_hashmap_single(filename, d, stats);
+        }
+
+        // Spark Mode
+        else if((this.param.getDatabase_type() == EnumModes.DatabaseType.PARQUET) || (this.param.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY)) {
+            LOG.warn("JMAbuin entering classify2");
+            this.classify2(filename, d, stats);
+        }
+        else {
+            LOG.warn("JMAbuin entering classify");
+            this.classify(filename, d, stats);
+        }
+
+    }
 
 	public void classify(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
@@ -859,15 +832,12 @@ public class Query implements Serializable {
 
 	}
 
-    public void classify_local_native_basic_treemap(String filename, BufferedWriter d, ClassificationStatistics stats) {
-
-        //LOG.warn("Entering classify3 before try");
+    public void classify_native_buffer(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
         try {
 
             long totalReads = FilesysUtility.readsInFastaFile(filename);
             long startRead;
-            //int bufferSize = 51200;
             int bufferSize = this.param.getBuffer_size();
 
             SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
@@ -883,7 +853,7 @@ public class Query implements Serializable {
 
 
                 // Get corresponding hits for this buffer
-                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_basic_native_buffered_treemap(filename,
+                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_native_buffered(filename,
                         startRead, bufferSize, totalReads, startRead);
 
                 LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
@@ -949,244 +919,189 @@ public class Query implements Serializable {
 
     }
 
-/*
-	public void classify4(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
-		//LOG.warn("Entering classify3 before try");
-
-		try {
-
-			//LOG.warn("Entering classify3");
-
-			SequenceFileReader seqReader = new SequenceFileReader(filename, 0);
-
-			ArrayList<Sketch> locations = new ArrayList<Sketch>();
-			TreeMap<LocationBasic, Integer> matches;
-
-			List<SequenceData> inputData = new ArrayList<SequenceData>();
-
-			long totalReads = FilesysUtility.readsInFastaFile(filename);
-			long currentRead = 0;
-			long startRead = 0;
-			//int bufferSize = 51200;
-			int bufferSize = 100200;
-
-			SequenceData data;
-			data = seqReader.next();
-
-			for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
-				//while((currentRead < startRead+bufferSize) && ) {
-				currentRead = startRead;
-
-				//LOG.warn("Parsing new reads block. Starting in: "+currentRead);
-
-				while((data != null) && (currentRead < startRead + bufferSize)) {
-					inputData.add(data);
-					data = seqReader.next();
-					currentRead++;
-				}
-
-				// Get corresponding hits for this buffer
-				List<List<int[]>> hits = this.db.matches_buffer_native(inputData, currentRead, bufferSize, totalReads,
-						seqReader.getReadedValues());
-
-				//LOG.warn("Results in buffer: "+hits.size()+". Sequences in buffer: "+inputData.size());
-
-				//for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-				long initTime = System.nanoTime();
-				for(long i = 0;  i < hits.size() ; i++) {
-
-					//LOG.warn("Processing: "+inputData.get((int)i).getHeader());
-
-					//SequenceData data = seqReader.next();
-
-					//MapNative currentHits = hits.get((int)i);
-					List<int[]> currentHits = hits.get((int)i);
-
-					//LOG.warn("JMAbuin: Current nativeMap items: "+currentHits.size());
-					//if(data == null) {
-					//	LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
-					//}
-
-					if(currentHits.size() > 0) {
-						this.process_database_answer_native(inputData.get((int) i).getHeader(), inputData.get((int) i).getData(),
-								"", currentHits, d, stats);
-					}
-				}
-
-				long endTime = System.nanoTime();
-
-				//currentRead++;
-				inputData.clear();
-
-				LOG.warn("JMAbuin time in process database Answer in Native mode is: " + ((endTime - initTime) / 1e9) + " seconds");
-			}
-
-			//LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-			seqReader.close();
-
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			LOG.error("General error in classify: "+e.getMessage());
-			System.exit(1);
-		}
-
-
-	}
-*/
-
-    public void classify_full(String filename, BufferedWriter d, ClassificationStatistics stats) {
-
-        //LOG.warn("Entering classify3 before try");
+    public void classify_native_single(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
         try {
 
-            // Get corresponding hits for this buffer
-            List<TreeMap<LocationBasic, Integer>> hits = this.db.matches_native_full(filename);
+            //long totalReads = FilesysUtility.readsInFastaFile(filename);
+            //long startRead;
 
-            LOG.warn("Results in buffer: "+hits.size()+". Sequences in file: "+filename);
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
+
+            //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+
+            SequenceData data = seqReader.next();
+
+            long current_read = 0;
+
+            while(data != null) {
+
+                // Get corresponding hits for this read
+                TreeMap<LocationBasic, Integer> hits = this.db.accumulate_matches_native_single(filename,
+                        current_read);
+
+                //LOG.warn("Results in buffer: " + hits.size() + ".");
+
+                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
+                //long initTime = System.nanoTime();
+                //LocationBasic current_key;
+
+                this.process_database_answer_basic(data.getHeader(), data.getData(),
+                        "", hits, d, stats);
 
 
-            SequenceFileReader seqReader = new SequenceFileReader(filename, 0);
+                //long endTime = System.nanoTime();
+
+                current_read++;
+                //currentRead = currentRead + bufferSize;
+                data = seqReader.next();
+                //LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
+            }
+
+            seqReader.close();
+
+            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
+            System.exit(1);
+        }
+
+
+    }
+
+    public void classify_java_hashmap_buffered(String filename, BufferedWriter d, ClassificationStatistics stats) {
+
+        try {
+
             long totalReads = FilesysUtility.readsInFastaFile(filename);
+            long startRead;
+            int bufferSize = this.param.getBuffer_size();
+
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
+
+            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
 
             SequenceData data;
 
-            long initTime = System.nanoTime();
-            for(long i = 0;  i < hits.size() ; i++) {
+            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
+                //while((currentRead < startRead+bufferSize) && ) {
 
-                //Theoretically, number on sequences in data is the same as number of hits
-                data = seqReader.next();
-                //LOG.warn("Processing: "+inputData.get((int)i).getHeader());
+                LOG.info("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
 
-                //SequenceData data = seqReader.next();
 
-                TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
+                // Get corresponding hits for this buffer
+                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_hashmap_java_buffered_treemap(filename,
+                        startRead, bufferSize, totalReads, startRead);
 
-                //LOG.warn("JMAbuin: Current treeMap items: "+currentHits.size());
-                //if(data == null) {
-                //	LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
-                //}
+                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
 
-                if(currentHits.size() > 0) {
+                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
+                long initTime = System.nanoTime();
+                //LocationBasic current_key;
+
+                for(long i = 0;  i < hits.size() ; i++) {
+
+                    //Theoretically, number on sequences in data is the same as number of hits
+                    data = seqReader.next();
+
+                    if(seqReader.getReadedValues() == 1) {
+                        LOG.warn("Current read " + data.getHeader() + " :: " + data.getData());
+                    }
+
+                    if(data == null) {
+                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
+                        break;
+                    }
+                    //LOG.warn("Processing: "+inputData.get((int)i).getHeader());
+
+                    //SequenceData data = seqReader.next();
+
+                    TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
+
                     this.process_database_answer_basic(data.getHeader(), data.getData(),
                             "", currentHits, d, stats);
                 }
+
+                long endTime = System.nanoTime();
+
+                //currentRead++;
+                //currentRead = currentRead + bufferSize;
+                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
             }
 
-            long endTime = System.nanoTime();
-
-            //currentRead++;
-
-            LOG.warn("JMAbuin time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
-
+            seqReader.close();
 
             //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-            seqReader.close();
 
         }
         catch (Exception e) {
             e.printStackTrace();
-            LOG.error("General error in classify: "+e.getMessage());
+            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
             System.exit(1);
         }
 
 
     }
 
-	public void classify_full_basic(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
-        //LOG.warn("Entering classify3 before try");
+    public void classify_java_hashmap_single(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
         try {
 
-
-
-            // Get corresponding hits for this buffer
-            List<HashMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_basic_native_full(filename);
-
-            LOG.warn("Results in buffer: "+hits.size()+". Sequences in file: "+filename);
-
-
-            SequenceFileReader seqReader = new SequenceFileReader(filename, 0);
             //long totalReads = FilesysUtility.readsInFastaFile(filename);
+            //long startRead;
 
-            SequenceData data;
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
 
-            long initTime = System.nanoTime();
-            for(long i = 0;  i < hits.size() ; i++) {
+            //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
 
-                //Theoretically, number on sequences in data is the same as number of hits
+            SequenceData data = seqReader.next();
+
+            long current_read = 0;
+
+            while(data != null) {
+
+                // Get corresponding hits for this read
+                TreeMap<LocationBasic, Integer> hits = this.db.accumulate_matches_hashmap_java_single(filename,
+                        current_read);
+
+                //LOG.warn("Results in buffer: " + hits.size() + ".");
+
+                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
+                //long initTime = System.nanoTime();
+                //LocationBasic current_key;
+
+                this.process_database_answer_basic(data.getHeader(), data.getData(),
+                        "", hits, d, stats);
+
+
+                //long endTime = System.nanoTime();
+
+                current_read++;
+                //currentRead = currentRead + bufferSize;
                 data = seqReader.next();
-                //LOG.warn("Processing: "+inputData.get((int)i).getHeader());
-
-                //SequenceData data = seqReader.next();
-
-                HashMap<LocationBasic, Integer> currentHits = hits.get((int)i);
-
-                //LOG.warn("JMAbuin: Current treeMap items: "+currentHits.size());
-                //if(data == null) {
-                //	LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
-                //}
-
-                if(currentHits.size() > 0) {
-                    this.process_database_answer_native(data.getHeader(), data.getData(),
-                            "", currentHits, d, stats);
-                }
+                //LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
             }
 
-
             seqReader.close();
-            long endTime = System.nanoTime();
-            LOG.warn("JMAbuin time in process database Answer in Native mode is: " + ((endTime - initTime) / 1e9) + " seconds");
 
             //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
 
         }
         catch (Exception e) {
             e.printStackTrace();
-            LOG.error("General error in classify: "+e.getMessage());
+            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
             System.exit(1);
         }
 
 
-	}
-
-/*
-    public void classify_using_RDD(String filename, BufferedWriter d, ClassificationStatistics stats) {
-
-        JavaPairRDD<String, String> inputData = this.loadSequencesFromFile(filename);
-
-        JavaRDD<Sketch> featuresRDD = null;
-
-        if(this.inputFormat == MetaCacheOptions.InputFormat.FASTA) {
-            featuresRDD = inputData.flatMap(new FastaSketcher4Query());
-        }
-        else if (this.inputFormat == MetaCacheOptions.InputFormat.FASTQ) {
-            //featuresRDD = inputData.mapPartitions(new FastaSketcher());
-        }
-
-		List<Sketch> locations = null;
-
-		locations = featuresRDD.collect();
-
-		if (locations == null) {
-			LOG.warn("locations is null in " + this.getClass().getName());
-			return;
-		}
-
-
-        for(Sketch currentSketch: locations) {
-			TreeMap<Location, Integer> matches = this.db.matches(currentSketch);
-
-			this.process_database_answer(currentSketch.getHeader(), currentSketch.getSequence(), "", matches, d, stats);
-		}
-
     }
-*/
+
+
     /**
      * Function to load a FASTQ file from HDFS into a JavaPairRDD<Long, String>
      * @param pathToFile The path to the FASTQ file

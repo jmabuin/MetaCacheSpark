@@ -9,9 +9,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.function.Function2;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -32,11 +30,32 @@ public class WriteHashMap implements Function2<Integer, Iterator<HashMap<Integer
 
 
 		String filename = this.path+"/part-"+partitionId;
+		String local_filename = "part-"+partitionId;
 		ArrayList<String> returnValues = new ArrayList<String>();
 
 		try {
 
 
+			FileOutputStream fileOut = new FileOutputStream(local_filename);
+			ObjectOutputStream out = new ObjectOutputStream(fileOut);
+
+			while(values.hasNext()) {
+				HashMap<Integer, List<LocationBasic>> currentMap = values.next();
+				out.writeObject(currentMap);
+
+			}
+
+			out.close();
+			fileOut.close();
+
+			Configuration conf = new Configuration();
+			FileSystem fs = FileSystem.get(conf);
+
+			fs.copyFromLocalFile(new Path(local_filename), new Path(filename));
+
+            returnValues.add(filename);
+
+/*
 			Configuration conf = new Configuration();
 			FileSystem fs = FileSystem.get(conf);
 
@@ -83,7 +102,7 @@ public class WriteHashMap implements Function2<Integer, Iterator<HashMap<Integer
 
 			bw.close();
 			outputStream.close();
-
+*/
 			return returnValues.iterator();
 
 		}

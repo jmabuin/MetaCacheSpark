@@ -1,5 +1,5 @@
 #include "com_github_jmabuin_metacachespark_database_MapNative.h"
-#include "location.h"
+#include "../location.h"
 
 #include <map>
 

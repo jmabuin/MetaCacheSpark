@@ -80,6 +80,8 @@ public class MetaCacheSpark implements Serializable {
 			sparkConf.set("spark.io.compression.codec", "snappy");
 			sparkConf.set("spark.sql.parquet.compression.codec", "snappy");
 
+
+
 			/*
 			sparkConf.set("spark.sql.tungsten.enabled", "true")
 sparkConf.set("spark.eventLog.enabled", "true")
@@ -112,7 +114,7 @@ sparkConf.set("spark.sql.parquet.compression.codec", "snappy")
 			//The ctx is created from the previous config
 			JavaSparkContext ctx = new JavaSparkContext(sparkConf);
 			//ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
-
+            ctx.setLogLevel("WARN");
 			LOG.warn("Using old Spark version!! - " + ctx.version());
 
 			// Get arguments and do my stuff
