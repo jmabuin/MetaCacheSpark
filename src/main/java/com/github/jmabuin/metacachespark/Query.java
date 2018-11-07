@@ -439,6 +439,47 @@ public class Query implements Serializable {
 
 	public void classify_main(String filename, BufferedWriter d, ClassificationStatistics stats){
 
+    	switch (this.param.getDatabase_type()) {
+
+			case HASHMULTIMAP_NATIVE:
+				if (this.param.getBuffer_size() > 0) {
+					LOG.info("Classifying per file with native hashmap buffered");
+					this.classify_native_buffer(filename, d, stats);
+				}
+				else if (this.param.getBuffer_size() == 0) {
+					LOG.info("Classifying per file with native hashmap single");
+					this.classify_native_single(filename, d, stats);
+				}
+				break;
+			case HASHMAP:
+				if (this.param.getBuffer_size() > 0) {
+					LOG.info("Classifying per file with native hashmap buffered");
+					this.classify_java_hashmap_buffered(filename, d, stats);
+				}
+				else if (this.param.getBuffer_size() == 0) {
+					LOG.info("Classifying per file with native hashmap single");
+					this.classify_java_hashmap_single(filename, d, stats);
+				}
+				break;
+            case HASHMULTIMAP_GUAVA:
+                if (this.param.getBuffer_size() > 0) {
+                    LOG.info("Classifying per file with native hashmap buffered");
+                    //this.classify_java_hashmap_buffered(filename, d, stats);
+                }
+                else if (this.param.getBuffer_size() == 0) {
+                    LOG.info("Classifying per file with native hashmap single");
+                    //this.classify_java_hashmap_single(filename, d, stats);
+                }
+                break;
+			default:
+                this.classify(filename, d, stats);
+                break;
+
+
+		}
+
+
+
         // Buffered mode for Native HashMap
         if ((this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) && (this.param.getBuffer_size() > 0)){
             LOG.info("Classifying per file with native hashmap buffered");
@@ -1049,6 +1090,134 @@ public class Query implements Serializable {
 
 
     public void classify_java_hashmap_single(String filename, BufferedWriter d, ClassificationStatistics stats) {
+
+        try {
+
+            //long totalReads = FilesysUtility.readsInFastaFile(filename);
+            //long startRead;
+
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
+
+            //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+
+            SequenceData data = seqReader.next();
+
+            long current_read = 0;
+
+            while(data != null) {
+
+                // Get corresponding hits for this read
+                TreeMap<LocationBasic, Integer> hits = this.db.accumulate_matches_hashmap_java_single(filename,
+                        current_read);
+
+                //LOG.warn("Results in buffer: " + hits.size() + ".");
+
+                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
+                //long initTime = System.nanoTime();
+                //LocationBasic current_key;
+
+                this.process_database_answer_basic(data.getHeader(), data.getData(),
+                        "", hits, d, stats);
+
+
+                //long endTime = System.nanoTime();
+
+                current_read++;
+                //currentRead = currentRead + bufferSize;
+                data = seqReader.next();
+                //LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
+            }
+
+            seqReader.close();
+
+            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
+            System.exit(1);
+        }
+
+
+    }
+
+    public void classify_guava_hashmap_buffered(String filename, BufferedWriter d, ClassificationStatistics stats) {
+
+        try {
+
+            long totalReads = FilesysUtility.readsInFastaFile(filename);
+            long startRead;
+            int bufferSize = this.param.getBuffer_size();
+
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
+
+            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+
+            SequenceData data;
+
+            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
+                //while((currentRead < startRead+bufferSize) && ) {
+
+                LOG.info("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+
+
+                // Get corresponding hits for this buffer
+                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_hashmap_java_buffered_treemap(filename,
+                        startRead, bufferSize, totalReads, startRead);
+
+                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
+
+                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
+                long initTime = System.nanoTime();
+                //LocationBasic current_key;
+
+                for(long i = 0;  i < hits.size() ; i++) {
+
+                    //Theoretically, number on sequences in data is the same as number of hits
+                    data = seqReader.next();
+
+                    if(seqReader.getReadedValues() == 1) {
+                        LOG.warn("Current read " + data.getHeader() + " :: " + data.getData());
+                    }
+
+                    if(data == null) {
+                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
+                        break;
+                    }
+                    //LOG.warn("Processing: "+inputData.get((int)i).getHeader());
+
+                    //SequenceData data = seqReader.next();
+
+                    TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
+
+                    this.process_database_answer_basic(data.getHeader(), data.getData(),
+                            "", currentHits, d, stats);
+                }
+
+                long endTime = System.nanoTime();
+
+                //currentRead++;
+                //currentRead = currentRead + bufferSize;
+                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
+            }
+
+            seqReader.close();
+
+            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
+            System.exit(1);
+        }
+
+
+    }
+
+
+    public void classify_guava_hashmap_single(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
         try {
 

@@ -405,8 +405,11 @@ public class Database implements Serializable{
 
 			if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) { //.isBuildModeHashMap()) {
 				LOG.warn("Building database with isBuildModeHashMap");
-				this.locationJavaHashRDD = this.inputSequences
-						.mapPartitionsWithIndex(new Sketcher2HashMap(this.sid2gid_), true);
+                this.locationJavaHashRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
+						//.mapPartitionsWithIndex(new Sketcher2HashMap(this.sid2gid_), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {//(paramsBuild.isBuildModeHashMultiMapG()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapG");
@@ -418,7 +421,10 @@ public class Database implements Serializable{
 				//this.locationJavaPairListRDD = this.inputSequences
 				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
 				this.locationJavaRDDHashMultiMapNative = this.inputSequences
-						.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
+                        .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
+						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
 				LOG.warn("Building database with isBuildModeParquetDataframe");
@@ -592,7 +598,10 @@ public class Database implements Serializable{
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapG");
 				this.locationJavaHashMMRDD = this.inputSequences
-						.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.sid2gid_), true);
+                        .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
+						//.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.sid2gid_), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapMC");
@@ -1144,7 +1153,14 @@ public class Database implements Serializable{
 
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {//(paramsBuild.isBuildModeHashMultiMapG()) {
-				this.locationJavaHashMMRDD.saveAsObjectFile(path+"/"+this.dbfile);
+				//this.locationJavaHashMMRDD.saveAsObjectFile(path+"/"+this.dbfile);
+                List<String> outputs = this.locationJavaHashMMRDD
+                        .mapPartitionsWithIndex(new WriteHashMultiMapGuava(path+"/"+this.dbfile), true)
+                        .collect();
+
+                for(String output: outputs) {
+                    LOG.warn("Wrote file: "+output);
+                }
 			}
 			else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
 				//this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
@@ -1208,7 +1224,7 @@ public class Database implements Serializable{
 		 * Ordering<Integer> ordering = Ordering$.MODULE$.comparatorToOrdering(Comparator.<Integer>naturalOrder());
 		 */
 		if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {
-            LOG.warn("Loading database with isBuildModeHashMultiMapMC");
+            LOG.warn("Loading database in Java HashMap format");
             //this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
             List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
@@ -1231,18 +1247,55 @@ public class Database implements Serializable{
                     .mapPartitionsWithIndex(new ReadHashMap(), true)
                     .persist(StorageLevel.MEMORY_AND_DISK());
 
+			/*
 
+            this.locationJavaHashRDD = this.jsc.objectFile(this.dbfile);
+
+            this.locationJavaHashRDD.persist(StorageLevel.MEMORY_AND_DISK());
+*/
             LOG.warn("The number of paired persisted entries is: " + this.locationJavaHashRDD.count());
 
 
 		}
 		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {
-			LOG.warn("Loading database with isBuildModeHashMultiMapG");
+			/*LOG.warn("Loading database with isBuildModeHashMultiMapG");
 			this.locationJavaHashMMRDD = this.jsc.objectFile(this.dbfile);
 
 			this.locationJavaHashMMRDD.persist(StorageLevel.MEMORY_AND_DISK());
 
 			LOG.warn("The number of persisted HashMultimaps is: " + this.locationJavaHashMMRDD.count());
+			*/
+
+            LOG.warn("Loading database in Guava HashMultimap format");
+            //this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
+
+            List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
+
+            for(String newFile : filesNames) {
+                LOG.warn("New file added: "+newFile);
+            }
+
+            JavaRDD<String> filesNamesRDD;
+
+            if(this.numPartitions != 1) {
+                filesNamesRDD = this.jsc.parallelize(filesNames, this.numPartitions);
+            }
+            else {
+                filesNamesRDD = this.jsc.parallelize(filesNames);
+            }
+
+
+            this.locationJavaHashMMRDD = filesNamesRDD
+                    .mapPartitionsWithIndex(new ReadHashMapGuava(), true)
+                    .persist(StorageLevel.MEMORY_AND_DISK());
+
+			/*
+
+            this.locationJavaHashRDD = this.jsc.objectFile(this.dbfile);
+
+            this.locationJavaHashRDD.persist(StorageLevel.MEMORY_AND_DISK());
+*/
+            LOG.warn("The number of paired persisted entries is: " + this.locationJavaHashRDD.count());
 
 		}
 		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {

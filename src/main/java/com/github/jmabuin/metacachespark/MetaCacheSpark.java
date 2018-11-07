@@ -33,8 +33,8 @@ public class MetaCacheSpark implements Serializable {
 
 			//sparkConf.set("spark.sql.parquet.mergeSchema", "false");
 			sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
-			sparkConf.set("spark.memory.useLegacyMode","true");
-			sparkConf.set("spark.storage.memoryFraction", "0.2");
+			//sparkConf.set("spark.memory.useLegacyMode","true");
+			//sparkConf.set("spark.storage.memoryFraction", "0.2");
 
 			sparkConf.set("spark.sql.tungsten.enabled", "true");
 			sparkConf.set("spark.io.compression.codec", "snappy");
@@ -68,8 +68,8 @@ public class MetaCacheSpark implements Serializable {
 
 			//sparkConf.set("spark.sql.parquet.mergeSchema", "false");
 			sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
-			sparkConf.set("spark.memory.useLegacyMode","true");
-			sparkConf.set("spark.storage.memoryFraction", "0.2");
+			//sparkConf.set("spark.memory.useLegacyMode","true");
+			//sparkConf.set("spark.storage.memoryFraction", "0.3");
 
 			// Kryo serializer
 			sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");

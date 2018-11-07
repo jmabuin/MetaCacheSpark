@@ -23,7 +23,7 @@ import java.util.List;
  */
 public class ReadHashMap implements Function2<Integer, Iterator<String>, Iterator<HashMap<Integer, List<LocationBasic>>>> {
 
-	private static final Log LOG = LogFactory.getLog(ReadHashMapNative.class);
+	private static final Log LOG = LogFactory.getLog(ReadHashMap.class);
 
 	private String path;
 
