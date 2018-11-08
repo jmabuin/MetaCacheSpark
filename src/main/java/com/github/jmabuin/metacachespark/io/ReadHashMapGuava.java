@@ -3,6 +3,7 @@ package com.github.jmabuin.metacachespark.io;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -14,10 +15,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by chema on 3/28/17.
@@ -50,16 +48,30 @@ public class ReadHashMapGuava implements Function2<Integer, Iterator<String>, It
 
                 LOG.info("Processing file to insert into Java hashmap: " + filename+" <> "+onlyFileName);
 
-                HashMultimap<Integer, LocationBasic> newMap = null;//new HashMap<Integer, List<LocationBasic>>();
+                //HashMultimap<Integer, LocationBasic> newMap = null;//new HashMap<Integer, List<LocationBasic>>();
 
                 fs.copyToLocalFile(new Path(filename), new Path(onlyFileName));
-
+                LOG.info("File copied to local: " +onlyFileName);
+                LOG.info("Creating object.");
                 FileInputStream fileIn = new FileInputStream(onlyFileName);
                 ObjectInputStream in = new ObjectInputStream(fileIn);
-                newMap = (HashMultimap<Integer, LocationBasic>) in.readObject();
+
+                Map<Integer, Set<LocationBasic>> map = (Map<Integer, Set<LocationBasic>>) in.readObject();
+
+                HashMultimap<Integer, LocationBasic> newMap = HashMultimap.create();
+
+                for (Map.Entry<Integer, Set<LocationBasic>> entry :
+                        map.entrySet()) {
+                    newMap.putAll(entry.getKey(), entry.getValue());
+                }
+
+                //Map<Integer, Collection<LocationBasic>> tmp_map = (Map<Integer, Collection<LocationBasic>>) in.readObject();
+                //HashMultimap<Integer, LocationBasic> newMap = HashMultimap.create();
+
                 in.close();
                 fileIn.close();
 
+                LOG.info("Object created");
 
                 //newMap.read(onlyFileName);
 

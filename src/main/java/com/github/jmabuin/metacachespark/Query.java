@@ -463,12 +463,12 @@ public class Query implements Serializable {
 				break;
             case HASHMULTIMAP_GUAVA:
                 if (this.param.getBuffer_size() > 0) {
-                    LOG.info("Classifying per file with native hashmap buffered");
-                    //this.classify_java_hashmap_buffered(filename, d, stats);
+                    LOG.info("Classifying per file with Guava hashmultimap buffered");
+                    this.classify_guava_hashmap_buffered(filename, d, stats);
                 }
                 else if (this.param.getBuffer_size() == 0) {
-                    LOG.info("Classifying per file with native hashmap single");
-                    //this.classify_java_hashmap_single(filename, d, stats);
+                    LOG.info("Classifying per file with Guava hashmultimap single");
+                    this.classify_guava_hashmap_single(filename, d, stats);
                 }
                 break;
 			default:
@@ -478,7 +478,7 @@ public class Query implements Serializable {
 
 		}
 
-
+/*
 
         // Buffered mode for Native HashMap
         if ((this.param.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) && (this.param.getBuffer_size() > 0)){
@@ -506,7 +506,7 @@ public class Query implements Serializable {
         else {
             LOG.warn("JMAbuin entering classify");
             this.classify(filename, d, stats);
-        }
+        }*/
 
     }
 
@@ -1035,7 +1035,7 @@ public class Query implements Serializable {
 
 
                 // Get corresponding hits for this buffer
-                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_hashmap_java_buffered_treemap(filename,
+                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_hashmap_java_buffered(filename,
                         startRead, bufferSize, totalReads, startRead);
 
                 LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
@@ -1163,7 +1163,7 @@ public class Query implements Serializable {
 
 
                 // Get corresponding hits for this buffer
-                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_hashmap_java_buffered_treemap(filename,
+                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_hashmap_guava_buffered(filename,
                         startRead, bufferSize, totalReads, startRead);
 
                 LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
@@ -1235,7 +1235,7 @@ public class Query implements Serializable {
             while(data != null) {
 
                 // Get corresponding hits for this read
-                TreeMap<LocationBasic, Integer> hits = this.db.accumulate_matches_hashmap_java_single(filename,
+                TreeMap<LocationBasic, Integer> hits = this.db.accumulate_matches_hashmap_guava_single(filename,
                         current_read);
 
                 //LOG.warn("Results in buffer: " + hits.size() + ".");

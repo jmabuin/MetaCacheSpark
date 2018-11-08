@@ -1267,7 +1267,8 @@ public class Database implements Serializable{
 			*/
 
             LOG.warn("Loading database in Guava HashMultimap format");
-            //this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
+
+
 
             List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
 
@@ -1289,13 +1290,13 @@ public class Database implements Serializable{
                     .mapPartitionsWithIndex(new ReadHashMapGuava(), true)
                     .persist(StorageLevel.MEMORY_AND_DISK());
 
-			/*
 
-            this.locationJavaHashRDD = this.jsc.objectFile(this.dbfile);
+/*
+            this.locationJavaHashMMRDD = this.jsc.objectFile(this.dbfile);
 
-            this.locationJavaHashRDD.persist(StorageLevel.MEMORY_AND_DISK());
+            this.locationJavaHashMMRDD.persist(StorageLevel.MEMORY_AND_DISK());
 */
-            LOG.warn("The number of paired persisted entries is: " + this.locationJavaHashRDD.count());
+            LOG.warn("The number of paired persisted entries is: " + this.locationJavaHashMMRDD.count());
 
 		}
 		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
@@ -1490,7 +1491,7 @@ public class Database implements Serializable{
 
     }
 
-    public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_hashmap_java_buffered_treemap( String fileName, long init, int size, long total, long readed) {
+    public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_hashmap_java_buffered( String fileName, long init, int size, long total, long readed) {
 
         long initTime = System.nanoTime();
 
@@ -1531,6 +1532,48 @@ public class Database implements Serializable{
         return results;
 
     }
+
+	public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_hashmap_guava_buffered( String fileName, long init, int size, long total, long readed) {
+
+		long initTime = System.nanoTime();
+
+		// Get results for this buffer
+		//List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
+		List<TreeMap<LocationBasic, Integer>> results = this.locationJavaHashMMRDD
+				//.mapPartitionsToPair(new FullQuery(fileName))
+				.mapPartitionsToPair(new PartialQueryGuavaTreeMap(fileName, init, size, total, readed, this.params.getResult_size()))
+				.reduceByKey(new QueryReducerTreeMapNative())
+				.sortByKey()
+				.values()
+				.collect();
+
+		long endTime = System.nanoTime();
+
+		LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+		return results;
+
+
+	}
+
+	public TreeMap<LocationBasic, Integer> accumulate_matches_hashmap_guava_single(String file_name, long query_number) {
+
+		//long initTime = System.nanoTime();
+
+		// Get results for this buffer
+		//List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
+		TreeMap<LocationBasic, Integer> results = this.locationJavaHashMMRDD
+				.map(new PartialQueryGuavaTreeMapSingle(file_name, query_number, this.params.getResult_size()))
+				.reduce(new QueryReducerTreeMapNative());
+
+
+		//long endTime = System.nanoTime();
+
+		//LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+		return results;
+
+	}
 
 
 	//public TreeMap<LocationBasic, Integer> matches(Sketch query) {

@@ -2,6 +2,8 @@ package com.github.jmabuin.metacachespark.io;
 
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -41,8 +43,17 @@ public class WriteHashMultiMapGuava implements Function2<Integer, Iterator<HashM
             ObjectOutputStream out = new ObjectOutputStream(fileOut);
 
             while(values.hasNext()) {
+                //Map<Integer, Collection<LocationBasic>> currentMap = values.next().asMap();
                 HashMultimap<Integer, LocationBasic> currentMap = values.next();
-                out.writeObject(currentMap);
+                //out.writeObject(currentMap);
+
+                Map<Integer, Set<LocationBasic>> map = Maps.newHashMap();
+                for (Map.Entry<Integer, Collection<LocationBasic>> entry :
+                        currentMap.asMap().entrySet()) {
+                    map.put(entry.getKey(), ImmutableSet.copyOf(entry.getValue()));
+                }
+
+                out.writeObject(map);
 
             }
 
