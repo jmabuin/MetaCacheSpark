@@ -3,3 +3,4 @@ MetaCacheSpark.iml
 *.o
 *.so
 dependency-reduced-pom.xml
+target

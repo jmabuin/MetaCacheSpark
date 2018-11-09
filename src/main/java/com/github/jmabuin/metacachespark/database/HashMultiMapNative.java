@@ -12,14 +12,6 @@ import java.io.Serializable;
  */
 public class HashMultiMapNative implements Serializable {
 
-	/*static {
-		try {
-			NativeUtils.loadLibraryFromJar("/libmetacache.so");
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}*/
-
 	private static final Log LOG = LogFactory.getLog(HashMultiMapNative.class);
 
 	public HashMultiMapNative() {
