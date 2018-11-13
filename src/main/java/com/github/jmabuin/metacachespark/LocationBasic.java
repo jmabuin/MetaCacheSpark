@@ -35,18 +35,18 @@ public class LocationBasic implements Serializable, Comparable<LocationBasic> {
 		return this.targetId;
 	}
 
-	/*public void setTargetId(int targetId) {
+	public void setTargetId(int targetId) {
 		this.targetId = targetId;
 	}
-*/
+
 	public int getWindowId() {
 		return windowId;
 	}
-/*
+
 	public void setWindowId(int windowId) {
 		this.windowId = windowId;
 	}
-*/
+
 
 	@Override
 	public boolean equals(Object other){

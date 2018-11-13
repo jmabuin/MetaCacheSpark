@@ -25,11 +25,27 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative
 
 /*
  * Class:     com_github_jmabuin_metacachespark_database_MapNative
+ * Method:    addAll
+ * Signature: ([I)I
+ */
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative_addAll
+  (JNIEnv *, jobject, jintArray);
+
+/*
+ * Class:     com_github_jmabuin_metacachespark_database_MapNative
  * Method:    get
  * Signature: (II)I
  */
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative_get
   (JNIEnv *, jobject, jint, jint);
+
+/*
+ * Class:     com_github_jmabuin_metacachespark_database_MapNative
+ * Method:    get_best
+ * Signature: (I)[I
+ */
+JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative_get_1best
+  (JNIEnv *, jobject, jint);
 
 /*
  * Class:     com_github_jmabuin_metacachespark_database_MapNative

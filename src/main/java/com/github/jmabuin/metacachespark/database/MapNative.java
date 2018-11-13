@@ -35,7 +35,9 @@ public class MapNative implements Serializable {
 
     private native int init();
     public native int add(int tgt, int win, int value);
+    public native int addAll(int[] data);
     public native int get(int key, int win);
+    public native int[] get_best(int size);
     public native int[] get_by_pos(int pos);
     public native int size();
     public native void clear();

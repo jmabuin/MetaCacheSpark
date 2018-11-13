@@ -91,6 +91,10 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
 
                 LOG.info("Processing hashmap " + currentSequence );
                 //for(SequenceData currentData: inputData){
+
+                LocationBasic loc = new LocationBasic();
+                HashMap<LocationBasic, Integer> all_hits = new HashMap<>();
+
                 while((this.seqReader.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
 
                     TreeMap<LocationBasic, Integer> current_results = new TreeMap<>();
@@ -109,7 +113,7 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
                         LOG.warn("Locations is null!!");
                     }
 
-                    HashMap<LocationBasic, Integer> all_hits = new HashMap<>();
+                    all_hits.clear();
 
                     int block_size = locations.size() * this.result_size;
 
@@ -119,16 +123,17 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
 
                         for(int location: currentSketch.getFeatures()) {
 
-
-
                             int[] values = currentHashMap.get(location);
 
                             if(values != null) {
 
 
+
                                 for (int i = 0; i < values.length; i += 2) {
 
-                                    LocationBasic loc = new LocationBasic(values[i], values[i + 1]);
+                                    //LocationBasic loc = new LocationBasic(values[i], values[i + 1]);
+                                    loc.setTargetId(values[i]);
+                                    loc.setWindowId(values[i+1]);
 
                                     if (all_hits.containsKey(loc)) {
                                         all_hits.put(loc, all_hits.get(loc) + 1);

@@ -1425,16 +1425,16 @@ public class Database implements Serializable{
 
     }
 
-    public List<HashMap<LocationBasic, Integer>>  accumulate_matches_basic_native_buffered( String fileName, long init, int size, long total, long readed) {
+    public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_full_native_buffered( String fileName, long init, int size, long total, long readed) {
 
         long initTime = System.nanoTime();
 
         // Get results for this buffer
         //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
-        List<HashMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+		List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
                 //.mapPartitionsToPair(new FullQuery(fileName))
-                .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, total, readed))
-                .reduceByKey(new QueryReducer())
+                .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, total, readed, this.params.getResult_size()))
+                .reduceByKey(new QueryReducerTreeMapNative())
                 .sortByKey()
                 .values()
                 .collect();

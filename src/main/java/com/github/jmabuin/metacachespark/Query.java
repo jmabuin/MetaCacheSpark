@@ -445,6 +445,7 @@ public class Query implements Serializable {
 				if (this.param.getBuffer_size() > 0) {
 					LOG.info("Classifying per file with native hashmap buffered");
 					this.classify_native_buffer(filename, d, stats);
+					//this.classify_full_native_buffered(filename, d, stats);
 				}
 				else if (this.param.getBuffer_size() == 0) {
 					LOG.info("Classifying per file with native hashmap single");
@@ -789,15 +790,12 @@ public class Query implements Serializable {
 
     }
 
-	public void classify_local_native_basic(String filename, BufferedWriter d, ClassificationStatistics stats) {
-
-		//LOG.warn("Entering classify3 before try");
+	public void classify_full_native_buffered(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
 		try {
 
 			long totalReads = FilesysUtility.readsInFastaFile(filename);
 			long startRead;
-			//int bufferSize = 51200;
 			int bufferSize = this.param.getBuffer_size();
 
 			SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
@@ -809,18 +807,18 @@ public class Query implements Serializable {
 			for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
 				//while((currentRead < startRead+bufferSize) && ) {
 
-				LOG.info("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+				LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
 
 
 				// Get corresponding hits for this buffer
-				List<HashMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_basic_native_buffered(filename,
+				List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_full_native_buffered(filename,
 						startRead, bufferSize, totalReads, startRead);
 
-				LOG.warn("Results in buffer: "+hits.size()+". Buffer size is:: "+bufferSize);
+				LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
 
 				//for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
 				long initTime = System.nanoTime();
-				LocationBasic current_key;
+				//LocationBasic current_key;
 
 				for(long i = 0;  i < hits.size() ; i++) {
 
@@ -828,28 +826,34 @@ public class Query implements Serializable {
 					data = seqReader.next();
 
 					if(seqReader.getReadedValues() == 1) {
-                        LOG.warn("Current read " + data.getHeader() + " :: " + data.getData());
-                    }
+						LOG.warn("Current read " + data.getHeader() + " :: " + data.getData());
+					}
 
-                    if(data == null) {
-                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
-                        break;
-                    }
+					if(data == null) {
+						LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
+						break;
+					}
 					//LOG.warn("Processing: "+inputData.get((int)i).getHeader());
 
 					//SequenceData data = seqReader.next();
 
-					HashMap<LocationBasic, Integer> currentHits = hits.get((int)i);
+					TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
 
 					//LOG.warn("JMAbuin: Current HashMap items: "+currentHits.size());
 					//if(data == null) {
 					//	LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
 					//}
-
-					if(currentHits.size() > 0) {
-						this.process_database_answer_native(data.getHeader(), data.getData(),
-								"", currentHits, d, stats);
-					}
+                    /*
+                    if(currentHits.size() > 0) {
+                        this.process_database_answer_basic(data.getHeader(), data.getData(),
+                                "", currentHits, d, stats);
+                    }
+                    else {
+                        LOG.warn("Hits size is zero!");
+                    }
+                    */
+					this.process_database_answer_basic(data.getHeader(), data.getData(),
+							"", currentHits, d, stats);
 				}
 
 				long endTime = System.nanoTime();
@@ -859,7 +863,7 @@ public class Query implements Serializable {
 				LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
 			}
 
-            seqReader.close();
+			seqReader.close();
 
 			//LOG.warn("Total characters readed: " + seqReader.getReadedValues());
 
@@ -869,6 +873,7 @@ public class Query implements Serializable {
 			LOG.error("General error in classify_local_native_basic: "+e.getMessage());
 			System.exit(1);
 		}
+
 
 
 	}
@@ -890,7 +895,7 @@ public class Query implements Serializable {
             for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
                 //while((currentRead < startRead+bufferSize) && ) {
 
-                LOG.info("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
 
 
                 // Get corresponding hits for this buffer

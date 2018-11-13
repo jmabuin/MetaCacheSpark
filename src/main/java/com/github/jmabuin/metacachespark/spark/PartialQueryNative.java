@@ -4,6 +4,7 @@ import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.Sketch;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
+import com.github.jmabuin.metacachespark.database.MapNative;
 import com.github.jmabuin.metacachespark.io.SequenceData;
 import com.github.jmabuin.metacachespark.io.SequenceFileReader;
 import com.github.jmabuin.metacachespark.io.SequenceFileReaderNative;
@@ -22,9 +23,9 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Created by chema on 3/28/17.
+ * Created by Jose M. Abuin on 3/28/17.
  */
-public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, HashMap<LocationBasic, Integer>> {
+public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, TreeMap<LocationBasic, Integer>> {
 
     private static final Log LOG = LogFactory.getLog(PartialQueryNative.class);
 
@@ -35,21 +36,22 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
     private SequenceFileReaderNative seqReader;
     private long readed;
     private String local_file_name;
+    private int result_size;
 
-    public PartialQueryNative(String file_name, long init, int bufferSize, long total, long readed) {
-        //this.seqReader = seqReader;
+    public PartialQueryNative(String file_name, long init, int bufferSize, long total, long readed, int result_size) {
         this.fileName = file_name;
         this.init = init;
         this.bufferSize = bufferSize;
         this.total = total;
         this.readed = readed;
+        this.result_size = result_size;
 
     }
 
     @Override
-    public Iterator<Tuple2<Long, HashMap<LocationBasic, Integer>>> call(Iterator<HashMultiMapNative> myHashMaps) {
+    public Iterator<Tuple2<Long, TreeMap<LocationBasic, Integer>>> call(Iterator<HashMultiMapNative> myHashMaps) {
 
-        List<Tuple2<Long, HashMap<LocationBasic, Integer>>> finalResults = new ArrayList<Tuple2<Long, HashMap<LocationBasic, Integer>>>();
+        List<Tuple2<Long, TreeMap<LocationBasic, Integer>>> finalResults = new ArrayList<Tuple2<Long, TreeMap<LocationBasic, Integer>>>();
 
         try{
 
@@ -63,10 +65,10 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
             if(!tmp_file.exists()){
                 fs.copyToLocalFile(hdfs_file_path, local_file_path);
-                LOG.warn("File " + local_file_path.getName() + " copied");
+                LOG.info("File " + local_file_path.getName() + " copied");
             }
             else {
-                LOG.warn("File " + local_file_path.getName() + " already exists. Not copying.");
+                LOG.info("File " + local_file_path.getName() + " already exists. Not copying.");
             }
 
             this.local_file_name = local_file_path.getName();
@@ -78,23 +80,22 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
             ArrayList<Sketch> locations = new ArrayList<Sketch>();
 
-            //HashMap<String, List<int[]>> results = new HashMap<String, List<int[]>>();
-
-            //finalResults.add(results);
             List<SequenceData> inputData = new ArrayList<>();
             long currentSequence = this.init;
 
-            //LOG.warn("[JMAbuin] Init at sequence: " + currentSequence);
+            //LOG.warn("Init at sequence: " + currentSequence);
+            MapNative all_hits = new MapNative();
             // Theoretically there is only one HashMap per partition
             while(myHashMaps.hasNext()){
 
                 HashMultiMapNative currentHashMap = myHashMaps.next();
 
+
                 LOG.info("Processing hashmap " + currentSequence );
                 //for(SequenceData currentData: inputData){
                 while((this.seqReader.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
 
-                    HashMap<LocationBasic, Integer> current_results = new HashMap<>();
+                    TreeMap<LocationBasic, Integer> current_results = new TreeMap<>();
 
                     String header = this.seqReader.get_header();
                     String data = this.seqReader.get_data();
@@ -106,52 +107,65 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
                     locations = SequenceFileReader.getSketchStatic(currentData);
 
-                    //List<int[]> queryResults = new ArrayList<int[]>();
+                    if(locations == null) {
+                        LOG.warn("Locations is null!!");
+                    }
+
+
+
+                    int block_size = locations.size() * this.result_size;
 
                     for(Sketch currentSketch: locations) {
 
+                        all_hits.clear();
+
                         for(int location: currentSketch.getFeatures()) {
+
+
 
                             int[] values = currentHashMap.get(location);
 
                             if(values != null) {
 
-                                for (int i = 0; i < values.length; i += 2) {
-
-                                    LocationBasic loc = new LocationBasic(values[i], values[i + 1]);
-
-                                    if (current_results.containsKey(loc)) {
-                                        current_results.put(loc, current_results.get(loc) + 1);
-                                    } else {
-                                        current_results.put(loc, 1);
-                                    }
-
-                                }
+                                all_hits.addAll(values);
 
 
                             }
                         }
 
+                        int[] best_hits = all_hits.get_best(this.result_size);
+
+
+                        //for(Map.Entry<LocationBasic, Integer> current_entry : list) {
+                        for( int i = 0; i < best_hits.length; i +=3){
+
+                            current_results.put(new LocationBasic(best_hits[i], best_hits[i+1]), best_hits[i+2]);
+
+
+                        }
+
+
                     }
 
-                    finalResults.add(new Tuple2<Long, HashMap<LocationBasic, Integer>>(currentSequence, current_results));
+
+                    finalResults.add(new Tuple2<Long, TreeMap<LocationBasic, Integer>>(currentSequence, current_results));
 
                     //data = seqReader.next();
                     currentSequence++;
                     locations.clear();
                 }
+
+                this.seqReader.close();
             }
 
-            //LOG.warn("[JMAbuin] Ending buffer " + currentSequence);
-
-            //seqReader.close();
+            //LOG.warn("Ending buffer " + currentSequence);
 
             return finalResults.iterator();
 
 
         }
         catch(Exception e) {
-            LOG.error("ERROR in PartialQueryNative: "+e.getMessage());
+            LOG.error("ERROR in PartialQueryNativeTreeMap: "+e.getMessage());
             System.exit(-1);
         }
 

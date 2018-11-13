@@ -2,11 +2,16 @@
 #include "../location.h"
 
 #include <map>
+#include <unordered_map>
+#include <functional>
+#include <set>
 
 std::map<location, unsigned int> *myMap;
 std::map<location, unsigned int>::iterator myIterator;
 std::map<location, unsigned int>::iterator FSTIterator;
 std::map<location, unsigned int>::iterator LSTIterator;
+
+std::map<location, unsigned int> *tmp_map;
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative_init (JNIEnv *env, jobject jobj) {
 
@@ -14,6 +19,9 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative
     myIterator = myMap->begin();
     FSTIterator = myMap->begin();
     LSTIterator = myMap->begin();
+
+    tmp_map = new std::map<location, unsigned int>();
+
     return 1;
 
 }
@@ -32,7 +40,8 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative
 
     if(it != myMap->end()) {
 
-        myMap->at(newLocation) = myMap->at(newLocation) + 1;
+        //myMap->at(newLocation) = myMap->at(newLocation) + 1;
+        it->second = it->second + 1;
 
     }
     else {
@@ -44,6 +53,39 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative
 
     return myMap->size();
 
+}
+
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative_addAll (JNIEnv *env, jobject jobj, jintArray data) {
+
+    const jsize arr_length = env->GetArrayLength(data);
+    jint *arr = env->GetIntArrayElements(data, nullptr);
+
+    std::map<location,unsigned int>::iterator it;
+
+    for (int i = 0; i< arr_length; i+=2) {
+        location new_location{arr[i], arr[i+1]};
+
+        it = tmp_map->find(new_location);
+
+            if(it != tmp_map->end()) {
+
+                //tmp_map->at(new_location) = tmp_map->at(new_location) + 1;
+                it->second = it->second + 1;
+
+            }
+            else {
+
+                //if(myMap->size() < 256) {
+                    tmp_map->insert(std::pair<location, unsigned int>(new_location, 1));
+                //}
+            }
+
+
+    }
+
+    env->ReleaseIntArrayElements(data, arr, NULL);
+
+    return tmp_map->size();
 }
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative_get
@@ -59,6 +101,49 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative
 
 }
 
+JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative_get_1best (JNIEnv *env, jobject jobj, jint size) {
+    jintArray iarr = env->NewIntArray(size * 3);
+
+        int *foundValues = (int *)malloc(sizeof(int) * size * 3);
+
+    typedef std::function<bool(std::pair<location, unsigned int>, std::pair<location,unsigned int>)> Comparator;
+
+    	// Defining a lambda function to compare two pairs. It will compare two pairs using second field
+    	Comparator compFunctor =
+    			[](std::pair<location, unsigned int> elem1 ,std::pair<location, unsigned int> elem2)
+    			{
+    				return elem1.second > elem2.second;
+    			};
+
+    	// Declaring a set that will store the pairs using above comparision logic
+    	std::set<std::pair<location, unsigned int>, Comparator> setOfValues(
+    			tmp_map->begin(), tmp_map->end(), compFunctor);
+
+    	// Iterate over a set using range base for loop
+    	// It will display the items in sorted order of values
+    	int current_number_of_items = 0;
+    	int current_item = 0;
+    	for (std::pair<location, unsigned int> element : setOfValues) {
+    		//std::cout << element.first << " :: " << element.second << std::endl;
+            foundValues[current_item] = element.first.tgt;
+            foundValues[current_item +1] = element.first.win;
+            foundValues[current_item+2] = element.second;
+
+            current_item +=3;
+            ++current_number_of_items;
+
+            if (current_number_of_items >= size) {
+
+                break;
+            }
+
+    		}
+        env->SetIntArrayRegion(iarr, 0, size * 3, foundValues);
+        free(foundValues);
+
+
+        return iarr;
+}
 
 JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative_get_1by_1pos
   (JNIEnv *env, jobject jobj, jint position) {
@@ -99,6 +184,7 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_MapNative
   (JNIEnv *env, jobject jobj) {
 
   myMap->clear();
+  tmp_map->clear();
 
 }
 
