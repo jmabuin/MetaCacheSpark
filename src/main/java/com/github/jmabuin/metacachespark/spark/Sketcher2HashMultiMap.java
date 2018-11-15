@@ -35,9 +35,9 @@ public class Sketcher2HashMultiMap implements Function2<Integer, Iterator<Sequen
 		return Integer.MAX_VALUE;
 	}
 
-	private HashMap<String, Integer> sequencesIndexes;
+	private TreeMap<String, Integer> sequencesIndexes;
 
-	public Sketcher2HashMultiMap(HashMap<String, Integer> sequencesIndexes) {
+	public Sketcher2HashMultiMap(TreeMap<String, Integer> sequencesIndexes) {
 
 		this.sequencesIndexes = sequencesIndexes;
 	}
@@ -110,7 +110,7 @@ public class Sketcher2HashMultiMap implements Function2<Integer, Iterator<Sequen
 
 						if(currentList.size() < 256) {
 
-							map.put(newValue, new LocationBasic(this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
+							map.put(newValue, new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows));
 
 						}
 

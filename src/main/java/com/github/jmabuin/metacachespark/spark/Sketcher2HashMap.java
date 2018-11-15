@@ -110,12 +110,12 @@ public class Sketcher2HashMap implements Function2<Integer, Iterator<Sequence> ,
 
 						List<LocationBasic> currentList = map.get(newValue);
 						if((map.containsKey(newValue)) && (map.get(newValue).size() < 256)) {
-							map.get(newValue).add(new LocationBasic(this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
+							map.get(newValue).add(new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows));
 						}
 						else if(!map.containsKey(newValue)){
 
 							List<LocationBasic> newList = new ArrayList<LocationBasic>();
-							newList.add(new LocationBasic(this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
+							newList.add(new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows));
 
 							map.put(newValue, newList);
 

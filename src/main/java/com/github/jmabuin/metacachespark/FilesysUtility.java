@@ -250,4 +250,91 @@ public class FilesysUtility implements Serializable {
 
 	}
 
+
+	public static long readsInFastqFile(String fileName) {
+
+		long numReads = 0L;
+		long numLines = 0L;
+
+		try{
+			FileSystem fs = FileSystem.get(new Configuration());
+
+			FSDataInputStream inputStream = fs.open(new Path(fileName));
+
+			BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
+
+
+			String line;
+
+			while( br.readLine() != null ) {
+
+				numLines++;
+
+			}
+
+			br.close();
+			inputStream.close();
+
+			if((numLines % 4) != 0) {
+				LOG.error("Bad format in fastq file");
+				System.exit(1);
+
+			}
+
+			numReads = numLines / 4;
+
+
+			LOG.warn("The number of sequences in the file is: "+numReads);
+
+
+
+			return numReads;
+
+
+
+		}
+		catch(IOException e) {
+
+			LOG.error("Error in FilesysUtility: "+e.getMessage());
+			System.exit(-1);
+		}
+
+		return numReads;
+
+	}
+
+
+
+
+
+
+
+	public static boolean isFastaFile(String file_name) {
+
+		if ((file_name.endsWith(".fq")) || (file_name.endsWith(".fastq")) || (file_name.endsWith("fnq"))) {
+			return false;
+		}
+
+		else if ((file_name.endsWith(".fa")) || (file_name.endsWith(".fasta")) || (file_name.endsWith("fna"))) {
+			return true;
+		}
+
+		return false;
+
+	}
+
+	public static boolean isFastqFile(String file_name) {
+
+		if ((file_name.endsWith(".fq")) || (file_name.endsWith(".fastq")) || (file_name.endsWith("fnq"))) {
+			return true;
+		}
+
+		else if ((file_name.endsWith(".fa")) || (file_name.endsWith(".fasta")) || (file_name.endsWith("fna"))) {
+			return false;
+		}
+
+		return false;
+
+	}
+
 }

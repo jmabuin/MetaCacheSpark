@@ -1,8 +1,8 @@
 #!/bin/bash
 
-INPUT_SEQUENCES=Genomica/InputDatasets/InputReads/Skin9/inputBig.fasta
+INPUT_SEQUENCES=Genomica/InputDatasets/InputReads/TimingKraken/One.fa
 PARTITION_NUMBER=32
-OUTPUT_DIR=Genomica/Output_Skin9Small_Native_$PARTITION_NUMBER
+OUTPUT_DIR=Genomica/Output_HiSeq_Native_$PARTITION_NUMBER
 DATABASE_NAME=DatabaseNative_$PARTITION_NUMBER
 BUFFER_SIZE=400000
 RESULTS_SIZE=32

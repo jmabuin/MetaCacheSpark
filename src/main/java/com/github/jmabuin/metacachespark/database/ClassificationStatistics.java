@@ -75,7 +75,7 @@ public class ClassificationStatistics {
 	 */
 	public void assign_known_correct(Taxonomy.Rank assigned, Taxonomy.Rank known, Taxonomy.Rank correct) {
 
-		assign(assigned);
+		this.assign(assigned);
 
 		//plausibility check
 		if(correct.ordinal() < assigned.ordinal()) correct = assigned;
@@ -105,21 +105,6 @@ public class ClassificationStatistics {
 			}
 		}
 	}
-
-	/*
-
-	void register_alignment_score(double score)
-	{
-		std::lock_guard<std::mutex> lock(mtx_);
-		alignmentScore_ += score;
-	}
-
-    const alignment_statistics&
-	alignment_scores() const noexcept {
-		return alignmentScore_;
-	}
-
-	 */
 
 
 	public void count_coverage_true_pos(Taxonomy.Rank r) {

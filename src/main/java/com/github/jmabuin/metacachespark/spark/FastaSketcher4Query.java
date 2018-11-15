@@ -56,14 +56,16 @@ public class FastaSketcher4Query implements FlatMapFunction<Tuple2<String, Strin
 			return returnedValues.iterator();
 		}
 
-
+		long current_sequence = 0;
 		for (String newLine : currentInput.split("\n")) {
 
 			if (newLine.startsWith(">")) {
 
 				if(!header.toString().isEmpty()) {
 					//sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header.toString(), -1));
-					sequences.add(new Sequence(data.toString(), "", currentFile, -1, header.toString(), -1));
+					//sequences.add(new Sequence(data.toString(), "", currentFile, -1, header.toString(), -1));
+					sequences.add(new Sequence(current_sequence, header.toString(), data.toString(), ""));
+					current_sequence++;
 				}
 
 				header.delete(0,header.length());
@@ -84,7 +86,7 @@ public class FastaSketcher4Query implements FlatMapFunction<Tuple2<String, Strin
 
 		if ((!data.toString().isEmpty()) && (!header.toString().isEmpty())) {
 			//sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header.toString(), -1));
-			sequences.add(new Sequence(data.toString(), "", arg0._1(), -1, header.toString(), -1));
+			sequences.add(new Sequence(current_sequence, header.toString(), data.toString(), ""));
 
 		}
 		//endTime = System.nanoTime();

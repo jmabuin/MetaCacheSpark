@@ -14,6 +14,6 @@ public class Sequence2SequenceId implements Function<Sequence, String> {
 
 	@Override
 	public String call(Sequence sequence) throws Exception {
-		return sequence.getIdentifier();
+		return sequence.getSeqId();
 	}
 }

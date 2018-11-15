@@ -113,7 +113,7 @@ public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Seq
 
 					for (int newValue : sketchValues) {
 
-						this.insert(returnedValues,newValue, this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows);
+						this.insert(returnedValues,newValue, this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows);
 
 						/*if(lookup.containsKey(newValue)) {
 							int pos = lookup.get(newValue);

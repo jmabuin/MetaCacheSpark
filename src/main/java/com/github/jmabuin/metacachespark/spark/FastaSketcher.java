@@ -61,6 +61,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 			return returnedValues.iterator();
 		}
 
+		long current_sequence = 0;
 
 		for (String newLine : currentInput.split("\n")) {
 
@@ -68,8 +69,8 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 
 				if(!header.toString().isEmpty()) {
 					//sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header.toString(), -1));
-					sequences.add(new Sequence(data.toString(), "", currentFile, -1, header.toString(),
-							-1));
+					sequences.add(new Sequence(current_sequence, header.toString(), data.toString(), ""));
+                    current_sequence++;
 				}
 
 				header.delete(0,header.length());
@@ -90,8 +91,9 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 
 		if ((!data.toString().isEmpty()) && (!header.toString().isEmpty())) {
 			//sequences.add(new Sequence(data.toString(), 0, fileId, currentFile, header.toString(), -1));
-			sequences.add(new Sequence(data.toString(), "", arg0._1(), -1, header.toString(),
-					-1));
+			//sequences.add(new Sequence(data.toString(), "", arg0._1(), -1, header.toString(),
+			//		-1));
+            sequences.add(new Sequence(current_sequence, header.toString(), data.toString(), ""));
 		}
 		//endTime = System.nanoTime();
 		//LOG.warn(currentFile+" Time used in build sequence data: "+(endTime-initTime)/1e9);
@@ -103,7 +105,7 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 
 
 			String seqId = SequenceReader.extract_sequence_id(currentSequence.getHeader());
-			String fileIdentifier = SequenceReader.extract_sequence_id(currentSequence.getFileName());
+			String fileIdentifier = SequenceReader.extract_sequence_id(currentFile.toString());
 
 			//make sure sequence id is not empty,
 			//use entire header if neccessary
@@ -140,9 +142,10 @@ public class FastaSketcher implements FlatMapFunction<Tuple2<String, String>,Loc
 					LOG.info("[" + seqId + "] ");
 			}
 
-			currentSequence.setTaxid(taxid);
-			currentSequence.getSequenceOrigin().setIndex(currentIndexNumber);
-			currentSequence.setIdentifier(seqId);
+            currentSequence.setTaxid(taxid);
+            currentSequence.getSequenceOrigin().setIndex(currentIndexNumber);
+            currentSequence.getSequenceOrigin().setFilename(currentFile.toString());
+            currentSequence.setSeqId(seqId);
 
 			int currentStart = 0;
 			int currentEnd = MCSConfiguration.windowSize;

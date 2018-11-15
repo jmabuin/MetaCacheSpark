@@ -83,9 +83,11 @@ public class SequenceFileReaderLocal implements Serializable{
 
             // Obtain the sequences file format
             if (this.inputFile.endsWith(".fastq") || this.inputFile.endsWith(".fq") || this.inputFile.endsWith(".fnq")) {
+                LOG.warn("FASTQ mode");
                 this.currentFormat = EnumModes.InputFormat.FASTQ;
             }
             else {
+                LOG.warn("FASTA mode");
                 this.currentFormat = EnumModes.InputFormat.FASTA;
             }
 
@@ -117,6 +119,7 @@ public class SequenceFileReaderLocal implements Serializable{
         if(this.currentFormat == EnumModes.InputFormat.FASTA) {
 
             // Get a new FASTA record from file
+            //LOG.warn("FASTA file");
             try {
                 // We read lines until we found a new header or end of file
                 //LOG.warn("[JMAbuin] Processing next sequence");
@@ -176,39 +179,45 @@ public class SequenceFileReaderLocal implements Serializable{
 
         }
         else if (this.currentFormat == EnumModes.InputFormat.FASTQ) {
-
+            //LOG.warn("FASTQ file");
             // Get a new FASTQ record from file
             try {
 
                 int i = 0;
+                String line;
 
-                for(String line; ((line = this.br.readLine()) != null) && (i < 4); i++) {
+                for(i=0; i< 4; i++) {
+                    line = this.br.readLine();
 
+                    if(line == null) {
+                        return null;
+                    }
                     if (i == 0) {
-                        this.bufferHeader.append(line);
+                        this.bufferHeader.append(line.substring(1));
                     }
                     else if (i == 1) {
                         this.bufferData.append(line);
                     }
                     else if (i == 3) {
                         this.bufferQuality.append(line);
-                        i = 0;
+                        this.readedValues += 1;
+                        SequenceData currentSequenceData = new SequenceData(this.bufferHeader.toString(), this.bufferData.toString(),this.bufferQuality.toString());
+
+                        this.bufferHeader.delete(0, this.bufferHeader.length());
+                        this.bufferData.delete(0, this.bufferData.length());
+                        this.bufferQuality.delete(0, this.bufferQuality.length());
+
+                        return currentSequenceData;
                     }
 
-                    this.readedValues += (line.length() + 1);
                 }
 
+                LOG.warn("Como chega aqui??? :: " + this.bufferHeader.toString()+" :: "+ this.bufferData.toString()+" :: "+this.bufferQuality.toString() );
+                // At the end, if we don't have data, is because we are at the end of the file. Return null
                 if(this.bufferData.toString().isEmpty() && (this.bufferHeader.toString().isEmpty())) {
                     return null;
                 }
 
-                SequenceData currentSequenceData = new SequenceData(this.bufferHeader.toString(), this.bufferData.toString(),this.bufferQuality.toString());
-
-                this.bufferHeader.delete(0, this.bufferHeader.length());
-                this.bufferData.delete(0, this.bufferData.length());
-                this.bufferQuality.delete(0, this.bufferQuality.length());
-
-                return currentSequenceData;
             }
             catch (IOException e) {
                 LOG.error("Could not read file "+ this.inputFile+ " because of IO error in SequenceReader.next().");
@@ -221,7 +230,7 @@ public class SequenceFileReaderLocal implements Serializable{
                 //System.exit(1);
             }
         }
-
+        //LOG.warn("NONE file");
         return null;
 
     }

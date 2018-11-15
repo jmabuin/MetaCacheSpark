@@ -101,7 +101,7 @@ public class Sketcher2HashMultiMapNative implements Function2<Integer, Iterator<
 					for (int newValue : sketchValues) {
 
 
-						map.add(newValue, this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows);
+						map.add(newValue, this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows);
 
 
 					}

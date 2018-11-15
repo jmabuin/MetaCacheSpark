@@ -26,50 +26,79 @@ import java.io.Serializable;
  */
 public class Sequence implements Serializable {
 
-    private SequenceData sequenceData;
-    private SequenceOrigin sequenceOrigin;
+    /*
+    struct sequence {
+        using data_type = std::string;
+        index_type  index;       //number of sequence in file (+ offset)
+        std::string header;      //meta information (FASTA >, FASTQ @)
+        data_type   data;        //actual sequence data
+        data_type   qualities;   //quality scores (FASTQ)
+    };
+     */
+
+    // Normal fields
+    private long index;
+    private String header;
+    private String data;
+    private String qualities;
+
+    //Extra fields
+    private String seqId;
     private int taxid;
-    private String identifier;
+    private SequenceOrigin sequenceOrigin;
 
-    public Sequence(String data, String identifier, String fileName, int index, String header, int taxid) {
-        this.sequenceData = new SequenceData(header, data, "");
+    //public Sequence(String data, String identifier, String fileName, int index, String header, int taxid) {
+    public Sequence(long index, String header, String data, String qualities) {
+        this.index = index;
+        this.header = header;
+        this.data = data;
+        this.qualities = qualities;
 
-        this.identifier = identifier;
-        this.sequenceOrigin = new SequenceOrigin(fileName,index);
-        this.identifier = identifier;
-        this.taxid = taxid;
+        this.sequenceOrigin = new SequenceOrigin();
     }
 
-    public String getData() {
-        return sequenceData.getData();
+    public Sequence(){
+
     }
 
-    public void setData(String data) {
-        this.sequenceData.setData(data);
+    public long getIndex() {
+        return index;
     }
 
-    public String getFileName() {
-        return this.sequenceOrigin.getFilename();
-    }
-
-    public void setFileName(String fileName) {
-        this.sequenceOrigin.setFilename(fileName);
+    public void setIndex(long index) {
+        this.index = index;
     }
 
     public String getHeader() {
-        return this.sequenceData.getHeader();
+        return header;
     }
 
     public void setHeader(String header) {
-        this.sequenceData.setHeader(header);
+        this.header = header;
     }
 
-    public String getQuality() {
-        return this.sequenceData.getQuality();
+    public String getData() {
+        return data;
     }
 
-    public void setQuality(String quality) {
-        this.sequenceData.setQuality(quality);
+    public void setData(String data) {
+        this.data = data;
+    }
+
+    public String getQualities() {
+        return qualities;
+    }
+
+    public void setQualities(String qualities) {
+        this.qualities = qualities;
+    }
+
+    public String getSeqId() {
+        return seqId;
+    }
+
+    public void setSeqId(String seqId) {
+        this.seqId = seqId;
     }
 
     public int getTaxid() {
@@ -80,27 +109,11 @@ public class Sequence implements Serializable {
         this.taxid = taxid;
     }
 
-    public SequenceData getSequenceData() {
-        return sequenceData;
-    }
-
-    public void setSequenceData(SequenceData sequenceData) {
-        this.sequenceData = sequenceData;
-    }
-
     public SequenceOrigin getSequenceOrigin() {
         return sequenceOrigin;
     }
 
     public void setSequenceOrigin(SequenceOrigin sequenceOrigin) {
         this.sequenceOrigin = sequenceOrigin;
-    }
-
-    public String getIdentifier() {
-        return identifier;
-    }
-
-    public void setIdentifier(String identifier) {
-        this.identifier = identifier;
     }
 }

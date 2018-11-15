@@ -18,8 +18,7 @@
  */
 
 package com.github.jmabuin.metacachespark.io;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
+import com.github.jmabuin.metacachespark.Sequence;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -33,10 +32,10 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
  * @author Mahmoud Parsian
  * @author José M. Abuín
  */
-public class FastaInputFormat extends FileInputFormat<String, Text> {
+public class Fasta2SequenceInputFormat extends FileInputFormat<String,Sequence> {
 
-	@Override
-	public RecordReader<String, Text> createRecordReader( InputSplit inputSplit, TaskAttemptContext taskAttemptContext) {
-		return new FastaRecordReader();
-	}
+    @Override
+    public RecordReader<String, Sequence> createRecordReader(InputSplit inputSplit, TaskAttemptContext taskAttemptContext) {
+        return new Fasta2SequenceRecordReader();
+    }
 }

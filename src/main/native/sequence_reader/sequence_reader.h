@@ -1,3 +1,6 @@
+#ifndef SEQUENCE_READER_H
+#define SEQUENCE_READER_H
+
 #include <cstdint>
 #include <string>
 #include <mutex>
@@ -41,6 +44,7 @@ public:
     void seek(std::streampos pos) { do_seek(pos); }
     std::streampos tell()         { return do_tell(); }
 
+
 protected:
     void invalidate() { valid_.store(false); }
 
@@ -58,3 +62,5 @@ private:
     std::atomic<index_type> index_;
     std::atomic<bool> valid_;
 };
+
+#endif // UNORDERED_H

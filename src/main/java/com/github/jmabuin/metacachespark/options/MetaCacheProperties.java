@@ -83,17 +83,14 @@ public class MetaCacheProperties {
         this.maxTargetsPerSketchVal  = Integer.parseInt(properties.getProperty("maxTargetsPerSketchVal"));
         this.max_locations_per_feature = Integer.parseInt(properties.getProperty("max_locations_per_feature"));
 
-        System.out.println("Value of max_locations_per_feature is: " + this.max_locations_per_feature);
-
-
-        this.showDBproperties        = Boolean.parseBoolean("showDBproperties");
-        this.splitOutput             = Boolean.parseBoolean("splitOutput");
-        this.showTopHits             = Boolean.parseBoolean("showTopHits");
-        this.showAllHits             = Boolean.parseBoolean("showAllHits");
-        this.showLocations           = Boolean.parseBoolean("showLocations");
-        this.showGroundTruth         = Boolean.parseBoolean("showGroundTruth");
-        this.showLineage             = Boolean.parseBoolean("showLineage");
-        this.showAlignment           = Boolean.parseBoolean("showAlignment");
+        this.showDBproperties        = Boolean.parseBoolean(properties.getProperty("showDBproperties"));
+        this.splitOutput             = Boolean.parseBoolean(properties.getProperty("splitOutput"));
+        this.showTopHits             = Boolean.parseBoolean(properties.getProperty("showTopHits"));
+        this.showAllHits             = Boolean.parseBoolean(properties.getProperty("showAllHits"));
+        this.showLocations           = Boolean.parseBoolean(properties.getProperty("showLocations"));
+        this.showGroundTruth         = Boolean.parseBoolean(properties.getProperty("showGroundTruth"));
+        this.showLineage             = Boolean.parseBoolean(properties.getProperty("showLineage"));
+        this.showAlignment           = Boolean.parseBoolean(properties.getProperty("showAlignment"));
 
         this.hitsMin                 = Integer.parseInt(properties.getProperty("hitsMin"));
         this.hitsDiff                = Double.parseDouble(properties.getProperty("hitsDiff"));
@@ -103,9 +100,9 @@ public class MetaCacheProperties {
         /*
          * Analysis options
          */
-        this.testPrecision       = Boolean.parseBoolean("testPrecision");
-        this.testCoverage        = Boolean.parseBoolean("testCoverage");
-        this.testAlignment       = Boolean.parseBoolean("testAlignment");
+        this.testPrecision       = Boolean.parseBoolean(properties.getProperty("testPrecision"));
+        this.testCoverage        = Boolean.parseBoolean(properties.getProperty("testCoverage"));
+        this.testAlignment       = Boolean.parseBoolean(properties.getProperty("testAlignment"));
 
         this.sequ2taxonPreFile = properties.getProperty("sequ2taxonPreFile");
 

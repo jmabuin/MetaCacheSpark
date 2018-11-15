@@ -25,6 +25,8 @@ import com.google.common.collect.HashMultimap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.*;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.spark.RangePartitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -57,13 +59,14 @@ public class Database implements Serializable{
 	private long queryWindowStride_;
 	private long maxLocsPerFeature_;
 	private int nextTargetId_;
-	private ArrayList<TargetProperty> targets_;
+	private List<TargetProperty> targets_;
 	private Dataset<Location> features_;
 	private Dataset<Location> featuresDataframe_;
 	private Dataset<Locations> featuresDataset;
 	//private DataFrame targetPropertiesDataframe_;
 	private JavaRDD<TargetProperty> targetPropertiesJavaRDD;
 	private HashMap<String,Integer> sid2gid_;
+	private TreeMap<String, Integer> name2tax_;
 	private Taxonomy taxa_;
 	private TaxonomyParam taxonomyParam;
 	private int numPartitions = 1;
@@ -89,7 +92,7 @@ public class Database implements Serializable{
 
 	public Database(Sketcher targetSketcher_, Sketcher querySketcher_, long targetWindowSize_, long targetWindowStride_,
 					long queryWindowSize_, long queryWindowStride_, long maxLocsPerFeature_, short nextTargetId_,
-					ArrayList<TargetProperty> targets_, Dataset<Location> features_, HashMap<String, Integer> sid2gid_,
+					ArrayList<TargetProperty> targets_, Dataset<Location> features_, TreeMap<String, Integer> name2tax_,
 					Taxonomy taxa_, JavaSparkContext jsc, int numPartitions) {
 
 		this.targetSketcher_ = targetSketcher_;
@@ -102,7 +105,7 @@ public class Database implements Serializable{
 		this.nextTargetId_ = nextTargetId_;
 		this.targets_ = targets_;
 		this.features_ = features_;
-		this.sid2gid_ = sid2gid_;
+		this.name2tax_ = name2tax_;
 		this.taxa_ = taxa_;
 
 		this.jsc = jsc;
@@ -119,7 +122,8 @@ public class Database implements Serializable{
 		this.sqlContext = new SQLContext(this.jsc);
 
 		this.targets_ = new ArrayList<TargetProperty>();
-		this.sid2gid_ = new HashMap<String,Integer>();
+		this.name2tax_ = new TreeMap<String,Integer>();
+		//this.sid2gid_ = new HashMap<String, Integer>();
 
 		this.params = params;
 
@@ -159,9 +163,10 @@ public class Database implements Serializable{
 		this.loadFromFile();
 		this.readTaxonomy();
 		this.readTargets();
-		this.readSid2gid();
+		//this.readSid2gid();
+		this.readName2tax();
 
-		this.nextTargetId_ = this.sid2gid_.size();
+		this.nextTargetId_ = this.name2tax_.size();
 		this.apply_taxonomy();
 
 	}
@@ -238,11 +243,11 @@ public class Database implements Serializable{
 		this.nextTargetId_ = nextTargetId_;
 	}
 
-	public ArrayList<TargetProperty> getTargets_() {
+	public List<TargetProperty> getTargets_() {
 		return targets_;
 	}
 
-	public void setTargets_(ArrayList<TargetProperty> targets_) {
+	public void setTargets_(List<TargetProperty> targets_) {
 		this.targets_ = targets_;
 	}
 
@@ -254,12 +259,12 @@ public class Database implements Serializable{
 		this.features_ = features_;
 	}
 
-	public HashMap<String, Integer> getSid2gid_() {
-		return sid2gid_;
+	public TreeMap<String, Integer> getname2tax_() {
+		return name2tax_;
 	}
 
-	public void setSid2gid_(HashMap<String, Integer> sid2gid_) {
-		this.sid2gid_ = sid2gid_;
+	public void setname2tax_(TreeMap<String, Integer> name2tax_) {
+		this.name2tax_ = name2tax_;
 	}
 
 	public Taxonomy getTaxa_() {
@@ -369,6 +374,8 @@ public class Database implements Serializable{
 			long endTime;
 
 
+			SequenceReader my_reader = new FastaSequenceReader(sequ2taxid, infoMode);
+
 			if(this.numPartitions == 1) {
 
 				this.inputSequences = this.jsc.wholeTextFiles(infiles)
@@ -394,42 +401,43 @@ public class Database implements Serializable{
 
 			//HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
 
-			int i = 0;
-
 			for(String value: data) {
-				this.sid2gid_.put(value, i);
-				i++;
+				if (!sequ2taxid.containsKey(value)) {
+					this.name2tax_.put(value, sequ2taxid.get(data).intValue());
+				}
+				//this.name2tax_.put(value, i);
+				//i++;
 			}
 
-			this.nextTargetId_ = this.sid2gid_.size();
+			this.nextTargetId_ = this.name2tax_.size();
 
 			if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) { //.isBuildModeHashMap()) {
 				LOG.warn("Building database with isBuildModeHashMap");
                 this.locationJavaHashRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
                         .mapPartitionsWithIndex(new Pair2HashMap(), true);
-						//.mapPartitionsWithIndex(new Sketcher2HashMap(this.sid2gid_), true);
+						//.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {//(paramsBuild.isBuildModeHashMultiMapG()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapG");
 				this.locationJavaHashMMRDD = this.inputSequences
-						.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.sid2gid_), true);
+						.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapMC");
 				//this.locationJavaPairListRDD = this.inputSequences
-				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
+				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.name2tax_), true);
 				this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
                         .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
-						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
+						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
 				LOG.warn("Building database with isBuildModeParquetDataframe");
 				this.locationJavaRDD = this.inputSequences
-						.flatMap(new Sketcher(this.sid2gid_));
+						.flatMap(new Sketcher(this.name2tax_));
 
 				Encoder<Location> encoder_location= Encoders.bean(Location.class);
 				RDD<Location> rdd_location = this.locationJavaRDD.rdd();
@@ -443,7 +451,7 @@ public class Database implements Serializable{
 
 				if (this.numPartitions != 1) {
                     this.locationJavaPairListRDD = this.inputSequences
-                            .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                            .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                             .partitionBy(new MyCustomPartitioner(this.numPartitions))
                             .combineByKey(new LocationCombiner(),
                                     new LocationMergeValues(),
@@ -451,7 +459,7 @@ public class Database implements Serializable{
                 }
                 else {
                     this.locationJavaPairListRDD = this.inputSequences
-                            .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                            .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                             //.partitionBy(new MyCustomPartitioner(this.numPartitions))
                             .combineByKey(new LocationCombiner(),
                                     new LocationMergeValues(),
@@ -461,7 +469,7 @@ public class Database implements Serializable{
 			}
 
 			this.targetPropertiesJavaRDD = this.inputSequences
-					.map(new Sequence2TargetProperty(this.sid2gid_));
+					.map(new Sequence2TargetProperty());
 
 			//this.writeTargets();
 			//this.features_ = ds;
@@ -570,53 +578,64 @@ public class Database implements Serializable{
 			}
 			//inputData = inputData.coalesce(this.numPartitions);
 
-			List<String> data = this.inputSequences.map(new Sequence2SequenceId()).collect();
+			List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
 
+			this.targetPropertiesJavaRDD = this.inputSequences
+					.map(new Sequence2TargetProperty());
 
-			//inputData.unpersist();
-
-			//HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
+			this.targets_= this.targetPropertiesJavaRDD.collect();
 
 			int i = 0;
 
-			for(String value: data) {
-				this.sid2gid_.put(value, i);
+			for (TargetProperty target: this.targets_) {
+				this.name2tax_.put(target.getIdentifier(), i);
 				i++;
 			}
 
-			this.nextTargetId_ = this.sid2gid_.size();
+/*
+			for (TargetProperty target: this.targets_) {
+
+				this.name2tax_.put(target.getIdentifier(),(int) target.getTax());
+				this.sid2gid_.put(target.getIdentifier(), i);
+				i++;
+			}
+*/
+
+			LOG.info("Size of name2tax_ is: " + this.name2tax_.size());
+
+			this.nextTargetId_ = this.name2tax_.size();
 
 
 			if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
 				LOG.warn("Building database with isBuildModeHashMap");
 				this.locationJavaHashRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
                         .mapPartitionsWithIndex(new Pair2HashMap(), true);
-						//.mapPartitionsWithIndex(new Sketcher2HashMap(this.sid2gid_), true);
+						//.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapG");
 				this.locationJavaHashMMRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
                         .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
-						//.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.sid2gid_), true);
+						//.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
 				LOG.warn("Building database with isBuildModeHashMultiMapMC");
 				//this.locationJavaPairListRDD = this.inputSequences
-				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.sid2gid_), true);
+				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.name2tax_), true);
 				this.locationJavaRDDHashMultiMapNative = this.inputSequences
-						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.sid2gid_), true);
-						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
+						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
 						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
 						.mapPartitionsWithIndex(new Pair2HashMapNative(), true);
 			}
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
 				LOG.warn("Building database with isBuildModeParquetDataframe");
 				this.locationJavaRDD = this.inputSequences
-						.flatMap(new Sketcher(this.sid2gid_));
+						.flatMap(new Sketcher(this.name2tax_));
 
 				this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
 
@@ -624,22 +643,21 @@ public class Database implements Serializable{
 			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
 				LOG.warn("Building database with isBuildCombineByKey");
 				/*this.locationJavaPairListRDD = this.inputSequences
-						.flatMapToPair(new Sketcher2Pair(this.sid2gid_))
+						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
 						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
 						.combineByKey(new LocationCombiner(),
 								new LocationMergeValues(),
 								new LocationMergeCombiners());
 								*/
 				this.locationJavaPairIterableRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.sid2gid_)).groupByKey();
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_)).groupByKey();
 
                 this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
                         this.params.getProperties().getMax_locations_per_feature()));
 
 			}
 
-			this.targetPropertiesJavaRDD = this.inputSequences
-					.map(new Sequence2TargetProperty(this.sid2gid_));
+
 
 
 			//endTime = System.nanoTime();
@@ -656,6 +674,151 @@ public class Database implements Serializable{
 			System.exit(1);
 		}
 	}
+
+    public void buildDatabaseInputFormat(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+        try {
+
+            LOG.info("[JMAbuin] buildDatabaseInputFormat");
+            //FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+            long initTime = System.nanoTime();
+            long endTime;
+
+            JavaPairRDD<String,String> inputData = null;
+
+            this.inputSequences = null;
+            //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
+
+
+            JavaPairRDD<String, Text> reads = null;
+
+            for (String currentFile : infiles) {
+
+                    if (reads == null) {
+                        reads = this.jsc.newAPIHadoopFile(currentFile, FastaInputFormat.class, String.class, Text.class, this.jsc.hadoopConfiguration());
+                    }
+                    else {
+                        reads = reads.union(this.jsc.newAPIHadoopFile(currentFile, FastaInputFormat.class, String.class, Text.class, this.jsc.hadoopConfiguration()));
+                    }
+
+            }
+
+
+
+            if(this.numPartitions != 1) {
+                LOG.info("Repartitioning into " + this.numPartitions + " partitions.");
+                this.inputSequences = reads.flatMap(new FastaSequenceReader2(sequ2taxid, infoMode))
+                        .repartition(this.numPartitions)
+                        //.persist(StorageLevel.MEMORY_AND_DISK_SER());
+                        .persist(StorageLevel.DISK_ONLY());
+            }
+            else {
+                LOG.info("No repartitioning");
+                this.inputSequences = reads.flatMap(new FastaSequenceReader2(sequ2taxid, infoMode))
+                        //.persist(StorageLevel.MEMORY_AND_DISK_SER());
+                        .persist(StorageLevel.DISK_ONLY());
+            }
+
+
+
+            //inputData = inputData.coalesce(this.numPartitions);
+
+            List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
+
+            this.targetPropertiesJavaRDD = this.inputSequences
+                    .map(new Sequence2TargetProperty());
+
+            this.targets_= this.targetPropertiesJavaRDD.collect();
+
+            int i = 0;
+
+            for (TargetProperty target: this.targets_) {
+                this.name2tax_.put(target.getIdentifier(), i);
+                i++;
+            }
+
+/*
+			for (TargetProperty target: this.targets_) {
+
+				this.name2tax_.put(target.getIdentifier(),(int) target.getTax());
+				this.sid2gid_.put(target.getIdentifier(), i);
+				i++;
+			}
+*/
+
+            LOG.info("Size of name2tax_ is: " + this.name2tax_.size());
+
+            this.nextTargetId_ = this.name2tax_.size();
+
+
+            if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
+                LOG.warn("Building database with isBuildModeHashMap");
+                this.locationJavaHashRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
+                //.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
+                LOG.warn("Building database with isBuildModeHashMultiMapG");
+                this.locationJavaHashMMRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
+                //.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
+                LOG.warn("Building database with isBuildModeHashMultiMapMC");
+                //this.locationJavaPairListRDD = this.inputSequences
+                //		.mapPartitionsToPair(new Sketcher2PairPartitions(this.name2tax_), true);
+                this.locationJavaRDDHashMultiMapNative = this.inputSequences
+                        //.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
+                LOG.warn("Building database with isBuildModeParquetDataframe");
+                this.locationJavaRDD = this.inputSequences
+                        .flatMap(new Sketcher(this.name2tax_));
+
+                this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
+
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
+                LOG.warn("Building database with isBuildCombineByKey");
+				/*this.locationJavaPairListRDD = this.inputSequences
+						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
+						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+						.combineByKey(new LocationCombiner(),
+								new LocationMergeValues(),
+								new LocationMergeCombiners());
+								*/
+                this.locationJavaPairIterableRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_)).groupByKey();
+
+                this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
+                        this.params.getProperties().getMax_locations_per_feature()));
+
+            }
+
+
+
+
+            //endTime = System.nanoTime();
+            //LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
+            //LOG.warn("Database created ...");
+            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaHashRDD.count()));
+            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaPairListRDD.count()));
+
+
+
+        } catch (Exception e) {
+            LOG.error("ERROR! "+e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
 
 	public void writeTaxonomy() {
 
@@ -679,18 +842,140 @@ public class Database implements Serializable{
 
 		String targetsDestination = this.dbfile+"_targets";
 
-		this.targetPropertiesJavaRDD.saveAsObjectFile(targetsDestination);
+		//this.targetPropertiesJavaRDD.saveAsObjectFile(targetsDestination);
 		//this.targets_ = new ArrayList<TargetProperty>(inputSequences.map(new Sequence2TargetProperty()).collect());
+
+		try {
+
+
+			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+			FSDataOutputStream outputStream = fs.create(new Path(targetsDestination));
+
+			ObjectOutputStream oos = new ObjectOutputStream(outputStream);
+			oos.writeObject(this.targets_);
+
+			oos.close();
+			outputStream.close();
+
+		}
+		catch (IOException e) {
+			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+		catch (Exception e) {
+			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+
 
 
 	}
 
 	public void readTargets() {
 
-		this.targetPropertiesJavaRDD = this.jsc.objectFile(this.dbfile+"_targets");
+		String targetsDestination = this.dbfile+"_targets";
 
-		this.targets_ = new ArrayList<TargetProperty>(this.targetPropertiesJavaRDD.collect());
+		//this.targetPropertiesJavaRDD = this.jsc.objectFile(this.dbfile+"_targets");
+
+		//this.targets_ = new ArrayList<TargetProperty>(this.targetPropertiesJavaRDD.collect());
+
+
+		try {
+
+
+			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+			FSDataInputStream inputStream = fs.open(new Path(targetsDestination));
+
+			ObjectInputStream ois = new ObjectInputStream(inputStream);
+			this.targets_ = (List<TargetProperty>) ois.readObject();
+
+			ois.close();
+			inputStream.close();
+
+		}
+		catch (IOException e) {
+			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+		catch (Exception e) {
+			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
+			e.printStackTrace();
+			//System.exit(1);
+		}
+
 	}
+
+    public void writeName2tax() {
+
+        String name2taxDestination = this.dbfile+"_name2tax";
+
+        //this.targetPropertiesJavaRDD.saveAsObjectFile(targetsDestination);
+        //this.targets_ = new ArrayList<TargetProperty>(inputSequences.map(new Sequence2TargetProperty()).collect());
+
+        try {
+
+
+            FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+            FSDataOutputStream outputStream = fs.create(new Path(name2taxDestination));
+
+            ObjectOutputStream oos = new ObjectOutputStream(outputStream);
+            oos.writeObject(this.name2tax_);
+
+            oos.close();
+            outputStream.close();
+
+        }
+        catch (IOException e) {
+            LOG.error("Could not write file "+ name2taxDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+        catch (Exception e) {
+            LOG.error("Could not write file "+ name2taxDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+
+    }
+
+    public void readName2tax() {
+
+        String name2taxDestination = this.dbfile+"_name2tax";
+
+        //this.targetPropertiesJavaRDD = this.jsc.objectFile(this.dbfile+"_targets");
+
+        //this.targets_ = new ArrayList<TargetProperty>(this.targetPropertiesJavaRDD.collect());
+
+
+        try {
+
+
+            FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+            FSDataInputStream inputStream = fs.open(new Path(name2taxDestination));
+
+            ObjectInputStream ois = new ObjectInputStream(inputStream);
+            this.name2tax_ = (TreeMap<String, Integer>) ois.readObject();
+
+            ois.close();
+            inputStream.close();
+
+        }
+        catch (IOException e) {
+            LOG.error("Could not write file "+ name2taxDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+        catch (Exception e) {
+            LOG.error("Could not write file "+ name2taxDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+
+    }
+
 
 
 	public void writeSid2gid() {
@@ -707,12 +992,12 @@ public class Database implements Serializable{
 			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputStream));
 
 			// Write data
-			bw.write(String.valueOf(this.sid2gid_.size()));
+			bw.write(String.valueOf(this.name2tax_.size()));
 			bw.newLine();
 
 			StringBuffer currentLine = new StringBuffer();
 
-			for(Map.Entry<String, Integer> currentEntry: this.sid2gid_.entrySet()) {
+			for(Map.Entry<String, Integer> currentEntry: this.name2tax_.entrySet()) {
 
 				currentLine.append(currentEntry.getKey());
 				currentLine.append(":");
@@ -751,8 +1036,8 @@ public class Database implements Serializable{
 
 			BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
 
-			if(this.sid2gid_ == null) {
-				this.sid2gid_ = new HashMap<String, Integer>();
+			if(this.name2tax_ == null) {
+				this.name2tax_ = new TreeMap<String, Integer>();
 			}
 
 			// read data
@@ -764,7 +1049,7 @@ public class Database implements Serializable{
 
 				String parts[] = currentLine.split(":");
 
-				this.sid2gid_.put(parts[0], Integer.parseInt(parts[1]));
+				this.name2tax_.put(parts[0], Integer.parseInt(parts[1]));
 
 			}
 
@@ -800,14 +1085,14 @@ public class Database implements Serializable{
 		//for(String newFile: mappingFilenames) {
 		for(String newFile: infilenames) {
 			//System.err.println("[JMAbuin] Accessing file: " + newFile + " in make_sequence_to_taxon_id_map");
-			map = read_sequence_to_taxon_id_mapping(newFile, map);
+			read_sequence_to_taxon_id_mapping(newFile, map);
 		}
 
 		return map;
 
 	}
 
-	public HashMap<String, Long> read_sequence_to_taxon_id_mapping(String mappingFile, HashMap<String, Long> map){
+	public void read_sequence_to_taxon_id_mapping(String mappingFile, HashMap<String, Long> map){
 
 
 		try {
@@ -910,7 +1195,7 @@ public class Database implements Serializable{
 		}
 
 
-		return map;
+		//return map;
 
 
 	}
@@ -929,16 +1214,16 @@ public class Database implements Serializable{
 	}
 
 	public Integer target_id_of_sequence(String sid) {
-		//String it = sid2gid_..find(sid);
+		//String it = name2tax_..find(sid);
 
-		if(sid2gid_.containsKey(sid)) {
-			return sid2gid_.get(sid);
+		if(this.name2tax_.containsKey(sid)) {
+			return this.name2tax_.get(sid);
 		}
 		else {
 			return (int)nextTargetId_;
 		}
 
-		//return (it != sid2gid_.end()) ? it->second : nextTargetId_;
+		//return (it != name2tax_.end()) ? it->second : nextTargetId_;
 	}
 
 	public boolean is_valid(int tid) {
@@ -2094,33 +2379,92 @@ public class Database implements Serializable{
 		return taxa_.getTaxa_().get(id);
 	}
 
+	public Taxon taxon_with_name(String name) {
+
+	    if (!this.name2tax_.containsKey(name)) {
+            return this.taxa_.getNoTaxon_();
+        }
+        else {
+            int taxonid = this.name2tax_.get(name);
+
+            long tid = this.targets_.get(taxonid).getTax();
+
+            if(this.taxa_.getTaxa_().containsKey(tid)) {
+                return this.taxa_.getTaxa_().get(tid);
+            }
+            else {
+                return this.taxa_.getNoTaxon_();
+            }
+
+        }
+
+    }
+
+    public Taxon taxon_with_similar_name(String name) {
+
+        if (!this.name2tax_.containsKey(name)) {
+            return this.taxa_.getNoTaxon_();
+        }
+        else {
+            String taxonid_str = this.name2tax_.ceilingKey(name);
+
+            if(taxonid_str == null) {
+                return this.taxa_.getNoTaxon_();
+            }
+
+            if (taxonid_str.contains(name)) {
+                int taxonid = this.name2tax_.get(taxonid_str);
+
+                long tid = this.targets_.get(taxonid).getTax();
+
+                if(this.taxa_.getTaxa_().containsKey(tid)) {
+                    return this.taxa_.getTaxa_().get(tid);
+                }
+            }
+
+
+            return this.taxa_.getNoTaxon_();
+
+
+        }
+
+    }
+
 	public Long[] ranks(Taxon tax)  {
 		return this.taxa_.ranks((Long)tax.getTaxonId());
 	}
 
 	public Classification ground_truth(String header) {
-		//try to extract query id and find the corresponding target in database
-		long tid = this.target_id_of_sequence(SequenceReader.extract_ncbi_accession_version_number(header));
 
-		//not found yet
-		if(!this.is_valid((int)tid)) {
-			tid = this.target_id_of_sequence(SequenceReader.extract_ncbi_accession_number(header));
-			//not found yet
+        //try to extract query id and find the corresponding target in database
+	    Taxon tmp_tax = this.taxon_with_name(SequenceReader.extract_ncbi_accession_version_number(header));
 
-		}
+	    if (tmp_tax != this.taxa_.getNoTaxon_()) {
+            return new Classification (tmp_tax.getTaxonId(), tmp_tax);
+        }
 
-		long taxid = SequenceReader.extract_taxon_id(header);
+        tmp_tax = this.taxon_with_similar_name(SequenceReader.extract_ncbi_accession_number(header));
 
-		//if target known and in db
-		if(this.is_valid((int)tid)) {
-			//if taxid could not be determined solely from header, use the one
-			//from the target in the db
-			if(taxid < 1) this.taxon_id_of_target(tid);
+        if (tmp_tax != this.taxa_.getNoTaxon_()) {
+            return new Classification (tmp_tax.getTaxonId(), tmp_tax);
+        }
 
-			return new Classification (tid, taxid > 0 ? this.taxon_with_id(taxid) : null );
-		}
+        //try to extract id from header
+        tmp_tax = this.taxon_with_id(SequenceReader.extract_taxon_id(header));
 
-		return new Classification (taxid > 0 ? this.taxon_with_id(taxid) : null );
+        if ((tmp_tax != null) && (tmp_tax != this.taxa_.getNoTaxon_())) {
+            return new Classification (tmp_tax.getTaxonId(), tmp_tax);
+        }
+
+        //try to find entire header as sequence identifier
+        tmp_tax = this.taxon_with_name(header);
+
+        if (tmp_tax != this.taxa_.getNoTaxon_()) {
+            return new Classification (tmp_tax.getTaxonId(), tmp_tax);
+        }
+
+        return new Classification();
+
 	}
 
 	//public Long[] ranks_of_target(long id) {
@@ -2195,4 +2539,33 @@ public class Database implements Serializable{
 	public SequenceOrigin origin_of_target(int id) {
 		return targets_.get(id).getOrigin();
 	}
+
+	public Taxon find_taxon_id(String id) {
+
+	    if(this.name2tax_.containsKey(id)) {
+	        long tid = this.targets_.get(this.name2tax_.get(id)).getTax();
+
+	        return  this.taxa_.getTaxa_().get(tid);
+
+        }
+
+        String ceiling_key = this.name2tax_.ceilingKey(id);
+
+	    if (ceiling_key == null) {
+	        return this.taxa_.getNoTaxon_();
+        }
+
+        //if nearest match contains 'name' as prefix -> good enough
+        //e.g. accession vs. accession.version
+        if(ceiling_key.contains(id)){
+            long tid = this.targets_.get(this.name2tax_.get(ceiling_key)).getTax();
+
+            return  this.taxa_.getTaxa_().get(tid);
+        }
+
+
+        return this.taxa_.getNoTaxon_();
+
+    }
+
 }

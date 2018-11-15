@@ -42,7 +42,18 @@ public class FullQuery implements PairFlatMapFunction<Iterator<HashMultiMapNativ
             ArrayList<Sketch> locations = new ArrayList<Sketch>();
             TreeMap<LocationBasic, Integer> matches;
 
-            long totalReads = FilesysUtility.readsInFastaFile(this.fileName);
+            long totalReads = 0;
+
+            if (FilesysUtility.isFastaFile(this.fileName)) {
+                totalReads = FilesysUtility.readsInFastaFile(this.fileName);
+            }
+            else if (FilesysUtility.isFastqFile(this.fileName)) {
+                totalReads = FilesysUtility.readsInFastqFile(this.fileName);
+            }
+            else {
+                LOG.error("Not recognized file format in " + this.fileName);
+                System.exit(1);
+            }
             long startRead = 0;
 
 

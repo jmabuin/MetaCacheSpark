@@ -11,6 +11,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.TreeMap;
 
 /**
  * Created by chema on 1/16/17.
@@ -33,9 +34,9 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 		return Integer.MAX_VALUE;
 	}
 
-	private HashMap<String, Integer> sequencesIndexes;
+	private TreeMap<String, Integer> sequencesIndexes;
 
-	public Sketcher(HashMap<String, Integer> sequencesIndexes) {
+	public Sketcher(TreeMap<String, Integer> sequencesIndexes) {
 		//super();
 		this.sequencesIndexes = sequencesIndexes;
 	}
@@ -85,7 +86,7 @@ public class Sketcher implements FlatMapFunction<Sequence,Location> {
 
 					//returnedValues.add(new Location(newValue, inputSequence.getTaxid(), numWindows));
 					//returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
-					returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
+					returnedValues.add(new Location(newValue, this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows));
 
 				}
 

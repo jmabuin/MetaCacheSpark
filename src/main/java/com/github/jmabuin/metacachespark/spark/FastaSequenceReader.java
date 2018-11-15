@@ -77,14 +77,17 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 				return returnedValues.iterator();
 			}
 
+			long sequence_number = 0;
+
 			for (String newLine : currentInput.toString().split("\n")) {
 
 				if (newLine.startsWith(">")) {
 
 					if(!header.toString().isEmpty()) {
-						//returnedValues.add(new Sequence(data.toString(), 0, fileId, currentFile.toString(), header.toString(), -1));
-						returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1,
-								header.toString(), -1));
+						//returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1,
+						//		header.toString(), -1));
+						returnedValues.add(new Sequence(sequence_number, header.toString(), data.toString(), ""));
+                        sequence_number++;
 					}
 
 					header.delete(0,header.length());
@@ -104,9 +107,8 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 			}
 
 			if ((!data.toString().isEmpty()) && (!header.toString().isEmpty())) {
-				//returnedValues.add(new Sequence(data.toString(), 0, fileId, currentFile.toString(), header.toString(), -1));
-				returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1,
-						header.toString(), -1));
+                returnedValues.add(new Sequence(sequence_number, header.toString(), data.toString(), ""));
+
 			}
 
 			int currentIndexNumber = 0;
@@ -116,7 +118,7 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 
 
 				String seqId = SequenceReader.extract_sequence_id(currentSequence.getHeader());
-				String fileIdentifier = SequenceReader.extract_sequence_id(currentSequence.getFileName());
+				String fileIdentifier = SequenceReader.extract_sequence_id(currentFile.toString());
 
 				//make sure sequence id is not empty,
 				//use entire header if neccessary
@@ -155,7 +157,8 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 
 				currentSequence.setTaxid(taxid);
 				currentSequence.getSequenceOrigin().setIndex(currentIndexNumber);
-				currentSequence.setIdentifier(seqId);
+				currentSequence.getSequenceOrigin().setFilename(currentFile.toString());
+				currentSequence.setSeqId(seqId);
 
 				currentIndexNumber++;
 			}

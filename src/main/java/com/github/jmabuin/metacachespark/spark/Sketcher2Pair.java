@@ -10,6 +10,7 @@ import scala.Tuple2;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.TreeMap;
 
 /**
  * Created by chema on 1/16/17.
@@ -32,9 +33,9 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
 		return Integer.MAX_VALUE;
 	}
 
-	private HashMap<String, Integer> sequencesIndexes;
+	private TreeMap<String, Integer> sequencesIndexes;
 
-	public Sketcher2Pair(HashMap<String, Integer> sequencesIndexes) {
+	public Sketcher2Pair(TreeMap<String, Integer> sequencesIndexes) {
 		super();
 		this.sequencesIndexes = sequencesIndexes;
 	}
@@ -81,7 +82,7 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
 				for (int newValue : sketchValues) {
 
 					returnedValues.add(new Tuple2<Integer, LocationBasic>(newValue,
-							new LocationBasic(this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows)));
+							new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows)));
 
 				}
 
