@@ -51,7 +51,7 @@ JNIEXPORT jstring JNICALL Java_com_github_jmabuin_metacachespark_io_SequenceFile
                 seq = fasta_reader_pointer->next();
             }
             else {
-                return nullptr;
+                return NULL;
             }
 
     }
@@ -60,7 +60,7 @@ JNIEXPORT jstring JNICALL Java_com_github_jmabuin_metacachespark_io_SequenceFile
                         seq = fastq_reader_pointer->next();
                     }
                     else {
-                        return nullptr;
+                        return NULL;
                     }
     }
 

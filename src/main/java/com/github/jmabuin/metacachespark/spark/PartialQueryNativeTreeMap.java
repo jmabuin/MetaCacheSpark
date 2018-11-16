@@ -95,18 +95,24 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
                 LocationBasic loc = new LocationBasic();
                 HashMap<LocationBasic, Integer> all_hits = new HashMap<>();
 
-                int andale = 0;
-                while((this.seqReader.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
 
-                    TreeMap<LocationBasic, Integer> current_results = new TreeMap<>();
+                while((this.seqReader.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
 
                     String header = this.seqReader.get_header();
                     String data = this.seqReader.get_data();
                     String qua = this.seqReader.get_quality();
 
-                    if ((andale == 0) || (andale == (this.init + this.bufferSize)-1)) {
+                    if (this.seqReader.get_header().isEmpty()) {
+                        continue;
+                    }
+
+                    TreeMap<LocationBasic, Integer> current_results = new TreeMap<>();
+
+
+
+                    //if ((currentSequence == this.init) || (currentSequence >= (this.init + this.bufferSize-5))) {
+                    if (currentSequence == this.init) {
                         LOG.warn("Processing sequence " + currentSequence + " :: " + header);
-                        andale++;
                     }
 
 

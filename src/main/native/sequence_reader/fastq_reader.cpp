@@ -24,6 +24,7 @@ fastq_reader::fastq_reader(const std::string& filename):
 void fastq_reader::read_next(sequence& seq)
 {
     if(!file_.good()) {
+
         invalidate();
         return;
     }
@@ -32,6 +33,9 @@ void fastq_reader::read_next(sequence& seq)
     getline(file_, line);
     if(line.empty()) {
         invalidate();
+        this->sequ.header = "";
+        this->sequ.data = "";
+        this->sequ.qualities = "";
         return;
     }
     if(line[0] != '@') {

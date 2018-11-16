@@ -374,11 +374,11 @@ public class SequenceFileReaderLocal implements Serializable{
     public void skip(long readed) {
 
 
-        long current_readed = 0;
+        long current_readed = 1;
 
         SequenceData my_data = this.next();
 
-        while((current_readed != readed) && (my_data != null)) {
+        while((current_readed < readed) && (my_data != null)) {
 
             current_readed++;
             my_data = this.next();
