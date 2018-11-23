@@ -1,6 +1,7 @@
 #include "com_github_jmabuin_metacachespark_HashFunctions.h"
 #include <string.h>
 #include <stdlib.h>
+#include <vector>
 
 inline unsigned long make_reverse_complement64C(unsigned long s, unsigned char k) {
     s = ((s >> 2)  & 0x3333333333333333ul) | ((s & 0x3333333333333333ul) << 2);
@@ -98,9 +99,11 @@ inline unsigned long make_canonical64C(unsigned long s, unsigned char k) {
 	return s < revcom ? s : revcom;
 }
 
-inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerSize) {
+inline std::vector<unsigned> window2sketch(const char *window, int sketchSize, int kmerSize) {
 
     unsigned int *sketchValues = (unsigned int *)malloc(sizeof(unsigned int) * sketchSize);
+    std::vector<unsigned> sketchValues_vector;
+
 
     int i = 0;
     int j = 0;
@@ -143,7 +146,8 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
 
     //for (i = 0, J = 0; (i < (strlen(window) - kmerSize)) && (J < K); i++, J++) {
 
-    for (i = 0; i < (strlen(windowTMP) - kmerSize) && K>0; i++) {
+    //for (i = 0; i < (strlen(windowTMP) - kmerSize) && K>0; i++) {
+    for (i = 0; (i < strlen(windowTMP)) && K>0; i++) {
 
             kmer32 <<= 2;
             ambig <<= 1;
@@ -158,7 +162,7 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
             }
 
 
-            //fprintf(stderr,"[JMAbuin] parsing new. kmer is %u - %d. ambig is %u %d and K is %d\n", kmer32, kmer32, ambig, ambig, K);
+            //fprintf(stderr,"[JMAbuin] parsing new. kmer is %u . ambig is %u and K is %d\n", kmer32, ambig, K);
 
             --K;
 
@@ -211,7 +215,14 @@ inline unsigned int *window2sketch(const char *window, int sketchSize, int kmerS
 
     }
 
-    return sketchValues;
+    for (i = 0; i< sketchSize; i++) {
+            if(sketchValues[i] != 0xFFFFFFFF) {
+                sketchValues_vector.push_back(sketchValues[i]);
+            }
+        }
+    free(sketchValues);
+
+    return sketchValues_vector;
 
 }
 
@@ -381,7 +392,7 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_thom
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_kmer2uint32 (JNIEnv *env, jclass thisObj, jstring input) {
 
-    const char *newInput = (*env)->GetStringUTFChars(env, input, 0);
+    const char *newInput = env->GetStringUTFChars(input, 0);
 
     return kmer2uint32C(newInput);
 
@@ -389,36 +400,47 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_kmer
 
 JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_window2sketch32 (JNIEnv *env, jclass thisObj, jstring window, jint sketchSize, jint kmerSize) {
 
-    const char *windowInput = (*env)->GetStringUTFChars(env, window, 0);
-    jintArray iarr = (*env)->NewIntArray(env, sketchSize);
+    const char *windowInput = env->GetStringUTFChars(window, 0);
+    jintArray iarr = env->NewIntArray(sketchSize);
 
     //fprintf(stderr,"[JMAbuin] Antes de w2s %s\n", __func__);
 
 
-    int *returnValues = (int *)window2sketch(windowInput, sketchSize, kmerSize);
+    std::vector<unsigned> returnValues_vector = window2sketch(windowInput, sketchSize, kmerSize);
+    if(returnValues_vector.size() > 0) {
+    int *returnValues = (int *)malloc(returnValues_vector.size() * sizeof(int));//window2sketch(windowInput, sketchSize, kmerSize);
+
+    for(int i = 0; i< returnValues_vector.size(); i++) {
+
+        returnValues[i] = (int)returnValues_vector[i];
+    }
 
     /*fprintf(stderr,"[JMAbuin] Despois de w2s %s\n",__func__);
     int i = 0;
-
     for(i = 0; i< sketchSize; i++) {
         fprintf(stderr,"[JMAbuin] Despois de w2s %u %d, %s\n",returnValues[i],returnValues[i],__func__);
     }*/
 
-    (*env)->SetIntArrayRegion(env, iarr, 0, sketchSize, returnValues);
+    env->SetIntArrayRegion(iarr, 0, returnValues_vector.size(), returnValues);
     free(returnValues);
     return iarr;
+    }
+    else {
+
+        return NULL;
+    }
 
 }
 
 
 JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_sequence2features (JNIEnv *env, jclass thisObj, jstring sequence, jint windowSize, jint sketchSize, jint kmerSize) {
-    const char *sequenceInput = (*env)->GetStringUTFChars(env, sequence, 0);
-    jintArray iarr = (*env)->NewIntArray(env, (strlen(sequenceInput) / (windowSize-sketchSize))*sketchSize);
+    const char *sequenceInput = env->GetStringUTFChars(sequence, 0);
+    jintArray iarr = env->NewIntArray((strlen(sequenceInput) / (windowSize-sketchSize))*sketchSize);
 
     int *returnValues = (int *)seq2feat(sequenceInput, windowSize, sketchSize, kmerSize);
     //fprintf(stderr,"[JMAbuin] Before prepairing data to return\n");
 
-    (*env)->SetIntArrayRegion(env, iarr, 0, (strlen(sequenceInput) / (windowSize-sketchSize))*sketchSize, returnValues);
+    env->SetIntArrayRegion(iarr, 0, (strlen(sequenceInput) / (windowSize-sketchSize))*sketchSize, returnValues);
 
     //fprintf(stderr,"[JMAbuin] After prepairing data to return\n");
     return iarr;

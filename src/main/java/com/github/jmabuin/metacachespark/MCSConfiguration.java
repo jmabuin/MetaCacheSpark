@@ -6,7 +6,7 @@ public class MCSConfiguration {
 
 
 	public static int windowSize = 128;
-	public static int overlapWindow = 16;
+	public static int overlapWindow = 15;
 	public static int kmerSize = 16;
 	public static int sketchSize = 16;
 

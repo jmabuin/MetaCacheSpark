@@ -722,7 +722,7 @@ public class Database implements Serializable{
 
             //inputData = inputData.coalesce(this.numPartitions);
 
-            List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
+            //List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
 
             this.targetPropertiesJavaRDD = this.inputSequences
                     .map(new Sequence2TargetProperty());
@@ -856,6 +856,20 @@ public class Database implements Serializable{
 
 			oos.close();
 			outputStream.close();
+			/*
+			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+			FSDataOutputStream outputStream = fs.create(new Path(targetsDestination));
+
+			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputStream));
+
+			for(int i = 0; i< this.targets_.size(); i++) {
+				bw.write(i+":"+this.targets_.get(i).getIdentifier());
+				bw.newLine();
+			}
+
+			bw.close();
+			outputStream.close();
+*/
 
 		}
 		catch (IOException e) {
@@ -926,7 +940,23 @@ public class Database implements Serializable{
 
             oos.close();
             outputStream.close();
+/*
+			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+			FSDataOutputStream outputStream = fs.create(new Path(name2taxDestination));
 
+			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputStream));
+
+			Set<Map.Entry<String, Integer>> entries = this.name2tax_.entrySet();
+			int i = 0;
+
+			for(Map.Entry<String, Integer> entry:entries) {
+				bw.write(i+":"+entry.getKey()+":"+entry.getValue());
+				bw.newLine();
+				++i;
+			}
+
+			bw.close();
+			outputStream.close();*/
         }
         catch (IOException e) {
             LOG.error("Could not write file "+ name2taxDestination+ " because of IO error in writeSid2gid.");

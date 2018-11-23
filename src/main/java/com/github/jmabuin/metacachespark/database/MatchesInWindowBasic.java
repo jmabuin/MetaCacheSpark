@@ -1,7 +1,8 @@
 package com.github.jmabuin.metacachespark.database;
 
-import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.util.*;
 
@@ -12,6 +13,8 @@ import java.util.*;
 //matches_in_contiguous_window_range_top in original metacache
 
 public class MatchesInWindowBasic {
+
+	private static final Log LOG = LogFactory.getLog(MatchesInWindowBasic.class);
 
 	private int numTgts_;
 	private long hits_[];
@@ -86,6 +89,7 @@ public class MatchesInWindowBasic {
 				win = arrayListMatches.get(entryLST).getKey().getWindowId();
 				tgt = arrayListMatches.get(entryLST).getKey().getTargetId();
 				hits = arrayListMatches.get(entryLST).getValue();
+				//LOG.warn("tgt is: " + tgt + ", hits is: " + hits);
 				maxHits = hits;
 				maxWinBeg = win;
 				maxWinEnd = win;
@@ -112,6 +116,8 @@ public class MatchesInWindowBasic {
 			}
 
 		}
+
+		//LOG.warn("Targets: " + tgt_[0] + " :: " + tgt_[1]);
 
 
 		/* Original code

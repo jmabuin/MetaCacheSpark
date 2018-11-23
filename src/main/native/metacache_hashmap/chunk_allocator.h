@@ -1,8 +1,8 @@
-/*****************************************************************************
+/******************************************************************************
  *
  * MetaCache - Meta-Genomic Classification Tool
  *
- * Copyright (C) 2016 André Müller (muellan@uni-mainz.de)
+ * Copyright (C) 2016-2018 André Müller (muellan@uni-mainz.de)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 
 namespace mc {
 
-/*****************************************************************************
+/*************************************************************************//**
  *
  *
  *
@@ -181,16 +181,6 @@ public:
         }
     }
 
-    template<class U, class... Args>
-    void construct(U* p, Args&&... args) {
-        new (reinterpret_cast<void*>(p)) U(std::forward<Args>(args)...);
-    }
-
-    template<class U>
-    void destroy(U* p) {
-        p->~U();
-    }
-
     chunk_allocator
     select_on_container_copy_construction() const {
         //don't propagate
@@ -207,7 +197,7 @@ private:
 
 
 
-/*****************************************************************************
+/*************************************************************************//**
  *
  *
  *

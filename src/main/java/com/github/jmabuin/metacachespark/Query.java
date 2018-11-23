@@ -970,8 +970,10 @@ public class Query implements Serializable {
                         LOG.warn("Hits size is zero!");
                     }
                     */
+                    //LOG.warn("Current map size for sequence " + data.getHeader() + " is: " + currentHits.size());
                     this.process_database_answer_basic(data.getHeader(), data.getData(),
                             "", currentHits, d, stats);
+                    //LOG.warn("Answer processed");
                 }
 
                 long endTime = System.nanoTime();
@@ -1597,6 +1599,8 @@ public class Query implements Serializable {
             Taxonomy.Rank lowestCorrectRank = this.db.lowest_common_rank( cls, groundTruth);
 
             //LOG.warn("Classification: " + cls.rank().name());
+            //LOG.warn(this.db.getTargets_().get((int)cls.target()).getIdentifier());
+            //LOG.warn(this.db.getTargets_().get((int)cls.target()).getOrigin().getFilename());
             //LOG.warn("Groundtruth: " + groundTruth.rank().name());
             //LOG.warn("Lowest correct rank: " + lowestCorrectRank.name());
 
@@ -1659,10 +1663,12 @@ public class Query implements Serializable {
 
                 //print results
                 if (this.param.getProperties().isShowAllHits()) {
+                    //LOG.warn("Showing all hits");
                     show_matches_basic(d, this.db, hits, this.param.getProperties().getLowestRank());
                     d.write(this.param.getProperties().getOutSeparator());
                 }
                 if (this.param.getProperties().isShowTopHits()) {
+                    //LOG.warn("Showing top hits");
                     show_matches_basic(d, this.db, tophits, this.param.getProperties().getLowestRank());
                     d.write(this.param.getProperties().getOutSeparator());
                 }
@@ -1924,6 +1930,10 @@ public class Query implements Serializable {
         {
             //return top candidate
             int tid = cand.target_id(0);
+            if (tid <0) {
+                LOG.warn("tid is: "+tid );
+                LOG.warn("Outro tid: " + cand.target_id(1));
+            }
             //LOG.warn("[JMAbuin] Second if with tid: "+tid);
             return new Classification(tid, db.taxon_of_target((long)tid));
         }
@@ -2386,6 +2396,7 @@ public class Query implements Serializable {
             if(lowest == Taxonomy.Rank.Sequence) {
                 for(Map.Entry<LocationBasic, Integer> r : matches.entrySet()) {
                     os.write(db.sequence_id_of_target(r.getKey().getTargetId())+
+                            '/'+ r.getKey().getTargetId()+
                             '/' + r.getKey().getWindowId()+
                             ':' + r.getValue() + ',');
                     os.newLine();
@@ -2394,7 +2405,9 @@ public class Query implements Serializable {
             else {
                 for(Map.Entry<LocationBasic, Integer> r : matches.entrySet()) {
                     long taxid = db.ranks_of_target(r.getKey().getTargetId())[lowest.ordinal()];
-                    os.write(Long.toString(taxid) + ':' + r.getValue() + ',');
+                    os.write(Long.toString(taxid) + ':' + r.getValue()+
+                            '/'+ r.getKey().getTargetId()+
+                            '/' + r.getKey().getWindowId()+ ',');
                     os.newLine();
                 }
             }
@@ -2419,6 +2432,7 @@ public class Query implements Serializable {
             if(lowest == Taxonomy.Rank.Sequence) {
                 for(Map.Entry<LocationBasic, Integer> r : matches.entrySet()) {
                     os.write(db.sequence_id_of_target(r.getKey().getTargetId())+
+                            '/'+ r.getKey().getTargetId()+
                             '/' + r.getKey().getWindowId()+
                             ':' + r.getValue() + ',');
                     os.newLine();
@@ -2427,7 +2441,9 @@ public class Query implements Serializable {
             else {
                 for(Map.Entry<LocationBasic, Integer> r : matches.entrySet()) {
                     long taxid = db.ranks_of_target(r.getKey().getTargetId())[lowest.ordinal()];
-                    os.write(Long.toString(taxid) + ':' + r.getValue() + ',');
+                    os.write(Long.toString(taxid) + ':' + r.getValue() +
+                            '/'+ r.getKey().getTargetId()+
+                            '/' + r.getKey().getWindowId()+ ',');
                     os.newLine();
                 }
             }
@@ -2455,6 +2471,7 @@ public class Query implements Serializable {
             if(lowest == Taxonomy.Rank.Sequence) {
                 for(Map.Entry<LocationBasic, Integer> r : matches.entrySet()) {
                     os.write(db.sequence_id_of_target(r.getKey().getTargetId())+
+                            '/'+ r.getKey().getTargetId()+
                             '/' + r.getKey().getWindowId()+
                             ':' + r.getValue() + ',');
                     os.newLine();
@@ -2463,7 +2480,9 @@ public class Query implements Serializable {
             else {
                 for(Map.Entry<LocationBasic, Integer> r : matches.entrySet()) {
                     long taxid = db.ranks_of_target(r.getKey().getTargetId())[lowest.ordinal()];
-                    os.write(Long.toString(taxid) + ':' + r.getValue() + ',');
+                    os.write(Long.toString(taxid) + ':' + r.getValue() +
+                            '/'+ r.getKey().getTargetId()+
+                            '/' + r.getKey().getWindowId()+ ',');
                     os.newLine();
                 }
             }
@@ -2491,6 +2510,7 @@ public class Query implements Serializable {
             if(lowest == Taxonomy.Rank.Sequence) {
                 for(Map.Entry<LocationBasic, Integer> r : matches.entrySet()) {
                     os.write(db.sequence_id_of_target(r.getKey().getTargetId())+
+                            '/'+ r.getKey().getTargetId()+
                             '/' + r.getKey().getWindowId()+
                             ':' + r.getValue() + ',');
                     os.newLine();
@@ -2499,7 +2519,9 @@ public class Query implements Serializable {
             else {
                 for(Map.Entry<LocationBasic, Integer> r : matches.entrySet()) {
                     long taxid = db.ranks_of_target(r.getKey().getTargetId())[lowest.ordinal()];
-                    os.write(Long.toString(taxid) + ':' + r.getValue() + ',');
+                    os.write(Long.toString(taxid) + ':' + r.getValue() +
+                            '/'+ r.getKey().getTargetId()+
+                            '/' + r.getKey().getWindowId()+ ',');
                     os.newLine();
                 }
             }

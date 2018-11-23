@@ -94,7 +94,7 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
 
                 LocationBasic loc = new LocationBasic();
                 HashMap<LocationBasic, Integer> all_hits = new HashMap<>();
-
+                //TreeMap<Integer, LocationBasic> all_hits_sorted = new TreeMap<>();
 
                 while((this.seqReader.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
 
@@ -118,70 +118,121 @@ public class PartialQueryNativeTreeMap implements PairFlatMapFunction<Iterator<H
 
                     SequenceData currentData = new SequenceData(header, data, qua);
 
+                   // LOG.warn("Getting sketch");
                     locations = SequenceFileReader.getSketchStatic(currentData);
-
-                    if(locations == null) {
-                        LOG.warn("Locations is null!!");
-                    }
+                    //LOG.warn("Sketch acquired ");
+                    //LOG.warn("Sketch acquired " + locations.size());
+                    //if(locations == null) {
+                    //    LOG.warn("Locations is null!!");
+                    //}
 
                     all_hits.clear();
+                    //all_hits_sorted.clear();
 
                     int block_size = locations.size() * this.result_size;
 
                     for(Sketch currentSketch: locations) {
-
-                        all_hits.clear();
+                        //LOG.warn("Current sketch");
+                        //LOG.warn("Current sketch: " + currentSketch.getFeatures().length);
+                        //all_hits.clear();
 
                         for(int location: currentSketch.getFeatures()) {
+                            //LOG.warn("getting items from database");
 
-                            int[] values = currentHashMap.get(location);
-
-                            if(values != null) {
-
+                            LocationBasic locations_obtained[] = currentHashMap.get_locations(location);
 
 
-                                for (int i = 0; i < values.length; i += 2) {
+                            if(locations_obtained != null) {
+                                //LOG.warn("Values received");
+                                //LOG.warn("Size of received values is: " + values.length);
 
-                                    //LocationBasic loc = new LocationBasic(values[i], values[i + 1]);
-                                    loc.setTargetId(values[i]);
-                                    loc.setWindowId(values[i+1]);
 
-                                    if (all_hits.containsKey(loc)) {
-                                        all_hits.put(loc, all_hits.get(loc) + 1);
+                                //for (LocationBasic current_loc: locations_obtained) {
+                                for (int i = 0; i< locations_obtained.length; ++i){
+
+                                    //if (locations_obtained[i].getTargetId() < 0 ) {
+                                    //    LOG.warn("Before sorting Location: " + locations_obtained[i].getTargetId() + "::" + locations_obtained[i].getWindowId());
+                                    //}
+
+                                    if (all_hits.containsKey(locations_obtained[i])) {
+                                        all_hits.put(locations_obtained[i], all_hits.get(locations_obtained[i]) + 1);
                                     }
                                     else{
-                                        all_hits.put(loc, 1);
+                                        all_hits.put(locations_obtained[i], 1);
                                     }
+                                    /*
+                                    if (current_results.containsKey(current_loc)) {
+                                        current_results.put(current_loc, current_results.get(current_loc) + 1);
+                                    }
+                                    else {
 
+                                        current_results.put(current_loc, 1);
+                                    }
+                                    */
                                 }
+
+                                //LOG.warn("Locations added " + current_results.size());
 
 
                             }
                         }
 
+
+
+                        //LOG.warn("Size when quering is: " + current_results.size());
+
+
+                    }
+
+                    if (!all_hits.isEmpty()) {
+/*
+                            for(LocationBasic key: all_hits.keySet()) {
+                                all_hits_sorted.put(all_hits.get(key), key);
+                            }
+
+                            int current_number_of_values = 0;
+
+                            Set<Integer> key_set = all_hits_sorted.descendingMap().keySet();
+
+                            for(Integer current_key:key_set) {
+                                if (all_hits_sorted.get(current_key).getTargetId() < 0) {
+                                    LOG.warn("After sorting Location: " + all_hits_sorted.get(current_key).getTargetId() + "::" + all_hits_sorted.get(current_key).getWindowId());
+                                }
+
+                                current_results.put(all_hits_sorted.get(current_key), current_key);
+                                current_number_of_values++;
+
+                                if(current_number_of_values >= this.result_size) {
+                                    break;
+                                }
+
+                            }
+*/
+
                         List<Map.Entry<LocationBasic, Integer>> list = new ArrayList<>(all_hits.entrySet());
                         list.sort(Map.Entry.comparingByValue());
                         //Collections.reverse(list);
-
+                        //LOG.warn("Size of hashmap: " + all_hits.size() + ", size of list: " + list.size());
                         //for(Map.Entry<LocationBasic, Integer> current_entry : list) {
-                        for( int i = list.size()-1, current_number_of_values = 0; (current_number_of_values < this.result_size) && (i>=0); --i, ++current_number_of_values){
+                        for (int i = list.size() - 1, current_number_of_values = 0; (current_number_of_values < this.result_size) && (i >= 0); --i, ++current_number_of_values) {
                             Map.Entry<LocationBasic, Integer> current_entry = list.get(i);
-
+                            //if (current_entry.getKey().getTargetId() < 0) {
+                            //    LOG.warn("After sorting Location: " + current_entry.getKey().getTargetId() + "::" + current_entry.getKey().getWindowId());
+                            // }
                             if (current_results.containsKey(current_entry.getKey())) {
                                 current_results.put(current_entry.getKey(), current_results.get(current_entry.getKey()) + current_entry.getValue());
-                            }
-                            else {
+                            } else {
                                 current_results.put(current_entry.getKey(), current_entry.getValue());
                             }
 
                         }
 
-
                     }
 
 
+                    //LOG.warn("Adding results");
                     finalResults.add(new Tuple2<Long, TreeMap<LocationBasic, Integer>>(currentSequence, current_results));
-
+                    //LOG.warn("Results added");
                     //data = seqReader.next();
                     currentSequence++;
                     locations.clear();

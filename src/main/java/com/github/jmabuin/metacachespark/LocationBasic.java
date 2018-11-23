@@ -51,7 +51,7 @@ public class LocationBasic implements Serializable, Comparable<LocationBasic> {
 	@Override
 	public boolean equals(Object other){
 		if (other == null) return false;
-		if (other == this) return true;
+		//if (other == this) return true;
 		if (!(other instanceof LocationBasic))return false;
 
 		LocationBasic otherMyClass = (LocationBasic)other;

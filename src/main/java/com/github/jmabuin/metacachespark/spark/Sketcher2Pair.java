@@ -50,13 +50,16 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
 		int currentStart = 0;
 		int currentEnd = MCSConfiguration.windowSize;
 
-		String currentWindow = "";
+		//String currentWindow = "";
+		//StringBuffer currentWindow = new StringBuffer();
 		int numWindows = 0;
+		int current_sketch_size = MCSConfiguration.sketchSize;
 
 		String kmer;
 		String reversed_kmer;
 		int kmer32;
 
+		LOG.warn("Processing sequence: " + inputSequence.getHeader());
 		// We iterate over windows (with overlap)
 
 		while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
@@ -66,24 +69,33 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
 				currentEnd = inputSequence.getData().length();
 			}
 
+            current_sketch_size = MCSConfiguration.sketchSize;
+
 			if ((currentEnd - currentStart) >= MCSConfiguration.kmerSize) {
 
-				currentWindow = inputSequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
+                if (currentEnd - currentStart < MCSConfiguration.kmerSize * 2){
+                    current_sketch_size = currentEnd - currentStart - MCSConfiguration.kmerSize + 1;
+                }
 
 				// Compute k-mers
 				kmer = "";
 				kmer32 = 0;
-
+				//LOG.warn("[JMAbuin] Current window is: " + currentWindow);
 				// We compute the k-mers. In C
-				int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
+				int sketchValues[] = HashFunctions.window2sketch32(inputSequence.getData().substring(currentStart, currentEnd)
+						, current_sketch_size, MCSConfiguration.kmerSize);
 
-				//LOG.warn("[JMAbuin] CurrentWindow sketch size: "+sketchValues.length);
+				if (sketchValues != null) {
+					//LOG.warn("[JMAbuin] CurrentWindow sketch size: " + sketchValues.length);
 
-				for (int newValue : sketchValues) {
+					for (int newValue : sketchValues) {
 
-					returnedValues.add(new Tuple2<Integer, LocationBasic>(newValue,
-							new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows)));
+						//LOG.warn("Calculated value: " + newValue);
+						returnedValues.add(new Tuple2<Integer, LocationBasic>(newValue,
+								new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows)));
 
+
+					}
 				}
 
 

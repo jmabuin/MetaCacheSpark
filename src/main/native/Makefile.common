@@ -12,7 +12,7 @@ BUILD_DIR_FUNCTIONS = build_functions
 BUILD_DIR_MYMAP = build_mymap
 BUILD_DIR_SEQUENCEREADER = build_seqreader
 
-DIALECT = -std=c++11
+DIALECT = -std=c++14
 WARNINGS = -Wall -Wextra -Wpedantic
 
 # JAVA variables #######

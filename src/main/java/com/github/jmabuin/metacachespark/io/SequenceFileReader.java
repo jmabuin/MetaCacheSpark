@@ -305,7 +305,7 @@ public class SequenceFileReader implements Serializable{
 
 		String currentWindow = "";
 		int numWindows = 0;
-
+		int current_sketch_size = MCSConfiguration.sketchSize;
 
 		// We iterate over windows (with overlap)
 		//while (currentEnd < sequence.getData().length()) {
@@ -316,19 +316,26 @@ public class SequenceFileReader implements Serializable{
 			}
 
 			//LOG.warn("[JMAbuin] Init: " + currentStart+" - End: "+currentEnd);
+			current_sketch_size = MCSConfiguration.sketchSize;
 
-			currentWindow = sequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
+			if ((currentEnd - currentStart) >= MCSConfiguration.kmerSize) {
 
-			// Compute k-mers
-			// We compute the k-mers. In C
-			int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
+				if (currentEnd - currentStart < MCSConfiguration.kmerSize * 2){
+					current_sketch_size = currentEnd - currentStart - MCSConfiguration.kmerSize + 1;
+				}
+				currentWindow = sequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
 
-			//for(int newValue: sketchValues) {
+				// Compute k-mers
+				// We compute the k-mers. In C
+				int sketchValues[] = HashFunctions.window2sketch32(currentWindow, current_sketch_size, MCSConfiguration.kmerSize);
 
-			//returnedValues.add(new Location(newValue, 0, numWindows));
-			returnedValues.add(new Sketch(sequence.getHeader(), sequence.getData(), sketchValues));
+				if(sketchValues != null) {
 
-			//}
+					//returnedValues.add(new Location(newValue, 0, numWindows));
+					returnedValues.add(new Sketch(sequence.getHeader(), sequence.getData(), sketchValues));
+				}
+
+			}
 
 			// We compute the k-mers
 

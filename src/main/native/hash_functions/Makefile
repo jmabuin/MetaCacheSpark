@@ -6,10 +6,10 @@ all: libfunctions.so
 
 functions:
 	if [ ! -d "$(BUILD_DIR_FUNCTIONS)" ]; then mkdir $(BUILD_DIR_FUNCTIONS); fi
-	$(GCC) $(FUNCTIONS_FLAGS) MetaCacheFunctions.c -o $(BUILD_DIR_FUNCTIONS)/MetaCacheFunctions.o $(LIBFUNCTIONS_LIBS)
+	$(CC) $(FUNCTIONS_FLAGS) MetaCacheFunctions.c -o $(BUILD_DIR_FUNCTIONS)/MetaCacheFunctions.o $(LIBFUNCTIONS_LIBS)
 
 libfunctions.so: functions
-	$(GCC) $(LIBFUNCTIONS_FLAGS) $(BUILD_DIR_FUNCTIONS)/libfunctions.so $(BUILD_DIR_FUNCTIONS)/*.o $(LIBFUNCTIONS_LIBS)
+	$(CC) $(LIBFUNCTIONS_FLAGS) $(BUILD_DIR_FUNCTIONS)/libfunctions.so $(BUILD_DIR_FUNCTIONS)/*.o $(LIBFUNCTIONS_LIBS)
 	cp $(BUILD_DIR_FUNCTIONS)/libfunctions.so ../../../../target/classes/
 
 clean:
