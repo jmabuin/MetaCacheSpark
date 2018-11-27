@@ -23,6 +23,7 @@ public class MatchesInWindowBasic {
 	private IndexRange pos_[];
 	public static int maxNo = 2;
 	private TreeMap<LocationBasic, Integer> matches;
+	private TreeMap<LocationBasic, Integer> tophits;
 	//private TreeMap<LocationBasic, Integer> matches_HM;
 
 	public MatchesInWindowBasic(TreeMap<LocationBasic, Integer> matches, long numWindows) {

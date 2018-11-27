@@ -147,7 +147,7 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
     if (sid != map->end()) {
 
-        if (sid->second.size() < 256) {
+        if (sid->second.size() <= 510) {
             sid->second.push_back(value1);
             sid->second.push_back(value2);
         }
@@ -286,7 +286,7 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
 
         iarr = env->NewIntArray(sit->second.size());
         foundValues = (int *)malloc(sizeof(int) * sit->second.size());
-        std::cerr << "Number of items for key: " << key << " is " << sit->second.size() << std::endl;
+        //std::cerr << "Number of items for key: " << key << " is " << sit->second.size() << std::endl;
         int i;
 
         for(i = 0; i < sit->second.size(); ++i) {

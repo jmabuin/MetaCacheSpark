@@ -5,8 +5,8 @@ package com.github.jmabuin.metacachespark.database;
  */
 public class AlignmentStatistics {
 
-	private double x;
-	private int y;
-	private long z;
+    private double x;
+    private int y;
+    private long z;
 
 }

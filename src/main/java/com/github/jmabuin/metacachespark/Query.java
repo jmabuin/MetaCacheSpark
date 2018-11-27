@@ -218,7 +218,8 @@ public class Query implements Serializable {
 
             ClassificationStatistics stats = new ClassificationStatistics();
 
-            if(this.param.getProperties().getPairing() == EnumModes.pairing_mode.files) {
+            //if(this.param.getProperties().getPairing() == EnumModes.pairing_mode.files) {
+            if (this.param.isPaired_reads()) {
                 classify_on_file_pairs(infilenames, d, stats);
             }
             else {
@@ -364,6 +365,7 @@ public class Query implements Serializable {
             String fname1 = infilenames[i];
             String fname2 = infilenames[i+1];
 
+            LOG.warn("Classifing file pairs on " + fname1 + " and " + fname2 );
             this.classify_pairs(fname1, fname2, d, stats);
 
         }
@@ -395,7 +397,6 @@ public class Query implements Serializable {
     }
 
     /**
-     * TODO: This function is not working and is not used right now 13/06/2017
      * @param f1
      * @param f2
      * @param d
@@ -403,36 +404,101 @@ public class Query implements Serializable {
      */
     public void classify_pairs(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
 
-        JavaPairRDD<String, String> inputData1 = this.loadSequencesFromFile(f1);
-        JavaPairRDD<String, String> inputData2 = this.loadSequencesFromFile(f2);
+        LOG.warn("Entering classify_pairs");
+        try {
 
-        JavaRDD<Sketch> featuresRDD1 = null;
-        JavaRDD<Sketch> featuresRDD2 = null;
+            long totalReads = 0;
+            long totalReads2 = 0;
 
-        if(this.inputFormat == EnumModes.InputFormat.FASTA) {
-            featuresRDD1 = inputData1.flatMap(new FastaSketcher4Query());
+            if (FilesysUtility.isFastaFile(f1) && FilesysUtility.isFastaFile(f2)) {
+                totalReads = FilesysUtility.readsInFastaFile(f1);
+                totalReads2 = FilesysUtility.readsInFastaFile(f1);
+
+                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+
+                if (totalReads != totalReads2) {
+                    System.exit(1);
+                }
+
+            }
+            else if (FilesysUtility.isFastqFile(f1) && FilesysUtility.isFastqFile(f2)) {
+                totalReads = FilesysUtility.readsInFastqFile(f1);
+                totalReads2 = FilesysUtility.readsInFastqFile(f1);
+
+                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+                if (totalReads != totalReads2) {
+
+                    System.exit(1);
+                }
+            }
+            else {
+                LOG.error("Not recognized file format in " + f1 + " and " + f2);
+                System.exit(1);
+            }
+
+
+            long startRead;
+            int bufferSize = this.param.getBuffer_size();
+
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
+
+            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+
+            SequenceData data;
+
+            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
+                //while((currentRead < startRead+bufferSize) && ) {
+
+                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+
+
+                // Get corresponding hits for this buffer
+                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_native_buffered_paired(f1, f2,
+                        startRead, bufferSize, totalReads, startRead);
+
+                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
+
+                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
+                long initTime = System.nanoTime();
+                //LocationBasic current_key;
+
+                for(long i = 0;  i < hits.size() ; i++) {
+
+                    //Theoretically, number on sequences in data is the same as number of hits
+                    data = seqReader.next();
+
+                    if((i == 0) || (i == hits.size()-1)) {
+                        LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
+                    }
+
+                    if(data == null) {
+                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
+                        break;
+                    }
+
+                    TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
+
+                    this.process_database_answer_basic(data.getHeader(), data.getData(),
+                            "", currentHits, d, stats);
+
+                }
+
+                long endTime = System.nanoTime();
+
+                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
+            }
+
+            seqReader.close();
+
+            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
+
         }
-        else if (this.inputFormat == EnumModes.InputFormat.FASTQ) {
-            //featuresRDD = inputData.mapPartitions(new FastaSketcher());
-        }
-
-        List<Sketch> locations = featuresRDD1.collect();
-        List<Sketch> locations2 = featuresRDD1.collect();
-
-        if(locations.size() != locations2.size()) {
-            LOG.error("Sketches of different size!!");
-            return;
-        }
-
-        for(int i = 0; i<locations.size(); i++) {
-            Sketch currentSketch = locations.get(i);
-            Sketch currentSketch2 = locations2.get(i);
-
-            //TreeMap<LocationBasic, Integer> matches = this.db.matches(currentSketch);
-
-            //this.db.accumulate_matches(currentSketch2, matches);
-
-            //this.process_database_answer(currentSketch.getHeader(), currentSketch.getSequence(), "", matches, d, stats);
+        catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in classify_pairs: "+e.getMessage());
+            System.exit(1);
         }
 
 
@@ -951,35 +1017,16 @@ public class Query implements Serializable {
                         LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
                         break;
                     }
-                    //LOG.warn("Processing: "+inputData.get((int)i).getHeader());
-
-                    //SequenceData data = seqReader.next();
 
                     TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
 
-                    //LOG.warn("JMAbuin: Current HashMap items: "+currentHits.size() + " for seq " + data.getHeader());
-                    //if(data == null) {
-                    //	LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
-                    //}
-                    /*
-                    if(currentHits.size() > 0) {
-                        this.process_database_answer_basic(data.getHeader(), data.getData(),
-                                "", currentHits, d, stats);
-                    }
-                    else {
-                        LOG.warn("Hits size is zero!");
-                    }
-                    */
-                    //LOG.warn("Current map size for sequence " + data.getHeader() + " is: " + currentHits.size());
                     this.process_database_answer_basic(data.getHeader(), data.getData(),
                             "", currentHits, d, stats);
-                    //LOG.warn("Answer processed");
+
                 }
 
                 long endTime = System.nanoTime();
 
-                //currentRead++;
-                //currentRead = currentRead + bufferSize;
                 LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
             }
 
@@ -1930,10 +1977,7 @@ public class Query implements Serializable {
         {
             //return top candidate
             int tid = cand.target_id(0);
-            if (tid <0) {
-                LOG.warn("tid is: "+tid );
-                LOG.warn("Outro tid: " + cand.target_id(1));
-            }
+
             //LOG.warn("[JMAbuin] Second if with tid: "+tid);
             return new Classification(tid, db.taxon_of_target((long)tid));
         }

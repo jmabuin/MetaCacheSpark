@@ -1769,20 +1769,74 @@ public class Database implements Serializable{
 		long initTime = System.nanoTime();
 
 		// Get results for this buffer
-		//List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
-		List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
-				//.mapPartitionsToPair(new FullQuery(fileName))
-				.mapPartitionsToPair(new PartialQueryNativeTreeMap(fileName, init, size, total, readed, this.params.getResult_size()))
-				.reduceByKey(new QueryReducerTreeMapNative())
-				.sortByKey()
-				.values()
-				.collect();
+		if (this.params.getResult_size() > 0) {
+			List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+					//.mapPartitionsToPair(new FullQuery(fileName))
+					.mapPartitionsToPair(new PartialQueryNativeTreeMapBest(fileName, init, size, total, readed, this.params.getResult_size()))
+					.reduceByKey(new QueryReducerTreeMapNative())
+					.sortByKey()
+					.values()
+					.collect();
 
-		long endTime = System.nanoTime();
+			long endTime = System.nanoTime();
 
-		LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+			LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
-		return results;
+			return results;
+		}
+		else {
+			List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+					//.mapPartitionsToPair(new FullQuery(fileName))
+					.mapPartitionsToPair(new PartialQueryNativeTreeMap(fileName, init, size, total, readed, this.params.getResult_size()))
+					.reduceByKey(new QueryReducerTreeMapNative())
+					.sortByKey()
+					.values()
+					.collect();
+
+			long endTime = System.nanoTime();
+
+			LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+			return results;
+		}
+
+	}
+
+	public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_native_buffered_paired( String fileName, String fileName2, long init, int size, long total, long readed) {
+
+		long initTime = System.nanoTime();
+
+		// Get results for this buffer
+		if (this.params.getResult_size() > 0) {
+			List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+					//.mapPartitionsToPair(new FullQuery(fileName))
+					.mapPartitionsToPair(new PartialQueryNativeTreeMapBestPaired(fileName, fileName2, init, size, total, readed, this.params.getResult_size()))
+					.reduceByKey(new QueryReducerTreeMapNative())
+					.sortByKey()
+					.values()
+					.collect();
+
+			long endTime = System.nanoTime();
+
+			LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+			return results;
+		}
+		else {
+			List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+					//.mapPartitionsToPair(new FullQuery(fileName))
+					.mapPartitionsToPair(new PartialQueryNativeTreeMapPaired(fileName, fileName2, init, size, total, readed, this.params.getResult_size()))
+					.reduceByKey(new QueryReducerTreeMapNative())
+					.sortByKey()
+					.values()
+					.collect();
+
+			long endTime = System.nanoTime();
+
+			LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+			return results;
+		}
 
 	}
 

@@ -23,9 +23,9 @@ public class QueryReducerTreeMapNative implements Function2<TreeMap<LocationBasi
 
             }
             else {
-                if((v1.size() < 256) || (v2.get(current_key) > 1)) {
+                //if((v1.size() < 256) || (v2.get(current_key) > 1)) {
                 v1.put(current_key, v2.get(current_key));
-                }
+                //}
             }
 
 
