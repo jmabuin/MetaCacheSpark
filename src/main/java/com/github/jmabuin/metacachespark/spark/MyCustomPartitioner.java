@@ -12,7 +12,7 @@ public class MyCustomPartitioner extends Partitioner {
 		private int numParts;
 
 		public MyCustomPartitioner(int i) {
-			numParts=i;
+			this.numParts=i;
 		}
 
 		@Override
@@ -25,13 +25,16 @@ public class MyCustomPartitioner extends Partitioner {
 		public int getPartition(Object key){
 
 			//partition based on the first character of the key...you can have your logic here !!
-			return (Math.abs((Integer)key))%numParts;
+			//return (Math.abs((Integer)key))%this.numParts;
+			long long_key =Integer.toUnsignedLong((Integer)key);
+
+			return (int)(Math.abs(long_key)%this.numParts);
 
 		}
 
 		@Override
 		public boolean equals(Object obj){
-			if(obj instanceof MyCustomPartitioner)
+			if(obj instanceof MyCustomPartitionerStr)
 			{
 				MyCustomPartitioner partitionerObject = (MyCustomPartitioner)obj;
 				if(partitionerObject.numPartitions() == this.numParts)

@@ -90,7 +90,7 @@ public class FastaRecordReader extends RecordReader<String, Text> {
 			//key.set(pos);
 			newSize = in.readLine(line, maxLineLength,Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),maxLineLength));
 
-			if(line.toString().indexOf(">") >= 0){
+			if(line.toString().indexOf(">") >= 0) {// && (!text.toString().isEmpty())){
 				if(recordsRead > 9){//10 fasta records each time
 					value.set(text.toString());
 					fileIn.seek(pos);
@@ -126,6 +126,54 @@ public class FastaRecordReader extends RecordReader<String, Text> {
 	public Text getCurrentValue() {
 		return value;
 	}
+
+/*
+	public boolean nextKeyValue() throws IOException {
+		//if (key == null) {
+			key = this.file_name;
+		//}
+		//key.set(pos);
+		//if (value == null) {
+			value = new Text();
+		//}
+		int newSize;
+
+		StringBuilder text = new StringBuilder();
+		int recordLength = 0;
+		Text line = new Text();
+		//int recordsRead = 0;
+		while (pos < end) {
+			//key.set(pos);
+			newSize = in.readLine(line, maxLineLength,Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),maxLineLength));
+
+			if((line.toString().indexOf(">") >= 0) && (!text.toString().isEmpty())){
+				//if(recordsRead > 9){//10 fasta records each time
+				value.set(text.toString());
+				fileIn.seek(pos);
+				in = new LineReader(fileIn, job);
+				return true;
+				//}
+				//recordsRead++;
+			}
+
+			recordLength += newSize;
+			text.append(line.toString());
+			text.append("\n");
+			pos += newSize;
+
+			if (newSize == 0) {
+				break;
+			}
+		}
+		if (recordLength == 0){
+			return false;
+		}
+		value.set(text.toString());
+		return true;
+
+	}
+*/
+
 
 	/**
 	 * Get the progress within the split

@@ -125,14 +125,19 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
 #include <sstream>
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
+#include <set>
+
+#include "../location.h"
 
 //HashMultiMap *map;
-std::unordered_map<unsigned, std::vector<int>> *map;
+std::unordered_map<unsigned, std::vector<location>> *map;
+std::set<unsigned> marked_for_deletion;
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_init (JNIEnv *env, jobject jobj) {
 
     //map = new HashMultiMap();
-    map = new std::unordered_map<unsigned, std::vector<int>>();
+    map = new std::unordered_map<unsigned, std::vector<location>>();
 
     return 1;
 }
@@ -140,26 +145,40 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_add (JNIEnv *env, jobject jobj, jint key, jint v1, jint v2) {
 
     unsigned int unsigned_key = (unsigned)key;
+
+    if (unsigned_key == 0) {
+
+        return map->size();
+    }
+
     int value1 = (int) v1;
     int value2 = (int) v2;
+
+    location newLocation = location((unsigned)v1, (unsigned)v2);
+
+        //map->insert(unsigned_key, newLocation);
 
     auto sid = map->find(unsigned_key);
 
     if (sid != map->end()) {
+        //if(std::find(v.begin(), v.end(), x) != v.end()) {
+        if ((sid->second.size() < 254) && (std::find(sid->second.begin(), sid->second.end(), newLocation) == sid->second.end())) {
+            sid->second.push_back(newLocation);
+            //sid->second.push_back(value2);
+        }
+        else if (sid->second.size() >= 254) {
 
-        if (sid->second.size() <= 510) {
-            sid->second.push_back(value1);
-            sid->second.push_back(value2);
+            marked_for_deletion.insert(unsigned_key);
         }
 
     }
     else {
 
-        std::vector<int> new_vector;
-        new_vector.push_back(value1);
-        new_vector.push_back(value2);
+        std::vector<location> new_vector;
+        new_vector.push_back(newLocation);
+        //new_vector.push_back(value2);
 
-        std::pair<unsigned, std::vector<int>> new_item(unsigned_key, new_vector);
+        std::pair<unsigned, std::vector<location>> new_item(unsigned_key, new_vector);
         map->insert(new_item);
 
     }
@@ -189,9 +208,9 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
         exit(1);
     }
 
-    std::unordered_map<unsigned, std::vector<int>>::iterator it;
+    std::unordered_map<unsigned, std::vector<location>>::iterator it;
 
-    std::vector<int> current_vector;
+    std::vector<location> current_vector;
 
     for(it = map->begin(); it != map->end(); ++it) {
 
@@ -200,7 +219,7 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
         for (int i = 0; i< current_vector.size(); ++i ) {
 
-            ofs << current_vector[i] << ";";
+            ofs << current_vector[i].tgt << ";" << current_vector[i].win << ";";
         }
 
         ofs << "\n";
@@ -236,6 +255,7 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
         std::istringstream tokenStream;
         std::vector<int> new_vector;
+        std::vector<location> locations_vector;
         //std::cout << "Starting to read lines..." << std::endl;
 
         while (getline(ifs, line)) {
@@ -252,6 +272,7 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
             values_string.clear();
             key_string.clear();
             new_vector.clear();
+            locations_vector.clear();
 
             while (std::getline(tokenStream, token, values_delimiter)) {
                 if (token!="\n") {
@@ -260,7 +281,13 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
             }
 
-            std::pair<unsigned,std::vector<int>> new_item (key, new_vector);
+            for(int i = 0; i< new_vector.size(); i+=2) {
+                locations_vector.push_back(location((unsigned)new_vector[i], (unsigned)new_vector[i+1]));
+
+            }
+
+
+            std::pair<unsigned,std::vector<location>> new_item (key, locations_vector);
             map->insert(new_item);
 
         }
@@ -284,25 +311,49 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
 
     if(sit != map->end()) {
 
-        iarr = env->NewIntArray(sit->second.size());
-        foundValues = (int *)malloc(sizeof(int) * sit->second.size());
+        iarr = env->NewIntArray(sit->second.size() * 2);
+        foundValues = (int *)malloc(sizeof(int) * sit->second.size() * 2);
         //std::cerr << "Number of items for key: " << key << " is " << sit->second.size() << std::endl;
         int i;
 
         for(i = 0; i < sit->second.size(); ++i) {
             //consume(pos);
-            //std::cerr << "Item is: " << sit->second[i] << std::endl;
-            foundValues[i] = sit->second[i];
+            //std::cerr << "Item is: " << sit->second[i].tgt << "---" << sit->second[i].win << std::endl;
+            foundValues[2*i] = (int)sit->second[i].tgt;
+            foundValues[2*i+1] = (int)sit->second[i].win;
             //++i;
         }
 
-        env->SetIntArrayRegion(iarr, 0, sit->second.size(), foundValues);
+        env->SetIntArrayRegion(iarr, 0, sit->second.size() * 2, foundValues);
+
         free(foundValues);
+
     }
     //else {
     //    std::cerr << "No bucket for key: " << key << std::endl;
     //}
 
     return iarr;
+
+}
+
+
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_post_1process (JNIEnv *env, jobject jobj, jboolean over_populated, jboolean ambiguous) {
+
+    if (over_populated) {
+        for (unsigned current_value: marked_for_deletion) {
+            auto sid = map->find(current_value);
+
+                if (sid != map->end()) {
+
+                    sid->second.clear();
+                    map->erase(current_value);
+                }
+
+        }
+
+    }
+
+    return marked_for_deletion.size();
 
 }

@@ -125,8 +125,8 @@ public class ClassificationStatistics {
 
 
     public ConfusionStatistics coverage(Taxonomy.Rank r) {
-        LOG.warn("[JMAbuin] coverage length:: " + this.coverage_.length);
-        LOG.warn("[JMAbuin] current rank:: " + r.ordinal());
+        //LOG.warn("[JMAbuin] coverage length:: " + this.coverage_.length);
+        //LOG.warn("[JMAbuin] current rank:: " + r.ordinal());
         return coverage_[r.ordinal()];
     }
 

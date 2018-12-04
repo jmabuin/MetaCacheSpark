@@ -19,6 +19,14 @@ struct location {
             return (a.win < b.win);
         }
 
+        friend bool
+        operator == (const location& a, const location& b) noexcept {
+
+            if ((a.tgt == b.tgt) && (a.win == b.win)) return true;
+            return false;
+
+        }
+
         friend void read_binary(std::istream& is, location& p) {
                     mc::read_binary(is, p.tgt);
                     mc::read_binary(is, p.win);

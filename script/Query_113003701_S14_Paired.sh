@@ -1,8 +1,8 @@
 #!/bin/bash
 
-INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/113003602_S4_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/113003602_S4_reverse_paired.fq"
+INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/113003701_S14_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/113003701_S14_reverse_paired.fq"
 PARTITION_NUMBER=32
-OUTPUT_DIR=Genomica/Output_113003602_S4_$PARTITION_NUMBER
+OUTPUT_DIR=Genomica/Output_113003701_S14_$PARTITION_NUMBER
 DATABASE_NAME=DatabaseNativeAFS_$PARTITION_NUMBER
 BUFFER_SIZE=400000
 RESULTS_SIZE=32

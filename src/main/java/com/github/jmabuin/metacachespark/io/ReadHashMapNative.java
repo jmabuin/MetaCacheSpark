@@ -18,59 +18,61 @@ import java.util.Iterator;
  */
 public class ReadHashMapNative implements Function2<Integer, Iterator<String>, Iterator<HashMultiMapNative>> {
 
-	private static final Log LOG = LogFactory.getLog(ReadHashMapNative.class);
+    private static final Log LOG = LogFactory.getLog(ReadHashMapNative.class);
 
-	private String path;
-
-
-
-	@Override
-	public Iterator<HashMultiMapNative> call(Integer partitionId, Iterator<String> values) {
-		String filename;
-		String onlyFileName;
-		ArrayList<HashMultiMapNative> returnValues = new ArrayList<HashMultiMapNative>();
-
-		try {
-			Configuration conf = new Configuration();
-			FileSystem fs = FileSystem.get(conf);
-
-			while (values.hasNext()) {
+    private String path;
 
 
-				filename = values.next();
-				String parts[] = filename.split("/");
-				onlyFileName = parts[parts.length-1];
 
-				LOG.info("Processing file to insert into native hashmap: " + filename+" <> "+onlyFileName);
+    @Override
+    public Iterator<HashMultiMapNative> call(Integer partitionId, Iterator<String> values) {
+        String filename;
+        String onlyFileName;
+        ArrayList<HashMultiMapNative> returnValues = new ArrayList<HashMultiMapNative>();
 
-				HashMultiMapNative newMap = new HashMultiMapNative();
+        try {
+            Configuration conf = new Configuration();
+            FileSystem fs = FileSystem.get(conf);
 
-				fs.copyToLocalFile(new Path(filename), new Path(onlyFileName));
+            while (values.hasNext()) {
 
-				newMap.read(onlyFileName);
 
-				returnValues.add(newMap);
+                filename = values.next();
+                String parts[] = filename.split("/");
+                onlyFileName = parts[parts.length-1];
 
-				File file = new File(onlyFileName);
+                LOG.info("Processing file to insert into native hashmap: " + filename+" <> "+onlyFileName);
 
-				file.delete();
-			}
+                HashMultiMapNative newMap = new HashMultiMapNative();
 
-			return returnValues.iterator();
-		}
-		catch (IOException e) {
-			LOG.error("Could not read file because of IO error in writeSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
-		catch (Exception e) {
-			LOG.error("Could not read file because of IO error in writeSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
+                fs.copyToLocalFile(new Path(filename), new Path(onlyFileName));
 
-		return returnValues.iterator();
+                newMap.read(onlyFileName);
 
-	}
+                LOG.warn("Number of features in this partition: " + newMap.size());
+
+                returnValues.add(newMap);
+
+                File file = new File(onlyFileName);
+
+                file.delete();
+            }
+
+            return returnValues.iterator();
+        }
+        catch (IOException e) {
+            LOG.error("Could not read file because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+        catch (Exception e) {
+            LOG.error("Could not read file because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+
+        return returnValues.iterator();
+
+    }
 
 }

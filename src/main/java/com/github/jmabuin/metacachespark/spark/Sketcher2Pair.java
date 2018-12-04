@@ -59,7 +59,7 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
 		String reversed_kmer;
 		int kmer32;
 
-		LOG.warn("Processing sequence: " + inputSequence.getHeader());
+		//LOG.warn("Processing sequence: " + inputSequence.getHeader());
 		// We iterate over windows (with overlap)
 
 		while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {

@@ -365,8 +365,9 @@ public class Query implements Serializable {
             String fname1 = infilenames[i];
             String fname2 = infilenames[i+1];
 
-            LOG.warn("Classifing file pairs on " + fname1 + " and " + fname2 );
-            this.classify_pairs(fname1, fname2, d, stats);
+            LOG.warn("Classifying file pairs on " + fname1 + " and " + fname2 );
+            //this.classify_pairs(fname1, fname2, d, stats);
+            this.classify_pairs_list(fname1, fname2, d, stats);
 
         }
 
@@ -504,6 +505,108 @@ public class Query implements Serializable {
 
     }
 
+    public void classify_pairs_list(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
+
+        LOG.warn("Entering classify_pairs");
+        try {
+
+            long totalReads = 0;
+            long totalReads2 = 0;
+
+            if (FilesysUtility.isFastaFile(f1) && FilesysUtility.isFastaFile(f2)) {
+                totalReads = FilesysUtility.readsInFastaFile(f1);
+                totalReads2 = FilesysUtility.readsInFastaFile(f1);
+
+                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+
+                if (totalReads != totalReads2) {
+                    System.exit(1);
+                }
+
+            }
+            else if (FilesysUtility.isFastqFile(f1) && FilesysUtility.isFastqFile(f2)) {
+                totalReads = FilesysUtility.readsInFastqFile(f1);
+                totalReads2 = FilesysUtility.readsInFastqFile(f1);
+
+                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+                if (totalReads != totalReads2) {
+
+                    System.exit(1);
+                }
+            }
+            else {
+                LOG.error("Not recognized file format in " + f1 + " and " + f2);
+                System.exit(1);
+            }
+
+
+            long startRead;
+            int bufferSize = this.param.getBuffer_size();
+
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
+
+            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+
+            SequenceData data;
+
+            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
+                //while((currentRead < startRead+bufferSize) && ) {
+
+                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+
+
+                // Get corresponding hits for this buffer
+                List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_paired_list(f1, f2,
+                        startRead, bufferSize);
+
+                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
+
+                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
+                long initTime = System.nanoTime();
+                //LocationBasic current_key;
+
+                for(long i = 0;  i < hits.size() ; i++) {
+
+                    //Theoretically, number on sequences in data is the same as number of hits
+                    data = seqReader.next();
+
+                    if((i == 0) || (i == hits.size()-1)) {
+                        LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
+                    }
+
+                    if(data == null) {
+                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
+                        break;
+                    }
+
+                    List<MatchCandidate> currentHits = hits.get((int)i);
+
+                    this.process_database_answer_basic_list(data.getHeader(), data.getData(),
+                            "", currentHits, d, stats);
+
+                }
+
+                long endTime = System.nanoTime();
+
+                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
+            }
+
+            seqReader.close();
+
+            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in classify_pairs: "+e.getMessage());
+            System.exit(1);
+        }
+
+
+    }
+
     public void classify_main(String filename, BufferedWriter d, ClassificationStatistics stats){
 
         switch (this.param.getDatabase_type()) {
@@ -600,7 +703,7 @@ public class Query implements Serializable {
                     //SequenceData data = seqReader.next();
 
                     TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
-                    LOG.warn("JMAbuin: Current treeMap items: "+currentHits.size());
+                    //LOG.warn("JMAbuin: Current treeMap items: "+currentHits.size());
                     //if(data == null) {
                     //	LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
                     //}
@@ -1756,6 +1859,266 @@ public class Query implements Serializable {
             System.exit(1);
         }
     }
+/*
+    public void process_database_answer_basic_list(String header, String query1, String query2, List<LocationBasic> hits,
+                                              BufferedWriter d, ClassificationStatistics stats) {
+
+        if(header.isEmpty()) return;
+
+        //preparation -------------------------------
+        Classification groundTruth = new Classification();
+
+        if(this.param.getProperties().isTestPrecision() ||
+                (this.param.getProperties().getMapViewMode() != EnumModes.map_view_mode.none && this.param.getProperties().isShowGroundTruth()) ||
+                (this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none) ) {
+
+            groundTruth = this.db.ground_truth(header);
+
+        }
+
+        //clade exclusion
+        if(this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
+            long exclTaxid = this.db.ranks(groundTruth.tax())[this.param.getProperties().getExcludedRank().ordinal()];
+            remove_hits_on_rank( this.param.getProperties().getExcludedRank(), exclTaxid); //Todo: Look what this function does
+        }
+
+        //classify ----------------------------------
+        long numWindows = ( 2 + Math.max(query1.length() + query2.length(),this.param.getProperties().getInsertSizeMax()) / this.db.getTargetWindowStride_());
+
+        //LOG.warn("Starting classification");
+        MatchesInWindowList tophits = new MatchesInWindowList(hits, (int)numWindows, this.db.getTargets_(), this.db.getTaxa_(), this.param);
+        Classification cls = this.sequence_classification(tophits);
+        //LOG.warn("Starting classification done");
+        if(this.param.getProperties().isTestPrecision()) {
+            //LOG.warn("[JMAbuin] Enter into assign precision with rank: " + Taxonomy.rank_name(cls.rank()));
+            Taxonomy.Rank lowestCorrectRank = this.db.lowest_common_rank( cls, groundTruth);
+
+            //LOG.warn("Classification: " + cls.rank().name());
+            //LOG.warn(this.db.getTargets_().get((int)cls.target()).getIdentifier());
+            //LOG.warn(this.db.getTargets_().get((int)cls.target()).getOrigin().getFilename());
+            //LOG.warn("Groundtruth: " + groundTruth.rank().name());
+            //LOG.warn("Lowest correct rank: " + lowestCorrectRank.name());
+
+
+            stats.assign_known_correct(cls.rank(), groundTruth.rank(), lowestCorrectRank);
+
+            //check if taxa of assigned target are covered
+            if(this.param.getProperties().isTestCoverage() && groundTruth.has_taxon()) {
+                update_coverage_statistics(cls, groundTruth, stats);
+            }
+        }
+        else {
+            //LOG.warn("[JMAbuin] Enter into assign with rank: " + Taxonomy.rank_name(cls.rank()));
+            stats.assign(cls.rank());
+        }
+
+        boolean showMapping = (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.all) ||
+                (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.mapped_only && !cls.none());
+
+        try{
+            if(showMapping) {
+                //print query header and ground truth
+                //show first contiguous string only
+                int l = header.indexOf(' ');
+
+                if (l != -1) {
+                    d.write(header, 0, l);
+
+                }
+                else {
+                    d.write(header);
+
+                }
+
+                d.write(this.param.getProperties().getOutSeparator());
+
+                if(this.param.getProperties().isShowTopHits() || this.param.getProperties().isShowAllHits()) {
+
+                    if(this.param.getProperties().isShowGroundTruth()) {
+                        if(groundTruth.sequence_level()) {
+                            show_ranks_of_target(d, this.db, groundTruth.target(),
+                                    this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+                                    this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
+                        }
+                        else if(groundTruth.has_taxon()) {
+                            show_ranks(d, this.db, this.db.ranks(groundTruth.tax()),
+                                    this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+                                    this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
+                        }
+                        else {
+                            d.write("n/a");
+                        }
+
+                        d.write(this.param.getProperties().getOutSeparator());
+                    }
+                }
+
+                //print results
+                if (this.param.getProperties().isShowAllHits()) {
+                    //LOG.warn("Showing all hits");
+                    show_matches_basic(d, this.db, hits, this.param.getProperties().getLowestRank());
+                    d.write(this.param.getProperties().getOutSeparator());
+                }
+                if (this.param.getProperties().isShowTopHits()) {
+                    //LOG.warn("Showing top hits");
+                    show_matches_basic(d, this.db, tophits, this.param.getProperties().getLowestRank());
+                    d.write(this.param.getProperties().getOutSeparator());
+                }
+                if (this.param.getProperties().isShowLocations()) {
+                    show_candidate_ranges(d, this.db, tophits);
+                    d.write(this.param.getProperties().getOutSeparator());
+                }
+                show_classification(d, this.db, cls);
+
+            }
+
+
+
+        }
+        catch(IOException e) {
+            LOG.error("IOException in function process_database_answer: "+ e.getMessage());
+            System.exit(1);
+        }
+        catch(Exception e) {
+            LOG.error("Exception in function process_database_answer: "+ e.getMessage());
+            System.exit(1);
+        }
+    }
+*/
+    public void process_database_answer_basic_list(String header, String query1, String query2, List<MatchCandidate> hits,
+                                                   BufferedWriter d, ClassificationStatistics stats) {
+        /*
+     const database& db, const query_param& param,
+     const std::string& header,
+     const sequence& query1, const sequence& query2,
+     match_result&& hits, std::ostream& os, classification_statistics& stats)
+     */
+
+        if(header.isEmpty()) return;
+
+        //preparation -------------------------------
+        Classification groundTruth = new Classification();
+
+        if(this.param.getProperties().isTestPrecision() ||
+                (this.param.getProperties().getMapViewMode() != EnumModes.map_view_mode.none && this.param.getProperties().isShowGroundTruth()) ||
+                (this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none) ) {
+
+            groundTruth = this.db.ground_truth(header);
+
+        }
+
+        //clade exclusion
+        if(this.param.getProperties().getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
+            long exclTaxid = this.db.ranks(groundTruth.tax())[this.param.getProperties().getExcludedRank().ordinal()];
+            remove_hits_on_rank( this.param.getProperties().getExcludedRank(), exclTaxid); //Todo: Look what this function does
+        }
+
+        //classify ----------------------------------
+        long numWindows = ( 2 + Math.max(query1.length() + query2.length(),this.param.getProperties().getInsertSizeMax()) / this.db.getTargetWindowStride_());
+
+        //LOG.warn("Starting classification");
+        MatchesInWindowList tophits = new MatchesInWindowList(hits, (int)numWindows, this.db.getTargets_(), this.db.getTaxa_(), this.param);
+        Classification cls = this.sequence_classification(tophits);
+        //LOG.warn("Starting classification done");
+        if(this.param.getProperties().isTestPrecision()) {
+            //LOG.warn("[JMAbuin] Enter into assign precision with rank: " + Taxonomy.rank_name(cls.rank()));
+            Taxonomy.Rank lowestCorrectRank = this.db.lowest_common_rank( cls, groundTruth);
+
+            //LOG.warn("Classification: " + cls.rank().name());
+            //LOG.warn(this.db.getTargets_().get((int)cls.target()).getIdentifier());
+            //LOG.warn(this.db.getTargets_().get((int)cls.target()).getOrigin().getFilename());
+            //LOG.warn("Groundtruth: " + groundTruth.rank().name());
+            //LOG.warn("Lowest correct rank: " + lowestCorrectRank.name());
+
+
+            stats.assign_known_correct(cls.rank(), groundTruth.rank(), lowestCorrectRank);
+
+            //check if taxa of assigned target are covered
+            if(this.param.getProperties().isTestCoverage() && groundTruth.has_taxon()) {
+                update_coverage_statistics(cls, groundTruth, stats);
+            }
+        }
+        else {
+            //LOG.warn("[JMAbuin] Enter into assign with rank: " + Taxonomy.rank_name(cls.rank()));
+            stats.assign(cls.rank());
+        }
+
+        boolean showMapping = (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.all) ||
+                (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.mapped_only && !cls.none());
+
+        try{
+            if(showMapping) {
+                //print query header and ground truth
+                //show first contiguous string only
+                int l = header.indexOf(' ');
+
+                if (l != -1) {
+                    d.write(header, 0, l);
+                    /*
+                    auto oit = std::ostream_iterator<char>{os, ""};
+                    std::copy(header.begin(), header.begin() + l, oit);
+                     */
+                }
+                else {
+                    d.write(header);
+
+                }
+
+                d.write(this.param.getProperties().getOutSeparator());
+
+                if(this.param.getProperties().isShowTopHits() || this.param.getProperties().isShowAllHits()) {
+
+                    if(this.param.getProperties().isShowGroundTruth()) {
+                        if(groundTruth.sequence_level()) {
+                            show_ranks_of_target(d, this.db, groundTruth.target(),
+                                    this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+                                    this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
+                        }
+                        else if(groundTruth.has_taxon()) {
+                            show_ranks(d, this.db, this.db.ranks(groundTruth.tax()),
+                                    this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(),
+                                    this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank());
+                        }
+                        else {
+                            d.write("n/a");
+                        }
+
+                        d.write(this.param.getProperties().getOutSeparator());
+                    }
+                }
+
+                //print results
+                /*if (this.param.getProperties().isShowAllHits()) {
+                    //LOG.warn("Showing all hits");
+                    show_matches_basic(d, this.db, hits, this.param.getProperties().getLowestRank());
+                    d.write(this.param.getProperties().getOutSeparator());
+                }
+                if (this.param.getProperties().isShowTopHits()) {
+                    //LOG.warn("Showing top hits");
+                    show_matches_basic(d, this.db, tophits, this.param.getProperties().getLowestRank());
+                    d.write(this.param.getProperties().getOutSeparator());
+                }
+                if (this.param.getProperties().isShowLocations()) {
+                    show_candidate_ranges(d, this.db, tophits);
+                    d.write(this.param.getProperties().getOutSeparator());
+                }*/
+                show_classification(d, this.db, cls);
+
+            }
+
+
+
+        }
+        catch(IOException e) {
+            LOG.error("IOException in function process_database_answer: "+ e.getMessage());
+            System.exit(1);
+        }
+        catch(Exception e) {
+            LOG.error("Exception in function process_database_answer: "+ e.getMessage());
+            System.exit(1);
+        }
+    }
+
 
 
     public void process_database_answer_native(String header, String query1, String query2, HashMap<LocationBasic, Integer> hits,
@@ -1989,6 +2352,23 @@ public class Query implements Serializable {
 
     }
 
+    public Classification sequence_classification(MatchesInWindowList cand) {
+
+
+        if (cand.getTop_list().isEmpty()) {
+            //LOG.warn("top list is empty!");
+            return new Classification();
+        }
+
+        int best = cand.getTop_list().get(0).getTgt();
+        return new Classification(best, lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
+                this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
+
+
+
+    }
+
+
     public Classification sequence_classification(MatchesInWindowNative cand) {
 
         long wc = this.param.getProperties().isWeightHitsWithWindows() ? cand.covered_windows() > 1 ? cand.covered_windows() - 1 : 1 : 1;
@@ -2210,6 +2590,118 @@ public class Query implements Serializable {
         //candidates couldn't agree on a taxon on any relevant taxonomic rank
         return null;
 
+    }
+
+    public Taxon lowest_common_taxon(int maxn, MatchesInWindowList cand,
+                                     float trustedMajority, Taxonomy.Rank lowestRank,
+                                     Taxonomy.Rank highestRank) {
+        if(lowestRank == null) {
+            lowestRank = Taxonomy.Rank.subSpecies;
+        }
+
+        if(highestRank == null) {
+            highestRank = Taxonomy.Rank.Domain;
+        }
+
+        //int best_pos = cand.getTop_list().size() - 1;
+        Taxon lca = db.taxon_of_target((long)cand.getTop_list().get(0).getTgt());
+        //LOG.warn("Best taxon is: " + lca.getTaxonName() + ", hits: " + cand.getTop_list().get(0).getHits());
+
+        for (int i = 1; i < cand.getTop_list().size(); ++i) {
+            //LOG.warn("Other taxon is: " + db.taxon_of_target((long)cand.getTop_list().get(i).getTgt()).getTaxonName() +
+            //        ", hits: " + cand.getTop_list().get(i).getHits());
+            lca = this.db.ranked_lca(lca, cand.getTop_list().get(i).getTax());
+            //LOG.warn("Obtained LCA: " + lca.getTaxonName());
+            if (lca == null || lca == this.db.getTaxa_().getNoTaxon_() || lca.getRank().ordinal() > this.param.getProperties().getHighestRank().ordinal()) {
+                return this.db.getTaxa_().getNoTaxon_();
+            }
+            else {
+                break;
+            }
+
+
+        }
+
+        return lca;
+        /*
+
+        if(maxn < 3 || cand.count() < 3) {
+
+            //LOG.warn("[JMABUIN] Un: "+cand.target_id(0)+ ", dous: "+cand.target_id(1));
+
+            int best_pos = cand.getTop_list().size() - 1;
+            int second_best_pos = cand.getTop_list().size() - 2;
+            Taxon tax = db.ranked_lca_of_targets(cand.target_id(best_pos), cand.target_id(second_best_pos));
+
+            //classify if rank is below or at the highest rank of interest
+            if(tax.getRank().ordinal() <= highestRank.ordinal()) {
+                return tax;
+            }
+
+        }
+        else{
+
+            if(lowestRank == Taxonomy.Rank.Sequence) lowestRank = lowestRank.next();
+            HashMap<Long, Long> scores = new HashMap<Long, Long>(2*cand.count());
+
+            for(Taxonomy.Rank r = lowestRank; r.ordinal() <= highestRank.ordinal(); r = Taxonomy.next_main_rank(r)) {
+
+                //hash-count taxon id occurrences on rank 'r'
+                int totalscore = 0;
+                for(int i = 0, n = cand.count(); i < n; ++i) {
+                    //use target id instead of taxon if at sequence level
+                    long taxid = db.ranks_of_target_basic(cand.target_id(i))[r.ordinal()];
+                    if(taxid > 0) {
+                        long score = cand.hits(i);
+                        totalscore += score;
+
+                        Long it = scores.get(taxid);
+
+                        if(it != null) {
+                            scores.put(taxid, scores.get(taxid) + score);
+                        }
+                        else {
+                            scores.put(taxid, score);
+                        }
+
+                    }
+                }
+
+//            std::cout << "\n    " << taxonomy::rank_name(r) << " ";
+
+                //determine taxon id with most votes
+                long toptid = 0;
+                long topscore = 0;
+
+                for(Map.Entry<Long, Long> x : scores.entrySet()) {
+
+//                std::cout << x.first << ":" << x.second << ", ";
+
+                    if(x.getValue() > topscore) {
+                        toptid = x.getKey();
+                        topscore = x.getValue();
+                    }
+                }
+
+                //if enough candidates (weighted by their hits)
+                //agree on a taxon => classify as such
+                if(topscore >= (totalscore * trustedMajority)) {
+
+//                std::cout << "  => classified " << taxonomy::rank_name(r)
+//                          << " " << toptid << '\n';
+
+                    return db.taxon_with_id(toptid);
+                }
+
+                scores.clear();
+            }
+
+
+        }
+
+        //candidates couldn't agree on a taxon on any relevant taxonomic rank
+        return null;
+*/
     }
 
     public Taxon lowest_common_taxon(int maxn, MatchesInWindowNative cand,

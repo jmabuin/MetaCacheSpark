@@ -181,6 +181,66 @@ public class MatchesInWindowBasic {
         }
 		 */
 
+		/*
+		using hit_count = match_candidate::count_type;
+
+    using std::begin;
+    using std::end;
+
+    auto fst = begin(matches);
+
+    //list empty?
+    if(fst == end(matches)) return;
+
+    //first entry in list
+    hit_count hits = 1;
+    match_candidate curBest;
+    curBest.tax = fst->tax;
+    curBest.hits = hits;
+    curBest.pos.beg = fst->win;
+    curBest.pos.end = fst->win;
+    auto lst = fst;
+    ++lst;
+
+    //rest of list: check hits per query sequence
+    while(lst != end(matches)) {
+        //look for neighboring windows with the highest total hit count
+        //as long as we are in the same target and the windows are in a
+        //contiguous range
+        if(lst->tax == curBest.tax) {
+            //add new hits to the right
+            hits++;
+            //subtract hits to the left that fall out of range
+            while(fst != lst &&
+                (lst->win - fst->win) >= numWindows)
+            {
+                hits--;
+                //move left side of range
+                ++fst;
+            }
+            //track best of the local sub-ranges
+            if(hits > curBest.hits) {
+                curBest.hits = hits;
+                curBest.pos.beg = fst->win;
+                curBest.pos.end = lst->win;
+            }
+        }
+        else { //end of current target
+            if(!consume(curBest)) return;
+            //reset to new target
+            fst = lst;
+            hits = 1;
+            curBest.tax  = fst->tax;
+            curBest.hits = hits;
+            curBest.pos.beg = fst->win;
+            curBest.pos.end = fst->win;
+        }
+
+        ++lst;
+    }
+    if(!consume(curBest)) return;
+		 */
+
 
 	}
 

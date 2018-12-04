@@ -27,6 +27,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.*;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.spark.HashPartitioner;
 import org.apache.spark.RangePartitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -48,108 +49,108 @@ import java.util.*;
  */
 public class Database implements Serializable{
 
-	private static final Log LOG = LogFactory.getLog(Database.class);
+    private static final Log LOG = LogFactory.getLog(Database.class);
 
-	private Random urbg_;
-	private Sketcher targetSketcher_;
-	private Sketcher querySketcher_;
-	private long targetWindowSize_;
-	private long targetWindowStride_;
-	private long queryWindowSize_;
-	private long queryWindowStride_;
-	private long maxLocsPerFeature_;
-	private int nextTargetId_;
-	private List<TargetProperty> targets_;
-	private Dataset<Location> features_;
-	private Dataset<Location> featuresDataframe_;
-	private Dataset<Locations> featuresDataset;
-	//private DataFrame targetPropertiesDataframe_;
-	private JavaRDD<TargetProperty> targetPropertiesJavaRDD;
-	private HashMap<String,Integer> sid2gid_;
-	private TreeMap<String, Integer> name2tax_;
-	private Taxonomy taxa_;
-	private TaxonomyParam taxonomyParam;
-	private int numPartitions = 1;
-	private String dbfile;
+    private Random urbg_;
+    private Sketcher targetSketcher_;
+    private Sketcher querySketcher_;
+    private long targetWindowSize_;
+    private long targetWindowStride_;
+    private long queryWindowSize_;
+    private long queryWindowStride_;
+    private long maxLocsPerFeature_;
+    private int nextTargetId_;
+    private List<TargetProperty> targets_;
+    private Dataset<Location> features_;
+    private Dataset<Location> featuresDataframe_;
+    private Dataset<Locations> featuresDataset;
+    //private DataFrame targetPropertiesDataframe_;
+    private JavaRDD<TargetProperty> targetPropertiesJavaRDD;
+    private HashMap<String,Integer> sid2gid_;
+    private TreeMap<String, Integer> name2tax_;
+    private Taxonomy taxa_;
+    private TaxonomyParam taxonomyParam;
+    private int numPartitions = 1;
+    private String dbfile;
 
-	private JavaRDD<Sequence> inputSequences;
+    private JavaRDD<Sequence> inputSequences;
 
-	private MetaCacheOptions params;
-	//private IndexedRDD<Integer, LocationBasic> indexedRDD;
-	private JavaPairRDD<Integer, LocationBasic> locationJavaPairRDD;
-	private JavaPairRDD<Integer, List<LocationBasic>> locationJavaPairListRDD;
+    private MetaCacheOptions params;
+    //private IndexedRDD<Integer, LocationBasic> indexedRDD;
+    private JavaPairRDD<Integer, LocationBasic> locationJavaPairRDD;
+    private JavaPairRDD<Integer, List<LocationBasic>> locationJavaPairListRDD;
     private JavaPairRDD<Integer, Iterable<LocationBasic>> locationJavaPairIterableRDD;
     private JavaRDD<Locations> locationsRDD;
-	private JavaRDD<HashMultiMapNative> locationJavaRDDHashMultiMapNative;
-	private JavaRDD<Location> locationJavaRDD;
-	private JavaRDD<HashMap<Integer, List<LocationBasic>>> locationJavaHashRDD;
-	private JavaRDD<HashMultimap<Integer, LocationBasic>> locationJavaHashMMRDD;
-	private RangePartitioner<Integer, LocationBasic> partitioner;
-	private MyCustomPartitioner myPartitioner;
+    private JavaRDD<HashMultiMapNative> locationJavaRDDHashMultiMapNative;
+    private JavaRDD<Location> locationJavaRDD;
+    private JavaRDD<HashMap<Integer, List<LocationBasic>>> locationJavaHashRDD;
+    private JavaRDD<HashMultimap<Integer, LocationBasic>> locationJavaHashMMRDD;
+    private RangePartitioner<Integer, LocationBasic> partitioner;
+    private MyCustomPartitioner myPartitioner;
 
-	private JavaSparkContext jsc;
-	private SQLContext sqlContext;
+    private JavaSparkContext jsc;
+    private SQLContext sqlContext;
 
-	public Database(Sketcher targetSketcher_, Sketcher querySketcher_, long targetWindowSize_, long targetWindowStride_,
-					long queryWindowSize_, long queryWindowStride_, long maxLocsPerFeature_, short nextTargetId_,
-					ArrayList<TargetProperty> targets_, Dataset<Location> features_, TreeMap<String, Integer> name2tax_,
-					Taxonomy taxa_, JavaSparkContext jsc, int numPartitions) {
+    public Database(Sketcher targetSketcher_, Sketcher querySketcher_, long targetWindowSize_, long targetWindowStride_,
+                    long queryWindowSize_, long queryWindowStride_, long maxLocsPerFeature_, short nextTargetId_,
+                    ArrayList<TargetProperty> targets_, Dataset<Location> features_, TreeMap<String, Integer> name2tax_,
+                    Taxonomy taxa_, JavaSparkContext jsc, int numPartitions) {
 
-		this.targetSketcher_ = targetSketcher_;
-		this.querySketcher_ = querySketcher_;
-		this.targetWindowSize_ = targetWindowSize_;
-		this.targetWindowStride_ = targetWindowStride_;
-		this.queryWindowSize_ = queryWindowSize_;
-		this.queryWindowStride_ = queryWindowStride_;
-		this.maxLocsPerFeature_ = maxLocsPerFeature_;
-		this.nextTargetId_ = nextTargetId_;
-		this.targets_ = targets_;
-		this.features_ = features_;
-		this.name2tax_ = name2tax_;
-		this.taxa_ = taxa_;
+        this.targetSketcher_ = targetSketcher_;
+        this.querySketcher_ = querySketcher_;
+        this.targetWindowSize_ = targetWindowSize_;
+        this.targetWindowStride_ = targetWindowStride_;
+        this.queryWindowSize_ = queryWindowSize_;
+        this.queryWindowStride_ = queryWindowStride_;
+        this.maxLocsPerFeature_ = maxLocsPerFeature_;
+        this.nextTargetId_ = nextTargetId_;
+        this.targets_ = targets_;
+        this.features_ = features_;
+        this.name2tax_ = name2tax_;
+        this.taxa_ = taxa_;
 
-		this.jsc = jsc;
-		this.numPartitions = numPartitions;
-	}
+        this.jsc = jsc;
+        this.numPartitions = numPartitions;
+    }
 
 
-	public Database(JavaSparkContext jsc, TaxonomyParam taxonomyParam, MetaCacheOptions params, int numPartitions, String dbfile) {
-		this.jsc = jsc;
-		this.taxonomyParam = taxonomyParam;
-		this.numPartitions = numPartitions;
-		this.dbfile = dbfile;
+    public Database(JavaSparkContext jsc, TaxonomyParam taxonomyParam, MetaCacheOptions params, int numPartitions, String dbfile) {
+        this.jsc = jsc;
+        this.taxonomyParam = taxonomyParam;
+        this.numPartitions = numPartitions;
+        this.dbfile = dbfile;
 
-		this.sqlContext = new SQLContext(this.jsc);
+        this.sqlContext = new SQLContext(this.jsc);
 
-		this.targets_ = new ArrayList<TargetProperty>();
-		this.name2tax_ = new TreeMap<String,Integer>();
-		//this.sid2gid_ = new HashMap<String, Integer>();
+        this.targets_ = new ArrayList<TargetProperty>();
+        this.name2tax_ = new TreeMap<String,Integer>();
+        //this.sid2gid_ = new HashMap<String, Integer>();
 
-		this.params = params;
+        this.params = params;
 
-	}
+    }
 
-	/**
-	 * @brief Builder to read database from HDFS
-	 * @param jsc
-	 * @param dbFile
-	 * @param params
-	 */
-	public Database(JavaSparkContext jsc, String dbFile, MetaCacheOptions params) {
+    /**
+     * @brief Builder to read database from HDFS
+     * @param jsc
+     * @param dbFile
+     * @param params
+     */
+    public Database(JavaSparkContext jsc, String dbFile, MetaCacheOptions params) {
 
         LOG.info("Loading database from HDFS...");
-		this.jsc = jsc;
-		this.dbfile = dbFile;
+        this.jsc = jsc;
+        this.dbfile = dbFile;
 
-		this.sqlContext = new SQLContext(this.jsc);
+        this.sqlContext = new SQLContext(this.jsc);
 
-		this.params = params;
+        this.params = params;
 
-		this.queryWindowSize_ = params.getProperties().getWinlen();
-		this.queryWindowStride_ = params.getProperties().getWinstride();
+        this.queryWindowSize_ = params.getProperties().getWinlen();
+        this.queryWindowStride_ = params.getProperties().getWinstride();
         this.targetWindowStride_ = params.getProperties().getWinstride();
 
-		this.numPartitions = this.params.getPartitions();
+        this.numPartitions = this.params.getPartitions();
 
 
 /*
@@ -160,152 +161,152 @@ public class Database implements Serializable{
 */
 
 
-		this.loadFromFile();
-		this.readTaxonomy();
-		this.readTargets();
-		//this.readSid2gid();
-		this.readName2tax();
+        this.loadFromFile();
+        this.readTaxonomy();
+        this.readTargets();
+        //this.readSid2gid();
+        this.readName2tax();
 
-		this.nextTargetId_ = this.name2tax_.size();
-		this.apply_taxonomy();
+        this.nextTargetId_ = this.name2tax_.size();
+        this.apply_taxonomy();
 
-	}
+    }
 
-	public Random getUrbg_() {
-		return urbg_;
-	}
+    public Random getUrbg_() {
+        return urbg_;
+    }
 
-	public void setUrbg_(Random urbg_) {
-		this.urbg_ = urbg_;
-	}
+    public void setUrbg_(Random urbg_) {
+        this.urbg_ = urbg_;
+    }
 
-	public Sketcher getTargetSketcher_() {
-		return targetSketcher_;
-	}
+    public Sketcher getTargetSketcher_() {
+        return targetSketcher_;
+    }
 
-	public void setTargetSketcher_(Sketcher targetSketcher_) {
-		this.targetSketcher_ = targetSketcher_;
-	}
+    public void setTargetSketcher_(Sketcher targetSketcher_) {
+        this.targetSketcher_ = targetSketcher_;
+    }
 
-	public Sketcher getQuerySketcher_() {
-		return querySketcher_;
-	}
+    public Sketcher getQuerySketcher_() {
+        return querySketcher_;
+    }
 
-	public void setQuerySketcher_(Sketcher querySketcher_) {
-		this.querySketcher_ = querySketcher_;
-	}
+    public void setQuerySketcher_(Sketcher querySketcher_) {
+        this.querySketcher_ = querySketcher_;
+    }
 
-	public long getTargetWindowSize_() {
-		return targetWindowSize_;
-	}
+    public long getTargetWindowSize_() {
+        return targetWindowSize_;
+    }
 
-	public void setTargetWindowSize_(long targetWindowSize_) {
-		this.targetWindowSize_ = targetWindowSize_;
-	}
+    public void setTargetWindowSize_(long targetWindowSize_) {
+        this.targetWindowSize_ = targetWindowSize_;
+    }
 
-	public long getTargetWindowStride_() {
-		return targetWindowStride_;
-	}
+    public long getTargetWindowStride_() {
+        return targetWindowStride_;
+    }
 
-	public void setTargetWindowStride_(long targetWindowStride_) {
-		this.targetWindowStride_ = targetWindowStride_;
-	}
+    public void setTargetWindowStride_(long targetWindowStride_) {
+        this.targetWindowStride_ = targetWindowStride_;
+    }
 
-	public long getQueryWindowSize_() {
-		return queryWindowSize_;
-	}
+    public long getQueryWindowSize_() {
+        return queryWindowSize_;
+    }
 
-	public void setQueryWindowSize_(long queryWindowSize_) {
-		this.queryWindowSize_ = queryWindowSize_;
-	}
+    public void setQueryWindowSize_(long queryWindowSize_) {
+        this.queryWindowSize_ = queryWindowSize_;
+    }
 
-	public long getQueryWindowStride_() {
-		return queryWindowStride_;
-	}
+    public long getQueryWindowStride_() {
+        return queryWindowStride_;
+    }
 
-	public void setQueryWindowStride_(long queryWindowStride_) {
-		this.queryWindowStride_ = queryWindowStride_;
-	}
+    public void setQueryWindowStride_(long queryWindowStride_) {
+        this.queryWindowStride_ = queryWindowStride_;
+    }
 
-	public long getMaxLocsPerFeature_() {
-		return maxLocsPerFeature_;
-	}
+    public long getMaxLocsPerFeature_() {
+        return maxLocsPerFeature_;
+    }
 
-	public void setMaxLocsPerFeature_(long maxLocsPerFeature_) {
-		this.maxLocsPerFeature_ = maxLocsPerFeature_;
-	}
+    public void setMaxLocsPerFeature_(long maxLocsPerFeature_) {
+        this.maxLocsPerFeature_ = maxLocsPerFeature_;
+    }
 
-	public int getNextTargetId_() {
-		return nextTargetId_;
-	}
+    public int getNextTargetId_() {
+        return nextTargetId_;
+    }
 
-	public void setNextTargetId_(int nextTargetId_) {
-		this.nextTargetId_ = nextTargetId_;
-	}
+    public void setNextTargetId_(int nextTargetId_) {
+        this.nextTargetId_ = nextTargetId_;
+    }
 
-	public List<TargetProperty> getTargets_() {
-		return targets_;
-	}
+    public List<TargetProperty> getTargets_() {
+        return targets_;
+    }
 
-	public void setTargets_(List<TargetProperty> targets_) {
-		this.targets_ = targets_;
-	}
+    public void setTargets_(List<TargetProperty> targets_) {
+        this.targets_ = targets_;
+    }
 
-	public Dataset<Location> getFeatures_() {
-		return features_;
-	}
+    public Dataset<Location> getFeatures_() {
+        return features_;
+    }
 
-	public void setFeatures_(Dataset<Location> features_) {
-		this.features_ = features_;
-	}
+    public void setFeatures_(Dataset<Location> features_) {
+        this.features_ = features_;
+    }
 
-	public TreeMap<String, Integer> getname2tax_() {
-		return name2tax_;
-	}
+    public TreeMap<String, Integer> getname2tax_() {
+        return name2tax_;
+    }
 
-	public void setname2tax_(TreeMap<String, Integer> name2tax_) {
-		this.name2tax_ = name2tax_;
-	}
+    public void setname2tax_(TreeMap<String, Integer> name2tax_) {
+        this.name2tax_ = name2tax_;
+    }
 
-	public Taxonomy getTaxa_() {
-		return taxa_;
-	}
+    public Taxonomy getTaxa_() {
+        return taxa_;
+    }
 
-	public void setTaxa_(Taxonomy taxa_) {
-		this.taxa_ = taxa_;
-	}
+    public void setTaxa_(Taxonomy taxa_) {
+        this.taxa_ = taxa_;
+    }
 
-	public TaxonomyParam getTaxonomyParam() {
-		return taxonomyParam;
-	}
+    public TaxonomyParam getTaxonomyParam() {
+        return taxonomyParam;
+    }
 
-	public void setTaxonomyParam(TaxonomyParam taxonomyParam) {
-		this.taxonomyParam = taxonomyParam;
-	}
+    public void setTaxonomyParam(TaxonomyParam taxonomyParam) {
+        this.taxonomyParam = taxonomyParam;
+    }
 
-	public int getNumPartitions() {
-		return numPartitions;
-	}
+    public int getNumPartitions() {
+        return numPartitions;
+    }
 
-	public void setNumPartitions(int numPartitions) {
-		this.numPartitions = numPartitions;
-	}
+    public void setNumPartitions(int numPartitions) {
+        this.numPartitions = numPartitions;
+    }
 
-	public String getDbfile() {
-		return dbfile;
-	}
+    public String getDbfile() {
+        return dbfile;
+    }
 
-	public void setDbfile(String dbfile) {
-		this.dbfile = dbfile;
-	}
+    public void setDbfile(String dbfile) {
+        this.dbfile = dbfile;
+    }
 
-	public JavaSparkContext getSparkS() {
-		return jsc;
-	}
+    public JavaSparkContext getSparkS() {
+        return jsc;
+    }
 
-	public void setSparkS(JavaSparkContext sparkS) {
-		this.jsc = sparkS;
-	}
+    public void setSparkS(JavaSparkContext sparkS) {
+        this.jsc = sparkS;
+    }
 
 	/*
 		const taxon&
@@ -314,193 +315,229 @@ public class Database implements Serializable{
 		}
 		 */
 
-	/**
-	 * Given an ID, it returns
-	 * @param id
-	 * @return
-	 */
-	public Taxon taxon_of_target(Long id) {
+    /**
+     * Given an ID, it returns
+     * @param id
+     * @return
+     */
+    public Taxon taxon_of_target(Long id) {
 
-		try {
-			return taxa_.getTaxa_().get(targets_.get((int) id.longValue()).getTax());
-		}
-		catch(Exception e) {
-			LOG.error("Error in taxon_of_target: "+e.getMessage());
-			LOG.error("Error in taxon_of_target: id is: " + id + ", n. of targets is: "+
-					targets_.size()+", n ot taxa is: "+taxa_.getTaxa_().size());
-			System.exit(-1);
-		}
-		return null;
-	}
+        try {
+            return taxa_.getTaxa_().get(targets_.get((int) id.longValue()).getTax());
+        }
+        catch(Exception e) {
+            LOG.error("Error in taxon_of_target: "+e.getMessage());
+            LOG.error("Error in taxon_of_target: id is: " + id + ", n. of targets is: "+
+                    targets_.size()+", n ot taxa is: "+taxa_.getTaxa_().size());
+            System.exit(-1);
+        }
+        return null;
+    }
 
-	public long taxon_id_of_target(Long id) {
-		return taxa_.getTaxa_().get(targets_.get((int)id.longValue()).getTax()).getTaxonId();
-	}
+    public long taxon_id_of_target(Long id) {
+        return taxa_.getTaxa_().get(targets_.get((int)id.longValue()).getTax()).getTaxonId();
+    }
 
-	public void update_lineages(TargetProperty gp)
-	{
-		if(gp.getTax() > 0) {
-			//LOG.warn("Updating target with tax: "+gp.getTax());
-			gp.setFull_lineage(taxa_.lineage(gp.getTax()));
-			gp.setRanked_lineage(taxa_.ranks((Long)gp.getTax()));
-		}
-	}
+    public void update_lineages(TargetProperty gp)
+    {
+        if(gp.getTax() > 0) {
+            //LOG.warn("Updating target with tax: "+gp.getTax());
+            gp.setFull_lineage(taxa_.lineage(gp.getTax()));
+            gp.setRanked_lineage(taxa_.ranks((Long)gp.getTax()));
+        }
+    }
 
-	public void apply_taxonomy(Taxonomy tax) {
-		this.taxa_ = tax;
-		for(TargetProperty g : this.targets_)
-			update_lineages(g);
-	}
+    public void apply_taxonomy(Taxonomy tax) {
+        this.taxa_ = tax;
 
-	public void apply_taxonomy() {
-		for(TargetProperty g : this.targets_)
-			update_lineages(g);
-	}
+        /*for(Map.Entry<Long, Taxon> taxi : this.taxa_.getTaxa_().entrySet()){
+            if (taxi.getKey() == 0){
+                LOG.info(taxi.getKey() + " :: " + taxi.getValue().getTaxonName());
+            }
 
-	public long taxon_count() {
-		return this.taxa_.taxon_count();
-	}
+        }*/
 
-	public long target_count() {
-		return this.targets_.size();
-	}
+        for(TargetProperty g : this.targets_)
+            update_lineages(g);
+    }
+
+    public void apply_taxonomy() {
+        for(TargetProperty g : this.targets_)
+            update_lineages(g);
+    }
+
+    public long taxon_count() {
+        return this.taxa_.taxon_count();
+    }
+
+    public long target_count() {
+        return this.targets_.size();
+    }
 
 
-	public void buildDatabase2(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
-		try {
-			LOG.warn("Starting to build database from " + infiles + " ...");
-			//FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
-			long initTime = System.nanoTime();
-			long endTime;
+    public void buildDatabase2(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+        try {
+            LOG.warn("[buildDatabase2] Starting to build database from " + infiles + " ...");
+            //FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+            long initTime = System.nanoTime();
+            long endTime;
 
 
-			SequenceReader my_reader = new FastaSequenceReader(sequ2taxid, infoMode);
+            //SequenceReader my_reader = new FastaSequenceReader(sequ2taxid, infoMode);
 
-			if(this.numPartitions == 1) {
+            if(this.numPartitions == 1) {
 
-				this.inputSequences = this.jsc.wholeTextFiles(infiles)
-						.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
-						.persist(StorageLevel.MEMORY_AND_DISK_SER());
+                this.inputSequences = this.jsc.wholeTextFiles(infiles)
+                        .flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
+                        .persist(StorageLevel.MEMORY_AND_DISK_SER());
 
+            }
+            else {
+                LOG.warn("Using " +this.numPartitions + " partitions ...");
+                this.inputSequences = this.jsc.wholeTextFiles(infiles, this.numPartitions)
+                        .flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
+                        .repartition(this.numPartitions)
+                        .persist(StorageLevel.MEMORY_AND_DISK_SER());
+            }
+
+
+            LOG.info("Adding " + this.inputSequences.count() + " sequences.");
+            //inputData = inputData.coalesce(this.numPartitions);
+
+            //List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
+
+            this.targetPropertiesJavaRDD = this.inputSequences
+                    .map(new Sequence2TargetProperty());
+
+            this.targets_= this.targetPropertiesJavaRDD.collect();
+
+            int i = 0;
+
+            long j = -1;
+
+            for (TargetProperty target: this.targets_) {
+                //LOG.info("Target taxa is: " + target.getTax());
+
+                if (target.getTax() == 0) { // Target is unranked. Rank it!
+                    target.setTax(j);
+
+                    long parent_id = this.find_taxon_id(target.getIdentifier()).getTaxonId();
+
+                    this.taxa_.getTaxa_().put(j, new Taxon(j, parent_id, target.getIdentifier(), Taxonomy.Rank.Sequence));
+                    --j;
+                }
+
+                this.name2tax_.put(target.getIdentifier(), i);
+                i++;
+            }
+
+/*
+			for (TargetProperty target: this.targets_) {
+
+				this.name2tax_.put(target.getIdentifier(),(int) target.getTax());
+				this.sid2gid_.put(target.getIdentifier(), i);
+				i++;
 			}
-			else {
-				LOG.warn("Using " +this.numPartitions + " partitions ...");
-				this.inputSequences = this.jsc.wholeTextFiles(infiles, this.numPartitions)
-						.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
-						.repartition(this.numPartitions)
-						.persist(StorageLevel.MEMORY_AND_DISK_SER());
-			}
+*/
+
+            LOG.info("Size of name2tax_ is: " + this.name2tax_.size());
+
+            this.nextTargetId_ = this.name2tax_.size();
 
 
-			JavaRDD<String> sequenceIdsRDD = this.inputSequences.map(new Sequence2SequenceId());
-
-			List<String> data = sequenceIdsRDD.collect();
-
-			sequenceIdsRDD.unpersist();
-			sequenceIdsRDD = null;
-
-			//HashMap<String, Integer> sequencesIndexes = new HashMap<String,Integer>();
-
-			for(String value: data) {
-				if (!sequ2taxid.containsKey(value)) {
-					this.name2tax_.put(value, sequ2taxid.get(data).intValue());
-				}
-				//this.name2tax_.put(value, i);
-				//i++;
-			}
-
-			this.nextTargetId_ = this.name2tax_.size();
-
-			if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) { //.isBuildModeHashMap()) {
-				LOG.warn("Building database with isBuildModeHashMap");
+            if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
+                LOG.warn("Building database with isBuildModeHashMap");
                 this.locationJavaHashRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
                         .mapPartitionsWithIndex(new Pair2HashMap(), true);
-						//.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
-			}
-			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {//(paramsBuild.isBuildModeHashMultiMapG()) {
-				LOG.warn("Building database with isBuildModeHashMultiMapG");
-				this.locationJavaHashMMRDD = this.inputSequences
-						.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
-			}
-			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
-				LOG.warn("Building database with isBuildModeHashMultiMapMC");
-				//this.locationJavaPairListRDD = this.inputSequences
-				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.name2tax_), true);
-				this.locationJavaRDDHashMultiMapNative = this.inputSequences
+                //.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
+                LOG.warn("Building database with isBuildModeHashMultiMapG");
+                this.locationJavaHashMMRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
+                //.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
+                LOG.warn("Building database with isBuildModeHashMultiMapMC");
+
+                this.locationJavaRDDHashMultiMapNative = this.inputSequences
+                        .repartition(this.params.getPartitions())
+                        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_), true)
+                        .mapPartitions(new Locations2HashMapNative(), true);
+
+                /*
+                this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
                         .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
-						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
-			}
-			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
-				LOG.warn("Building database with isBuildModeParquetDataframe");
-				this.locationJavaRDD = this.inputSequences
-						.flatMap(new Sketcher(this.name2tax_));
+                        */
 
-				Encoder<Location> encoder_location= Encoders.bean(Location.class);
-				RDD<Location> rdd_location = this.locationJavaRDD.rdd();
+                /*
+                this.locationJavaRDDHashMultiMapNative = this.inputSequences.zipWithIndex()
+                        .mapToPair(t1 -> new Tuple2<>(t1._2, t1._1) )
+                        .partitionBy(new MyCustomPartitionerLong(this.params.getPartitions()))
+                        .values()
+                        //.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        //.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        //.repartition(this.params.getPartitions())
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
+                 */
 
-				this.featuresDataframe_ = this.sqlContext.createDataset(rdd_location, encoder_location);
-				// //this.sqlContext.createDataFrame(this.locationJavaRDD, Location.class);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
+                LOG.warn("Building database with isBuildModeParquetDataframe");
+                this.locationJavaRDD = this.inputSequences
+                        .flatMap(new Sketcher(this.name2tax_));
 
-			}
-			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {//(paramsBuild.isBuildCombineByKey()) {
-				LOG.warn("Building database with isBuildCombineByKey");
+                this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
 
-				if (this.numPartitions != 1) {
-                    this.locationJavaPairListRDD = this.inputSequences
-                            .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                            .partitionBy(new MyCustomPartitioner(this.numPartitions))
-                            .combineByKey(new LocationCombiner(),
-                                    new LocationMergeValues(),
-                                    new LocationMergeCombiners());
-                }
-                else {
-                    this.locationJavaPairListRDD = this.inputSequences
-                            .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                            //.partitionBy(new MyCustomPartitioner(this.numPartitions))
-                            .combineByKey(new LocationCombiner(),
-                                    new LocationMergeValues(),
-                                    new LocationMergeCombiners());
-                }
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
+                LOG.warn("Building database with isBuildCombineByKey");
+				/*this.locationJavaPairListRDD = this.inputSequences
+						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
+						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+						.combineByKey(new LocationCombiner(),
+								new LocationMergeValues(),
+								new LocationMergeCombiners());
+								*/
+                this.locationJavaPairIterableRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_)).groupByKey();
 
-			}
+                this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
+                        this.params.getProperties().getMax_locations_per_feature()));
 
-			this.targetPropertiesJavaRDD = this.inputSequences
-					.map(new Sequence2TargetProperty());
-
-			//this.writeTargets();
-			//this.features_ = ds;
-			endTime = System.nanoTime();
-			LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
-			LOG.warn("Database created ...");
-			//LOG.warn("Number of items into database: " + String.valueOf(this.featuresDataframe_.count()));
+            }
 
 
-		} catch (Exception e) {
-			LOG.error("ERROR! "+e.getMessage());
-			e.printStackTrace();
-			System.exit(1);
-		}
-	}
+
+        } catch (Exception e) {
+            LOG.error("ERROR! "+e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
 
 
-	public void buildDatabaseMultiPartitions(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
-		try {
+    public void buildDatabaseMultiPartitions(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+        try {
 
-			//FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
-			long initTime = System.nanoTime();
-			long endTime;
+            //FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+            long initTime = System.nanoTime();
+            long endTime;
 
-			JavaPairRDD<String,String> inputData = null;
+            JavaPairRDD<String,String> inputData = null;
 
-			this.inputSequences = null;
-			//JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
+            this.inputSequences = null;
+            //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
 
 
-			if(this.params.isMyWholeTextFiles()) {
+            if(this.params.isMyWholeTextFiles()) {
 				/*
 			    if(this.numPartitions != 1) {
                     inputData = this.jsc.parallelize(infiles, this.numPartitions)
@@ -511,15 +548,15 @@ public class Database implements Serializable{
                             .mapPartitionsToPair(new MyWholeTextFiles() );
                 }
                 */
-                JavaPairRDD<String, String> tmpInput = null;
+                JavaRDD<String> tmpInput = this.jsc.parallelize(infiles);
 
-                for (String currentDir : infiles) {
+                /*for (String currentDir : infiles) {
                     LOG.warn("Starting to build database from " + currentDir + " with MyWholeTextFiles");
 
                     if (tmpInput == null) {
-                        tmpInput = this.jsc.wholeTextFiles(currentDir);
+                        tmpInput = this.jsc.wholeTextFiles(currentDir).keys();
                     } else {
-                        tmpInput = this.jsc.wholeTextFiles(currentDir)
+                        tmpInput = this.jsc.wholeTextFiles(currentDir).keys()
                                 .union(tmpInput);
                     }
                 }
@@ -534,195 +571,101 @@ public class Database implements Serializable{
                 }
 
                 inputData = tmpInput
-                        .keys()
+                        //.keys()
                         .repartition(repartition_files)
                         .mapPartitionsToPair(new MyWholeTextFiles(), true)
                         .persist(StorageLevel.DISK_ONLY());
-
-
-
-				//LOG.warn("Number of partitions for input files:" + inputData.count());
-
-				this.inputSequences = inputData
-						.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
-						.persist(StorageLevel.DISK_ONLY());
-			}
-			else {
-
-				for (String currentDir : infiles) {
-					LOG.warn("Starting to build database from " + currentDir + " ...");
-
-					if (inputData == null) {
-						inputData = this.jsc.wholeTextFiles(currentDir);
-					} else {
-						inputData = this.jsc.wholeTextFiles(currentDir)
-								.union(inputData);
-					}
-				}
-
-				if(this.numPartitions != 1) {
-					LOG.info("Repartitioning into " + this.numPartitions + " partitions.");
-					this.inputSequences = inputData.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
-							.repartition(this.numPartitions)
-							//.persist(StorageLevel.MEMORY_AND_DISK_SER());
-							.persist(StorageLevel.DISK_ONLY());
-				}
-				else {
-                    LOG.info("No repartitioning");
-					this.inputSequences = inputData.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
-							//.persist(StorageLevel.MEMORY_AND_DISK_SER());
-							.persist(StorageLevel.DISK_ONLY());
-				}
-
-
-			}
-			//inputData = inputData.coalesce(this.numPartitions);
-
-			List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
-
-			this.targetPropertiesJavaRDD = this.inputSequences
-					.map(new Sequence2TargetProperty());
-
-			this.targets_= this.targetPropertiesJavaRDD.collect();
-
-			int i = 0;
-
-			for (TargetProperty target: this.targets_) {
-				this.name2tax_.put(target.getIdentifier(), i);
-				i++;
-			}
-
-/*
-			for (TargetProperty target: this.targets_) {
-
-				this.name2tax_.put(target.getIdentifier(),(int) target.getTax());
-				this.sid2gid_.put(target.getIdentifier(), i);
-				i++;
-			}
 */
 
-			LOG.info("Size of name2tax_ is: " + this.name2tax_.size());
 
-			this.nextTargetId_ = this.name2tax_.size();
+                //LOG.warn("Number of partitions for input files:" + inputData.count());
+
+                int repartition_files = 1;
+
+                if (this.numPartitions == 1) {
+                    repartition_files = this.jsc.getConf().getInt("spark.executor.instances", 1);
+
+                }
+                else {
+                    repartition_files = this.numPartitions;
+                }
 
 
-			if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
-				LOG.warn("Building database with isBuildModeHashMap");
-				this.locationJavaHashRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
-						//.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
-			}
-			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
-				LOG.warn("Building database with isBuildModeHashMultiMapG");
-				this.locationJavaHashMMRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
-						//.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
-			}
-			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
-				LOG.warn("Building database with isBuildModeHashMultiMapMC");
-				//this.locationJavaPairListRDD = this.inputSequences
-				//		.mapPartitionsToPair(new Sketcher2PairPartitions(this.name2tax_), true);
-				this.locationJavaRDDHashMultiMapNative = this.inputSequences
-						//.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
-						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
-						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-						.mapPartitionsWithIndex(new Pair2HashMapNative(), true);
-			}
-			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
-				LOG.warn("Building database with isBuildModeParquetDataframe");
-				this.locationJavaRDD = this.inputSequences
-						.flatMap(new Sketcher(this.name2tax_));
+                this.inputSequences = tmpInput
+                        .mapPartitions(new Fasta2Sequence(sequ2taxid));
 
-				this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
+                //List<Long> lenghts_array = new ArrayList<>();
 
-			}
-			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
-				LOG.warn("Building database with isBuildCombineByKey");
-				/*this.locationJavaPairListRDD = this.inputSequences
-						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
-						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-						.combineByKey(new LocationCombiner(),
-								new LocationMergeValues(),
-								new LocationMergeCombiners());
-								*/
-				this.locationJavaPairIterableRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_)).groupByKey();
-
-                this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
-                        this.params.getProperties().getMax_locations_per_feature()));
-
-			}
+                List<Tuple2<Integer, String>> lenghts_array = this.inputSequences.mapToPair(item -> new Tuple2<Integer, String>(
+                            item.getData().length(), item.getHeader()))
+                        .sortByKey(false)
+                        .collect();
 
 
 
+                HashMap<String, Integer> all_lengths = new HashMap<>();
 
-			//endTime = System.nanoTime();
-			//LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
-			//LOG.warn("Database created ...");
-			//LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaHashRDD.count()));
-			//LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaPairListRDD.count()));
+                int i = 0;
+                for (Tuple2<Integer, String> item: lenghts_array) {
 
-
-
-		} catch (Exception e) {
-			LOG.error("ERROR! "+e.getMessage());
-			e.printStackTrace();
-			System.exit(1);
-		}
-	}
-
-    public void buildDatabaseInputFormat(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
-        try {
-
-            LOG.info("[JMAbuin] buildDatabaseInputFormat");
-            //FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
-            long initTime = System.nanoTime();
-            long endTime;
-
-            JavaPairRDD<String,String> inputData = null;
-
-            this.inputSequences = null;
-            //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
-
-
-            JavaPairRDD<String, Text> reads = null;
-
-            for (String currentFile : infiles) {
-
-                    if (reads == null) {
-                        reads = this.jsc.newAPIHadoopFile(currentFile, FastaInputFormat.class, String.class, Text.class, this.jsc.hadoopConfiguration());
-                    }
-                    else {
-                        reads = reads.union(this.jsc.newAPIHadoopFile(currentFile, FastaInputFormat.class, String.class, Text.class, this.jsc.hadoopConfiguration()));
+                    all_lengths.put(item._2, i);
+                    ++i;
+                    if (i >= this.numPartitions) {
+                        i = 0;
                     }
 
-            }
+
+                }
 
 
+                this.inputSequences = tmpInput
+                        .mapPartitions(new Fasta2Sequence(sequ2taxid))
+                        //.repartition(repartition_files)
+                        .mapToPair(item -> new Tuple2<String, Sequence>(item.getHeader(), item))
+                        .partitionBy(new MyCustomPartitionerStr(this.numPartitions, all_lengths))
+                        .values()
+                        .persist(StorageLevel.MEMORY_AND_DISK());
 
-            if(this.numPartitions != 1) {
-                LOG.info("Repartitioning into " + this.numPartitions + " partitions.");
-                this.inputSequences = reads.flatMap(new FastaSequenceReader2(sequ2taxid, infoMode))
-                        .repartition(this.numPartitions)
-                        //.persist(StorageLevel.MEMORY_AND_DISK_SER());
-                        .persist(StorageLevel.DISK_ONLY());
+                //.flatMap(new Fasta2Sequence(sequ2taxid))
+                //.persist(StorageLevel.DISK_ONLY());
+
+
             }
             else {
-                LOG.info("No repartitioning");
-                this.inputSequences = reads.flatMap(new FastaSequenceReader2(sequ2taxid, infoMode))
-                        //.persist(StorageLevel.MEMORY_AND_DISK_SER());
-                        .persist(StorageLevel.DISK_ONLY());
+
+                for (String currentDir : infiles) {
+                    LOG.warn("Starting to build database from " + currentDir + " ...");
+
+                    if (inputData == null) {
+                        inputData = this.jsc.wholeTextFiles(currentDir);
+                    } else {
+                        inputData = this.jsc.wholeTextFiles(currentDir)
+                                .union(inputData);
+                    }
+                }
+
+                if(this.numPartitions != 1) {
+                    LOG.info("Repartitioning into " + this.numPartitions + " partitions.");
+                    this.inputSequences = inputData.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
+                            .repartition(this.numPartitions)
+                            //.persist(StorageLevel.MEMORY_AND_DISK_SER());
+                            .persist(StorageLevel.DISK_ONLY());
+                }
+                else {
+                    LOG.info("No repartitioning");
+                    this.inputSequences = inputData.flatMap(new FastaSequenceReader(sequ2taxid, infoMode));
+                            //.persist(StorageLevel.MEMORY_AND_DISK_SER());
+                            //.persist(StorageLevel.DISK_ONLY());
+                }
+
+
             }
-
-
-
             //inputData = inputData.coalesce(this.numPartitions);
 
             //List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
+
+            LOG.info("The number of sequences is: " + this.inputSequences.count());
+
 
             this.targetPropertiesJavaRDD = this.inputSequences
                     .map(new Sequence2TargetProperty());
@@ -730,8 +673,13 @@ public class Database implements Serializable{
             this.targets_= this.targetPropertiesJavaRDD.collect();
 
             int i = 0;
-
+            long j = -1;
             for (TargetProperty target: this.targets_) {
+                if (target.getTax() == 0) { // Target is unranked. Rank it!
+                    target.setTax(j);
+                    this.taxa_.getTaxa_().put(j, new Taxon(j, 0, target.getIdentifier(), Taxonomy.Rank.Sequence));
+                    --j;
+                }
                 this.name2tax_.put(target.getIdentifier(), i);
                 i++;
             }
@@ -772,9 +720,185 @@ public class Database implements Serializable{
                 //		.mapPartitionsToPair(new Sketcher2PairPartitions(this.name2tax_), true);
                 this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         //.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
+                        //.repartition(this.params.getPartitions())
+                        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_), true)
+                        .mapPartitions(new Locations2HashMapNative(), true);
+                        //.mapPartitions(new PostProcessing(), true);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
+                LOG.warn("Building database with isBuildModeParquetDataframe");
+                this.locationJavaRDD = this.inputSequences
+                        .flatMap(new Sketcher(this.name2tax_));
+
+                this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
+
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
+                LOG.warn("Building database with isBuildCombineByKey");
+				/*this.locationJavaPairListRDD = this.inputSequences
+						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
+						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+						.combineByKey(new LocationCombiner(),
+								new LocationMergeValues(),
+								new LocationMergeCombiners());
+								*/
+                this.locationJavaPairIterableRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_)).groupByKey();
+
+                this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
+                        this.params.getProperties().getMax_locations_per_feature()));
+
+            }
+
+
+
+
+            //endTime = System.nanoTime();
+            //LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
+            //LOG.warn("Database created ...");
+            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaHashRDD.count()));
+            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaPairListRDD.count()));
+
+
+
+        } catch (Exception e) {
+            LOG.error("ERROR! "+e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    public void buildDatabaseInputFormat(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+        try {
+
+            LOG.info("[JMAbuin] buildDatabaseInputFormat");
+            //FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+            long initTime = System.nanoTime();
+            long endTime;
+
+            JavaPairRDD<String,String> inputData = null;
+
+            this.inputSequences = null;
+            //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
+
+
+            JavaPairRDD<String, Text> reads = null;
+
+            for (String currentFile : infiles) {
+
+                if (reads == null) {
+                    reads = this.jsc.newAPIHadoopFile(currentFile, FastaInputFormat.class, String.class, Text.class, this.jsc.hadoopConfiguration());
+                }
+                else {
+                    reads = reads.union(this.jsc.newAPIHadoopFile(currentFile, FastaInputFormat.class, String.class, Text.class, this.jsc.hadoopConfiguration()));
+                }
+
+            }
+
+            LOG.info("Reads from FastaInputFormat: " + reads.count());
+
+            if(this.numPartitions != 1) {
+                LOG.info("Repartitioning into " + this.numPartitions + " partitions.");
+                this.inputSequences = reads.flatMap(new FastaSequenceReader2(sequ2taxid, infoMode))
+                        .repartition(this.numPartitions)
+                        //.persist(StorageLevel.MEMORY_AND_DISK_SER());
+                        .persist(StorageLevel.DISK_ONLY());
+            }
+            else {
+                LOG.info("No repartitioning");
+                this.inputSequences = reads.flatMap(new FastaSequenceReader2(sequ2taxid, infoMode))
+                        //.persist(StorageLevel.MEMORY_AND_DISK_SER());
+                        .persist(StorageLevel.DISK_ONLY());
+            }
+
+
+            LOG.info("Adding " + this.inputSequences.count() + " sequences.");
+            //inputData = inputData.coalesce(this.numPartitions);
+
+            //List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
+
+            this.targetPropertiesJavaRDD = this.inputSequences
+                    .map(new Sequence2TargetProperty());
+
+            this.targets_= this.targetPropertiesJavaRDD.collect();
+
+            int i = 0;
+
+            long j = -1;
+
+            for (TargetProperty target: this.targets_) {
+                //LOG.info("Target taxa is: " + target.getTax());
+
+                if (target.getTax() == 0) { // Target is unranked. Rank it!
+                    target.setTax(j);
+
+                    long parent_id = this.find_taxon_id(target.getIdentifier()).getTaxonId();
+
+                    this.taxa_.getTaxa_().put(j, new Taxon(j, parent_id, target.getIdentifier(), Taxonomy.Rank.Sequence));
+                    --j;
+                }
+
+                this.name2tax_.put(target.getIdentifier(), i);
+                i++;
+            }
+
+/*
+			for (TargetProperty target: this.targets_) {
+
+				this.name2tax_.put(target.getIdentifier(),(int) target.getTax());
+				this.sid2gid_.put(target.getIdentifier(), i);
+				i++;
+			}
+*/
+
+            LOG.info("Size of name2tax_ is: " + this.name2tax_.size());
+
+            this.nextTargetId_ = this.name2tax_.size();
+
+
+            if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
+                LOG.warn("Building database with isBuildModeHashMap");
+                this.locationJavaHashRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
+                //.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
+                LOG.warn("Building database with isBuildModeHashMultiMapG");
+                this.locationJavaHashMMRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
+                //.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
+                LOG.warn("Building database with isBuildModeHashMultiMapMC");
+
+                this.locationJavaRDDHashMultiMapNative = this.inputSequences
+                        .repartition(this.params.getPartitions())
+                        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_), true)
+                        .mapPartitions(new Locations2HashMapNative(), true);
+
+                /*
+                this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
                         .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
+                        */
+
+                /*
+                this.locationJavaRDDHashMultiMapNative = this.inputSequences.zipWithIndex()
+                        .mapToPair(t1 -> new Tuple2<>(t1._2, t1._1) )
+                        .partitionBy(new MyCustomPartitionerLong(this.params.getPartitions()))
+                        .values()
+                        //.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        //.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        //.repartition(this.params.getPartitions())
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
+                 */
+
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
                 LOG.warn("Building database with isBuildModeParquetDataframe");
@@ -820,42 +944,42 @@ public class Database implements Serializable{
     }
 
 
-	public void writeTaxonomy() {
+    public void writeTaxonomy() {
 
-		String taxonomyDestination = this.dbfile+"_taxonomy";
+        String taxonomyDestination = this.dbfile+"_taxonomy";
 
-		this.taxa_.write(taxonomyDestination, this.jsc);
+        this.taxa_.write(taxonomyDestination, this.jsc);
 
-	}
+    }
 
-	public void readTaxonomy() {
+    public void readTaxonomy() {
 
-		String taxonomyDestination = this.dbfile+"_taxonomy";
+        String taxonomyDestination = this.dbfile+"_taxonomy";
 
-		this.taxa_ = new Taxonomy();
+        this.taxa_ = new Taxonomy();
 
-		this.taxa_.read(taxonomyDestination, this.jsc);
+        this.taxa_.read(taxonomyDestination, this.jsc);
 
-	}
+    }
 
-	public void writeTargets() {
+    public void writeTargets() {
 
-		String targetsDestination = this.dbfile+"_targets";
+        String targetsDestination = this.dbfile+"_targets";
 
-		//this.targetPropertiesJavaRDD.saveAsObjectFile(targetsDestination);
-		//this.targets_ = new ArrayList<TargetProperty>(inputSequences.map(new Sequence2TargetProperty()).collect());
+        //this.targetPropertiesJavaRDD.saveAsObjectFile(targetsDestination);
+        //this.targets_ = new ArrayList<TargetProperty>(inputSequences.map(new Sequence2TargetProperty()).collect());
 
-		try {
+        try {
 
 
-			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
-			FSDataOutputStream outputStream = fs.create(new Path(targetsDestination));
+            FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+            FSDataOutputStream outputStream = fs.create(new Path(targetsDestination));
 
-			ObjectOutputStream oos = new ObjectOutputStream(outputStream);
-			oos.writeObject(this.targets_);
+            ObjectOutputStream oos = new ObjectOutputStream(outputStream);
+            oos.writeObject(this.targets_);
 
-			oos.close();
-			outputStream.close();
+            oos.close();
+            outputStream.close();
 			/*
 			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
 			FSDataOutputStream outputStream = fs.create(new Path(targetsDestination));
@@ -871,56 +995,56 @@ public class Database implements Serializable{
 			outputStream.close();
 */
 
-		}
-		catch (IOException e) {
-			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
-		catch (Exception e) {
-			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
+        }
+        catch (IOException e) {
+            LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+        catch (Exception e) {
+            LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
 
 
 
-	}
+    }
 
-	public void readTargets() {
+    public void readTargets() {
 
-		String targetsDestination = this.dbfile+"_targets";
+        String targetsDestination = this.dbfile+"_targets";
 
-		//this.targetPropertiesJavaRDD = this.jsc.objectFile(this.dbfile+"_targets");
+        //this.targetPropertiesJavaRDD = this.jsc.objectFile(this.dbfile+"_targets");
 
-		//this.targets_ = new ArrayList<TargetProperty>(this.targetPropertiesJavaRDD.collect());
-
-
-		try {
+        //this.targets_ = new ArrayList<TargetProperty>(this.targetPropertiesJavaRDD.collect());
 
 
-			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
-			FSDataInputStream inputStream = fs.open(new Path(targetsDestination));
+        try {
 
-			ObjectInputStream ois = new ObjectInputStream(inputStream);
-			this.targets_ = (List<TargetProperty>) ois.readObject();
 
-			ois.close();
-			inputStream.close();
+            FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+            FSDataInputStream inputStream = fs.open(new Path(targetsDestination));
 
-		}
-		catch (IOException e) {
-			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
-		catch (Exception e) {
-			LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
+            ObjectInputStream ois = new ObjectInputStream(inputStream);
+            this.targets_ = (List<TargetProperty>) ois.readObject();
 
-	}
+            ois.close();
+            inputStream.close();
+
+        }
+        catch (IOException e) {
+            LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+        catch (Exception e) {
+            LOG.error("Could not write file "+ targetsDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+
+    }
 
     public void writeName2tax() {
 
@@ -1008,402 +1132,402 @@ public class Database implements Serializable{
 
 
 
-	public void writeSid2gid() {
+    public void writeSid2gid() {
 
-		String sig2sidDestination = this.dbfile+"_sig2sid";
+        String sig2sidDestination = this.dbfile+"_sig2sid";
 
-		// Try to open the filesystem (HDFS) and sequence file
-		try {
+        // Try to open the filesystem (HDFS) and sequence file
+        try {
 
 
-			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
-			FSDataOutputStream outputStream = fs.create(new Path(sig2sidDestination));
+            FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+            FSDataOutputStream outputStream = fs.create(new Path(sig2sidDestination));
 
-			BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputStream));
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(outputStream));
 
-			// Write data
-			bw.write(String.valueOf(this.name2tax_.size()));
-			bw.newLine();
+            // Write data
+            bw.write(String.valueOf(this.name2tax_.size()));
+            bw.newLine();
 
-			StringBuffer currentLine = new StringBuffer();
+            StringBuffer currentLine = new StringBuffer();
 
-			for(Map.Entry<String, Integer> currentEntry: this.name2tax_.entrySet()) {
+            for(Map.Entry<String, Integer> currentEntry: this.name2tax_.entrySet()) {
 
-				currentLine.append(currentEntry.getKey());
-				currentLine.append(":");
-				currentLine.append(currentEntry.getValue());
-				bw.write(currentLine.toString());
-				bw.newLine();
+                currentLine.append(currentEntry.getKey());
+                currentLine.append(":");
+                currentLine.append(currentEntry.getValue());
+                bw.write(currentLine.toString());
+                bw.newLine();
 
-				currentLine.delete(0, currentLine.toString().length());
+                currentLine.delete(0, currentLine.toString().length());
 
-			}
+            }
 
-			bw.close();
-			outputStream.close();
+            bw.close();
+            outputStream.close();
 
-		}
-		catch (IOException e) {
-			LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in writeSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
-		catch (Exception e) {
-			LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in writeSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
+        }
+        catch (IOException e) {
+            LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+        catch (Exception e) {
+            LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in writeSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
 
-	}
+    }
 
-	public void readSid2gid() {
+    public void readSid2gid() {
 
-		String sig2sidDestination = this.dbfile+"_sig2sid";
+        String sig2sidDestination = this.dbfile+"_sig2sid";
 
-		try {
-			FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
-			FSDataInputStream inputStream = fs.open(new Path(sig2sidDestination));
+        try {
+            FileSystem fs = FileSystem.get(jsc.hadoopConfiguration());
+            FSDataInputStream inputStream = fs.open(new Path(sig2sidDestination));
 
-			BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
+            BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
 
-			if(this.name2tax_ == null) {
-				this.name2tax_ = new TreeMap<String, Integer>();
-			}
+            if(this.name2tax_ == null) {
+                this.name2tax_ = new TreeMap<String, Integer>();
+            }
 
-			// read data
-			long numberItems = Long.parseLong(br.readLine());
+            // read data
+            long numberItems = Long.parseLong(br.readLine());
 
-			String currentLine;
+            String currentLine;
 
-			while((currentLine = br.readLine()) != null) {
+            while((currentLine = br.readLine()) != null) {
 
-				String parts[] = currentLine.split(":");
+                String parts[] = currentLine.split(":");
 
-				this.name2tax_.put(parts[0], Integer.parseInt(parts[1]));
+                this.name2tax_.put(parts[0], Integer.parseInt(parts[1]));
 
-			}
+            }
 
 
-			br.close();
-			inputStream.close();
+            br.close();
+            inputStream.close();
 
-		}
-		catch (IOException e) {
-			LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in readSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
-		catch (Exception e) {
-			LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in readSid2gid.");
-			e.printStackTrace();
-			//System.exit(1);
-		}
+        }
+        catch (IOException e) {
+            LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in readSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
+        catch (Exception e) {
+            LOG.error("Could not write file "+ sig2sidDestination+ " because of IO error in readSid2gid.");
+            e.printStackTrace();
+            //System.exit(1);
+        }
 
 
-	}
+    }
 
-	// These infilenames are where assembly_summary.txt found are
-	public HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,ArrayList<String> infilenames) {
-	//HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,String infilenames)	{
-		//gather all taxonomic mapping files that can be found in any
-		//of the input directories
+    // These infilenames are where assembly_summary.txt found are
+    public HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,ArrayList<String> infilenames) {
+        //HashMap<String, Long> make_sequence_to_taxon_id_map(ArrayList<String> mappingFilenames,String infilenames)	{
+        //gather all taxonomic mapping files that can be found in any
+        //of the input directories
 
-		HashMap<String, Long> map = new HashMap<String, Long>();
+        HashMap<String, Long> map = new HashMap<String, Long>();
 
-		//String dir = infilenames.get(0);
+        //String dir = infilenames.get(0);
 
-		//for(String newFile: mappingFilenames) {
-		for(String newFile: infilenames) {
-			//System.err.println("[JMAbuin] Accessing file: " + newFile + " in make_sequence_to_taxon_id_map");
-			read_sequence_to_taxon_id_mapping(newFile, map);
-		}
+        //for(String newFile: mappingFilenames) {
+        for(String newFile: infilenames) {
+            //System.err.println("[JMAbuin] Accessing file: " + newFile + " in make_sequence_to_taxon_id_map");
+            read_sequence_to_taxon_id_mapping(newFile, map);
+        }
 
-		return map;
+        return map;
 
-	}
+    }
 
-	public void read_sequence_to_taxon_id_mapping(String mappingFile, HashMap<String, Long> map){
+    public void read_sequence_to_taxon_id_mapping(String mappingFile, HashMap<String, Long> map){
 
 
-		try {
-			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
-			FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
-			FSDataInputStream inputStream = fs.open(new Path(mappingFile));
+        try {
+            //JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
+            FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+            FSDataInputStream inputStream = fs.open(new Path(mappingFile));
 
-			BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
+            BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
 
-			//read first line(s) and determine the columns which hold
-			//sequence ids (keys) and taxon ids
-			int headerRow = 0;
-			String newLine = d.readLine();
+            //read first line(s) and determine the columns which hold
+            //sequence ids (keys) and taxon ids
+            int headerRow = 0;
+            String newLine = d.readLine();
 
-			while(newLine != null) {
+            while(newLine != null) {
 
-				if(newLine.startsWith("#")) {
-					headerRow++;
-					newLine = d.readLine();
-				}
-				else {
-					break;
-				}
+                if(newLine.startsWith("#")) {
+                    headerRow++;
+                    newLine = d.readLine();
+                }
+                else {
+                    break;
+                }
 
-			}
+            }
 
-			headerRow--;
+            headerRow--;
 
-			d.close();
-			inputStream.close();
+            d.close();
+            inputStream.close();
 
-			//reopen and forward to header row
-			inputStream = fs.open(new Path(mappingFile));
-			d = new BufferedReader(new InputStreamReader(inputStream));
+            //reopen and forward to header row
+            inputStream = fs.open(new Path(mappingFile));
+            d = new BufferedReader(new InputStreamReader(inputStream));
 
-			for(int i = 0; i< headerRow; i++) {
-				newLine = d.readLine();
-			}
+            for(int i = 0; i< headerRow; i++) {
+                newLine = d.readLine();
+            }
 
-			//process header row
-			int keycol = 0;
-			int taxcol = 0;
-			int col = 0;
-			String header = d.readLine();
+            //process header row
+            int keycol = 0;
+            int taxcol = 0;
+            int col = 0;
+            String header = d.readLine();
 
-			header = header.replaceFirst("#", "");
+            header = header.replaceFirst("#", "");
 
-			String headerSplits[] = header.split("\t");
+            String headerSplits[] = header.split("\t");
 
-			for(String headerField: headerSplits) {
-				//System.err.println("[JMAbuin] header split " + headerField.trim());
-				if(headerField.trim().equals("taxid")) {
-					taxcol = col;
-				}
-				else if (header.trim().equals("accession.version") || header.trim().equals("assembly_accession")) {
-					keycol = col;
-				}
-				col++;
+            for(String headerField: headerSplits) {
+                //System.err.println("[JMAbuin] header split " + headerField.trim());
+                if(headerField.trim().equals("taxid")) {
+                    taxcol = col;
+                }
+                else if (header.trim().equals("accession.version") || header.trim().equals("assembly_accession")) {
+                    keycol = col;
+                }
+                col++;
 
-			}
+            }
 
-			//taxid column assignment not found
-			//use 1st column as key and 2nd column as taxid
-			if(taxcol == 0 && keycol == 0) { //keycol is already 0
-				taxcol = 1;
-			}
+            //taxid column assignment not found
+            //use 1st column as key and 2nd column as taxid
+            if(taxcol == 0 && keycol == 0) { //keycol is already 0
+                taxcol = 1;
+            }
 
-			String key;
-			Long taxonId;
+            String key;
+            Long taxonId;
 
-			newLine = d.readLine();
+            newLine = d.readLine();
 
-			while(newLine != null) {
+            while(newLine != null) {
 
-				String lineSplits[] = newLine.split("\t");
+                String lineSplits[] = newLine.split("\t");
 
-				key = lineSplits[keycol];
-				taxonId = Long.parseLong(lineSplits[taxcol]);
+                key = lineSplits[keycol];
+                taxonId = Long.parseLong(lineSplits[taxcol]);
 
-				map.put(key, taxonId);
+                map.put(key, taxonId);
 
-				newLine = d.readLine();
+                newLine = d.readLine();
 
-			}
-			//System.err.println("[JMAbuin] End of read_sequence_to_taxon_id_mapping");
-			d.close();
-			inputStream.close();
-			//fs.close();
+            }
+            //System.err.println("[JMAbuin] End of read_sequence_to_taxon_id_mapping");
+            d.close();
+            inputStream.close();
+            //fs.close();
 
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-			LOG.error("I/O Error accessing HDFS in read_sequence_to_taxon_id_mapping: "+e.getMessage());
-			System.exit(1);
-		}
-		catch (Exception e) {
-			e.printStackTrace();
-			LOG.error("General error accessing HDFS in read_sequence_to_taxon_id_mapping: "+e.getMessage());
-			System.exit(1);
-		}
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            LOG.error("I/O Error accessing HDFS in read_sequence_to_taxon_id_mapping: "+e.getMessage());
+            System.exit(1);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("General error accessing HDFS in read_sequence_to_taxon_id_mapping: "+e.getMessage());
+            System.exit(1);
+        }
 
 
-		//return map;
+        //return map;
 
 
-	}
+    }
 
 
-	public ArrayList<Long> unranked_targets() {
-		ArrayList<Long> res = new ArrayList<Long>();
+    public ArrayList<Long> unranked_targets() {
+        ArrayList<Long> res = new ArrayList<Long>();
 
-		for(long i = 0; i < this.target_count(); ++i) {
-			if(this.taxon_of_target(i) == null) {
-				res.add(i);
-			}
-		}
+        for(long i = 0; i < this.target_count(); ++i) {
+            if(this.taxon_of_target(i) == null) {
+                res.add(i);
+            }
+        }
 
-		return res;
-	}
+        return res;
+    }
 
-	public Integer target_id_of_sequence(String sid) {
-		//String it = name2tax_..find(sid);
+    public Integer target_id_of_sequence(String sid) {
+        //String it = name2tax_..find(sid);
 
-		if(this.name2tax_.containsKey(sid)) {
-			return this.name2tax_.get(sid);
-		}
-		else {
-			return (int)nextTargetId_;
-		}
+        if(this.name2tax_.containsKey(sid)) {
+            return this.name2tax_.get(sid);
+        }
+        else {
+            return (int)nextTargetId_;
+        }
 
-		//return (it != name2tax_.end()) ? it->second : nextTargetId_;
-	}
+        //return (it != name2tax_.end()) ? it->second : nextTargetId_;
+    }
 
-	public boolean is_valid(int tid) {
-		return tid < nextTargetId_;
-	}
+    public boolean is_valid(int tid) {
+        return tid < nextTargetId_;
+    }
 
-	public void rank_target(int tid, long taxid) {
-		targets_.get(tid).setTax(taxid);
-		update_lineages(targets_.get(tid));
-	}
+    public void rank_target(int tid, long taxid) {
+        targets_.get(tid).setTax(taxid);
+        update_lineages(targets_.get(tid));
+    }
 
-	public Long[] ranks_of_target(int id)  {
-		return targets_.get(id).getRanked_lineage();
-	}
+    public Long[] ranks_of_target(int id)  {
+        return targets_.get(id).getRanked_lineage();
+    }
 
-	//public void try_to_rank_unranked_targets(database& db, const build_param& param)
-	public void try_to_rank_unranked_targets() {
-		ArrayList<Long> unranked = this.unranked_targets();
+    //public void try_to_rank_unranked_targets(database& db, const build_param& param)
+    public void try_to_rank_unranked_targets() {
+        ArrayList<Long> unranked = this.unranked_targets();
 
-		if(!unranked.isEmpty()) {
-			LOG.info(unranked.size() + " targets could not be ranked.");
+        if(!unranked.isEmpty()) {
+            LOG.info(unranked.size() + " targets could not be ranked.");
 
-			for(String file : this.taxonomyParam.getMappingPostFiles()) {
-				this.rank_targets_post_process(unranked, file);
-			}
-		}
+            for(String file : this.taxonomyParam.getMappingPostFiles()) {
+                this.rank_targets_post_process(unranked, file);
+            }
+        }
 
-		unranked = this.unranked_targets();
+        unranked = this.unranked_targets();
 
-		if(unranked.isEmpty()) {
-			LOG.info("All targets are ranked.");
-		}
-		else {
-			LOG.info(unranked.size() + " targets remain unranked.");
-		}
+        if(unranked.isEmpty()) {
+            LOG.info("All targets are ranked.");
+        }
+        else {
+            LOG.info(unranked.size() + " targets remain unranked.");
+        }
 
-	}
+    }
 
-	public void rank_targets_post_process(ArrayList<Long> gids, String mappingFile)	{
+    public void rank_targets_post_process(ArrayList<Long> gids, String mappingFile)	{
 
-		if(gids.isEmpty()) return;
+        if(gids.isEmpty()) return;
 
-		try {
-			LOG.info("Try to map sequences to taxa using '" + mappingFile);
+        try {
+            LOG.info("Try to map sequences to taxa using '" + mappingFile);
 
-			//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
-			FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+            //JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
+            FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
 
-			if(!fs.isFile(new Path(mappingFile))) {
-				return;
-			}
+            if(!fs.isFile(new Path(mappingFile))) {
+                return;
+            }
 
-			FSDataInputStream inputStream = fs.open(new Path(mappingFile));
+            FSDataInputStream inputStream = fs.open(new Path(mappingFile));
 
-			BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
+            BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
 
-			String acc;
-			String accver;
-			Long taxid;
-			String gi;
+            String acc;
+            String accver;
+            Long taxid;
+            String gi;
 
 
-			String newLine = d.readLine();
+            String newLine = d.readLine();
 
-			while(newLine != null) {
+            while(newLine != null) {
 
-				//skip header
-				if(newLine.startsWith("#")) {
-					newLine = d.readLine();
-				}
-				else {
+                //skip header
+                if(newLine.startsWith("#")) {
+                    newLine = d.readLine();
+                }
+                else {
 
-					String lineSplits[] = newLine.split("\t");
+                    String lineSplits[] = newLine.split("\t");
 
-					int i = 0;
+                    int i = 0;
 
-					while(i+4<lineSplits.length) {
+                    while(i+4<lineSplits.length) {
 
-						acc = lineSplits[i];
-						accver = lineSplits[i+1];
-						taxid = Long.valueOf(lineSplits[i+2]);
-						gi = lineSplits[i+3];
+                        acc = lineSplits[i];
+                        accver = lineSplits[i+1];
+                        taxid = Long.valueOf(lineSplits[i+2]);
+                        gi = lineSplits[i+3];
 
-						//target in database?
-						//accession.version is the default
-						int tid = this.target_id_of_sequence(accver);
+                        //target in database?
+                        //accession.version is the default
+                        int tid = this.target_id_of_sequence(accver);
 
-						if(!this.is_valid(tid)) {
-							tid = this.target_id_of_sequence(acc);
-							if(!this.is_valid(tid)) {
-								tid = this.target_id_of_sequence(gi);
-							}
-						}
+                        if(!this.is_valid(tid)) {
+                            tid = this.target_id_of_sequence(acc);
+                            if(!this.is_valid(tid)) {
+                                tid = this.target_id_of_sequence(gi);
+                            }
+                        }
 
-						//if in database then map to taxon
-						if(this.is_valid(tid)) {
+                        //if in database then map to taxon
+                        if(this.is_valid(tid)) {
 
-							int pos = 0;
-							for(Long current: gids){
-								if(current == tid) {
-									break;
-								}
-								pos++;
-							}
+                            int pos = 0;
+                            for(Long current: gids){
+                                if(current == tid) {
+                                    break;
+                                }
+                                pos++;
+                            }
 
-							if(pos != gids.size()){
+                            if(pos != gids.size()){
 
 
-								this.rank_target(tid, taxid);
-								gids.remove(pos);
+                                this.rank_target(tid, taxid);
+                                gids.remove(pos);
 
-								if(gids.isEmpty()) {
-									break;
-								}
-							}
+                                if(gids.isEmpty()) {
+                                    break;
+                                }
+                            }
 
-						}
+                        }
 
-						i+=4;
-					}
+                        i+=4;
+                    }
 
-				}
+                }
 
-			}
+            }
 
-			d.close();
-			inputStream.close();
-			//fs.close();
-		}
+            d.close();
+            inputStream.close();
+            //fs.close();
+        }
 
-		catch (IOException e) {
-			LOG.error("I/O Error accessing HDFS in rank_targets_post_process: "+e.getMessage());
-			//System.exit(1);
-		}
-		catch (Exception e) {
-			LOG.error("General error accessing HDFS in rank_targets_post_process: "+e.getMessage());
-			//System.exit(1);
-		}
+        catch (IOException e) {
+            LOG.error("I/O Error accessing HDFS in rank_targets_post_process: "+e.getMessage());
+            //System.exit(1);
+        }
+        catch (Exception e) {
+            LOG.error("General error accessing HDFS in rank_targets_post_process: "+e.getMessage());
+            //System.exit(1);
+        }
 
-	}
+    }
 
 
-	public void remove_ambiguous_features(Taxonomy.Rank r, int maxambig) {
-		if(this.taxa_.empty()) {
-			LOG.error("No taxonomy available!");
-			System.exit(1);
-		}
+    public void remove_ambiguous_features(Taxonomy.Rank r, int maxambig) {
+        if(this.taxa_.empty()) {
+            LOG.error("No taxonomy available!");
+            System.exit(1);
+        }
 
-		if(maxambig == 0) maxambig = 1;
-		//Todo: Do it with Spark
+        if(maxambig == 0) maxambig = 1;
+        //Todo: Do it with Spark
 /*
 		if(r == Taxonomy.Rank.Sequence) {
 			long i = 0;
@@ -1438,37 +1562,37 @@ public class Database implements Serializable{
 				}
 			}
 		}*/
-	}
+    }
 
-	public void write_database() {
+    public void write_database() {
 
 
-		//this.locationJavaPairRDD.saveAsObjectFile(this.dbfile);
+        //this.locationJavaPairRDD.saveAsObjectFile(this.dbfile);
 
-		try {
+        try {
 
-			//JavaSparkContext javaSparkContext = new JavaSparkContext(sparkS.sparkContext());
-			//FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
-			FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+            //JavaSparkContext javaSparkContext = new JavaSparkContext(sparkS.sparkContext());
+            //FileSystem fs = FileSystem.get(javaSparkContext.hadoopConfiguration());
+            FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
 
-			String path = fs.getHomeDirectory().toString();
+            String path = fs.getHomeDirectory().toString();
 
-			long startTime = System.nanoTime();
+            long startTime = System.nanoTime();
 
-			if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
-				//this.locationJavaHashRDD.saveAsObjectFile(path+"/"+this.dbfile);
+            if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
+                //this.locationJavaHashRDD.saveAsObjectFile(path+"/"+this.dbfile);
 
-				List<String> outputs = this.locationJavaHashRDD
-						.mapPartitionsWithIndex(new WriteHashMap(path+"/"+this.dbfile), true)
-						.collect();
+                List<String> outputs = this.locationJavaHashRDD
+                        .mapPartitionsWithIndex(new WriteHashMap(path+"/"+this.dbfile), true)
+                        .collect();
 
-				for(String output: outputs) {
-					LOG.warn("Wrote file: "+output);
-				}
+                for(String output: outputs) {
+                    LOG.warn("Wrote file: "+output);
+                }
 
-			}
-			else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {//(paramsBuild.isBuildModeHashMultiMapG()) {
-				//this.locationJavaHashMMRDD.saveAsObjectFile(path+"/"+this.dbfile);
+            }
+            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {//(paramsBuild.isBuildModeHashMultiMapG()) {
+                //this.locationJavaHashMMRDD.saveAsObjectFile(path+"/"+this.dbfile);
                 List<String> outputs = this.locationJavaHashMMRDD
                         .mapPartitionsWithIndex(new WriteHashMultiMapGuava(path+"/"+this.dbfile), true)
                         .collect();
@@ -1476,25 +1600,25 @@ public class Database implements Serializable{
                 for(String output: outputs) {
                     LOG.warn("Wrote file: "+output);
                 }
-			}
-			else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
-				//this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
-				//this.locationJavaRDDHashMultiMapNative.saveAsObjectFile(path+"/"+this.dbfile);
+            }
+            else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
+                //this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
+                //this.locationJavaRDDHashMultiMapNative.saveAsObjectFile(path+"/"+this.dbfile);
 
-				List<String> outputs = this.locationJavaRDDHashMultiMapNative.mapPartitionsWithIndex(
-						new WriteHashMapNative(path+"/"+this.dbfile), true).collect();
+                List<String> outputs = this.locationJavaRDDHashMultiMapNative.mapPartitionsWithIndex(
+                        new WriteHashMapNative(path+"/"+this.dbfile), true).collect();
 
-				for(String output: outputs) {
-					LOG.warn("Writed file: "+output);
-				}
+                for(String output: outputs) {
+                    LOG.warn("Writed file: "+output);
+                }
 
-			}
-			else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
-				this.featuresDataframe_.write().parquet(path+"/"+this.dbfile);
-				//this.featuresDataframe_.write().partitionBy("key").parquet(path+"/"+this.dbfile);
-			}
-			else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
-				//this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
+            }
+            else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
+                this.featuresDataframe_.write().parquet(path+"/"+this.dbfile);
+                //this.featuresDataframe_.write().partitionBy("key").parquet(path+"/"+this.dbfile);
+            }
+            else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
+                //this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
 
                 //this.locationsRDD.saveAsObjectFile(path+"/"+this.dbfile);
                 List<String> outputs = this.locationsRDD.mapPartitionsWithIndex(new WriteLocations(path+"/"+this.dbfile), true)
@@ -1504,41 +1628,41 @@ public class Database implements Serializable{
                     LOG.info("File written: " + file_name);
                 }
 
-			}
+            }
 
 
 
-			//LOG.warn("Time in writedatabase is: "+ (System.nanoTime() - startTime)/10e9);
+            //LOG.warn("Time in writedatabase is: "+ (System.nanoTime() - startTime)/10e9);
 
 
-			//this.locationJavaPairListRDD.saveAsObjectFile(this.dbfile);
-			//this.locationJavaHashRDD.saveAsObjectFile(this.dbfile);
+            //this.locationJavaPairListRDD.saveAsObjectFile(this.dbfile);
+            //this.locationJavaHashRDD.saveAsObjectFile(this.dbfile);
 
-			//this.featuresDataframe_.unpersist();
+            //this.featuresDataframe_.unpersist();
 
-			LOG.info("Database created at "+ path+"/"+this.dbfile);
+            LOG.info("Database created at "+ path+"/"+this.dbfile);
 
-		}
-		catch (IOException e) {
-			LOG.error("I/O Error accessing HDFS in write_database: "+e.getMessage());
-			e.printStackTrace();
-			System.exit(1);
-		}
-		catch (Exception e) {
-			LOG.error("General error accessing HDFS in write_database: "+e.getMessage());
-			e.printStackTrace();
-			System.exit(1);
-		}
+        }
+        catch (IOException e) {
+            LOG.error("I/O Error accessing HDFS in write_database: "+e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
+        catch (Exception e) {
+            LOG.error("General error accessing HDFS in write_database: "+e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
 
-	}
+    }
 
-	public void loadFromFile() {
+    public void loadFromFile() {
 
 
-		/*
-		 * Ordering<Integer> ordering = Ordering$.MODULE$.comparatorToOrdering(Comparator.<Integer>naturalOrder());
-		 */
-		if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {
+        /*
+         * Ordering<Integer> ordering = Ordering$.MODULE$.comparatorToOrdering(Comparator.<Integer>naturalOrder());
+         */
+        if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {
             LOG.warn("Loading database in Java HashMap format");
             //this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
@@ -1571,8 +1695,8 @@ public class Database implements Serializable{
             LOG.warn("The number of paired persisted entries is: " + this.locationJavaHashRDD.count());
 
 
-		}
-		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {
+        }
+        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {
 			/*LOG.warn("Loading database with isBuildModeHashMultiMapG");
 			this.locationJavaHashMMRDD = this.jsc.objectFile(this.dbfile);
 
@@ -1613,52 +1737,52 @@ public class Database implements Serializable{
 */
             LOG.warn("The number of paired persisted entries is: " + this.locationJavaHashMMRDD.count());
 
-		}
-		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
-			LOG.warn("Loading database with isBuildModeHashMultiMapMC");
-			//this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
+        }
+        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
+            LOG.warn("Loading database with isBuildModeHashMultiMapMC");
+            //this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
-			List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
+            List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
 
-			for(String newFile : filesNames) {
-				LOG.warn("New file added: "+newFile);
-			}
+            for(String newFile : filesNames) {
+                LOG.warn("New file added: "+newFile);
+            }
 
-			JavaRDD<String> filesNamesRDD;
+            JavaRDD<String> filesNamesRDD;
 
-			if(this.numPartitions != 1) {
-				filesNamesRDD = this.jsc.parallelize(filesNames, this.numPartitions);
-			}
-			else {
-				filesNamesRDD = this.jsc.parallelize(filesNames);
-			}
-
-
-			this.locationJavaRDDHashMultiMapNative = filesNamesRDD
-					.mapPartitionsWithIndex(new ReadHashMapNative(), true)
-					.persist(StorageLevel.MEMORY_AND_DISK());
+            if(this.numPartitions != 1) {
+                filesNamesRDD = this.jsc.parallelize(filesNames, this.numPartitions);
+            }
+            else {
+                filesNamesRDD = this.jsc.parallelize(filesNames);
+            }
 
 
-			LOG.warn("The number of paired persisted entries is: " + this.locationJavaRDDHashMultiMapNative.count());
-		}
-		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
-			LOG.warn("Loading database with isBuildModeParquetDataframe");
-			//DataFrame dataFrame = this.sqlContext.read().parquet(this.dbfile);
+            this.locationJavaRDDHashMultiMapNative = filesNamesRDD
+                    .mapPartitionsWithIndex(new ReadHashMapNative(), true)
+                    .persist(StorageLevel.MEMORY_AND_DISK());
+
+
+            LOG.warn("The number of paired persisted entries is: " + this.locationJavaRDDHashMultiMapNative.count());
+        }
+        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
+            LOG.warn("Loading database with isBuildModeParquetDataframe");
+            //DataFrame dataFrame = this.sqlContext.read().parquet(this.dbfile);
             Dataset<Location> dataFrame = this.sqlContext.read().parquet(this.dbfile).map(new Row2Location(), Encoders.bean(Location.class));
 
-			this.locationJavaRDD = dataFrame.javaRDD();
+            this.locationJavaRDD = dataFrame.javaRDD();
 
-			this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class))
-					.persist(StorageLevel.MEMORY_AND_DISK());
+            this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class))
+                    .persist(StorageLevel.MEMORY_AND_DISK());
 
-			this.featuresDataframe_.registerTempTable("MetaCacheSpark");
-			//this.sqlContext.cacheTable("MetaCacheSpark");
+            this.featuresDataframe_.registerTempTable("MetaCacheSpark");
+            //this.sqlContext.cacheTable("MetaCacheSpark");
 
-			LOG.warn("The number of paired persisted entries is: " + this.featuresDataframe_.count());
+            LOG.warn("The number of paired persisted entries is: " + this.featuresDataframe_.count());
 
-		}
-		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
-			LOG.warn("Loading database with isBuildCombineByKey");
+        }
+        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
+            LOG.warn("Loading database with isBuildCombineByKey");
 
             Dataset<Location> dataFrame = this.sqlContext.read().parquet(this.dbfile).map(new Row2Location(), Encoders.bean(Location.class));
 
@@ -1694,30 +1818,30 @@ public class Database implements Serializable{
             LOG.warn("The number of paired persisted entries is: " + this.featuresDataset.count());
 
 
-		}
+        }
 
-	}
+    }
 
-	public List<TreeMap<LocationBasic, Integer>> accumulate_matches_buffer_treemap2( List<SequenceData> inputData, long init, int size, long total, long readed) {
+    public List<TreeMap<LocationBasic, Integer>> accumulate_matches_buffer_treemap2( List<SequenceData> inputData, long init, int size, long total, long readed) {
 
-		long initTime = System.nanoTime();
+        long initTime = System.nanoTime();
 
-		// Get results for this buffer
-		List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
-				.mapPartitionsToPair(new PartialQueryTreeMap(inputData, init, size, total, readed))
-				.reduceByKey(new QueryReducerTreeMap())
-				.sortByKey()
-				.values()
-				.collect();
+        // Get results for this buffer
+        List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+                .mapPartitionsToPair(new PartialQueryTreeMap(inputData, init, size, total, readed))
+                .reduceByKey(new QueryReducerTreeMap())
+                .sortByKey()
+                .values()
+                .collect();
 
-		long endTime = System.nanoTime();
+        long endTime = System.nanoTime();
 
-		LOG.warn("JMAbuin time in insert into treeMap is: " + ((endTime - initTime) / 1e9) + " seconds");
+        LOG.warn("JMAbuin time in insert into treeMap is: " + ((endTime - initTime) / 1e9) + " seconds");
 
-		return results;
+        return results;
 
 
-	}
+    }
 
     public List<TreeMap<LocationBasic, Integer>> accumulate_matches_buffer_treemap_local( String file_name, long init, int size, long total, long readed) {
 
@@ -1746,7 +1870,7 @@ public class Database implements Serializable{
 
         // Get results for this buffer
         //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
-		List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+        List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
                 //.mapPartitionsToPair(new FullQuery(fileName))
                 .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, total, readed, this.params.getResult_size()))
                 .reduceByKey(new QueryReducerTreeMapNative())
@@ -1764,84 +1888,107 @@ public class Database implements Serializable{
     }
 
 
-	public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_native_buffered( String fileName, long init, int size, long total, long readed) {
+    public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_native_buffered( String fileName, long init, int size, long total, long readed) {
 
-		long initTime = System.nanoTime();
+        long initTime = System.nanoTime();
 
-		// Get results for this buffer
-		if (this.params.getResult_size() > 0) {
-			List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
-					//.mapPartitionsToPair(new FullQuery(fileName))
-					.mapPartitionsToPair(new PartialQueryNativeTreeMapBest(fileName, init, size, total, readed, this.params.getResult_size()))
-					.reduceByKey(new QueryReducerTreeMapNative())
-					.sortByKey()
-					.values()
-					.collect();
+        // Get results for this buffer
+        if (this.params.getResult_size() > 0) {
+            List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+                    //.mapPartitionsToPair(new FullQuery(fileName))
+                    .mapPartitionsToPair(new PartialQueryNativeTreeMapBest(fileName, init, size, total, readed, this.params.getResult_size()))
+                    .reduceByKey(new QueryReducerTreeMapNative())
+                    .sortByKey()
+                    .values()
+                    .collect();
 
-			long endTime = System.nanoTime();
+            long endTime = System.nanoTime();
 
-			LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
-			return results;
-		}
-		else {
-			List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
-					//.mapPartitionsToPair(new FullQuery(fileName))
-					.mapPartitionsToPair(new PartialQueryNativeTreeMap(fileName, init, size, total, readed, this.params.getResult_size()))
-					.reduceByKey(new QueryReducerTreeMapNative())
-					.sortByKey()
-					.values()
-					.collect();
+            return results;
+        }
+        else {
+            List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+                    //.mapPartitionsToPair(new FullQuery(fileName))
+                    .mapPartitionsToPair(new PartialQueryNativeTreeMap(fileName, init, size, total, readed, this.params.getResult_size()))
+                    .reduceByKey(new QueryReducerTreeMapNative())
+                    .sortByKey()
+                    .values()
+                    .collect();
 
-			long endTime = System.nanoTime();
+            long endTime = System.nanoTime();
 
-			LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
-			return results;
-		}
+            return results;
+        }
 
-	}
+    }
 
-	public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_native_buffered_paired( String fileName, String fileName2, long init, int size, long total, long readed) {
+    public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_native_buffered_paired( String fileName, String fileName2, long init, int size, long total, long readed) {
 
-		long initTime = System.nanoTime();
+        long initTime = System.nanoTime();
 
-		// Get results for this buffer
-		if (this.params.getResult_size() > 0) {
-			List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
-					//.mapPartitionsToPair(new FullQuery(fileName))
-					.mapPartitionsToPair(new PartialQueryNativeTreeMapBestPaired(fileName, fileName2, init, size, total, readed, this.params.getResult_size()))
-					.reduceByKey(new QueryReducerTreeMapNative())
-					.sortByKey()
-					.values()
-					.collect();
+        // Get results for this buffer
+        if (this.params.getResult_size() > 0) {
+            List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+                    //.mapPartitionsToPair(new FullQuery(fileName))
+                    .mapPartitionsToPair(new PartialQueryNativeTreeMapBestPaired(fileName, fileName2, init, size, total, readed, this.params.getResult_size()))
+                    .reduceByKey(new QueryReducerTreeMapNative())
+                    .sortByKey()
+                    .values()
+                    .collect();
 
-			long endTime = System.nanoTime();
+            long endTime = System.nanoTime();
 
-			LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
-			return results;
-		}
-		else {
-			List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
-					//.mapPartitionsToPair(new FullQuery(fileName))
-					.mapPartitionsToPair(new PartialQueryNativeTreeMapPaired(fileName, fileName2, init, size, total, readed, this.params.getResult_size()))
-					.reduceByKey(new QueryReducerTreeMapNative())
-					.sortByKey()
-					.values()
-					.collect();
+            return results;
+        }
+        else {
+            List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+                    //.mapPartitionsToPair(new FullQuery(fileName))
+                    .mapPartitionsToPair(new PartialQueryNativeTreeMapPaired(fileName, fileName2, init, size, total, readed, this.params.getResult_size()))
+                    .reduceByKey(new QueryReducerTreeMapNative())
+                    .sortByKey()
+                    .values()
+                    .collect();
 
-			long endTime = System.nanoTime();
+            long endTime = System.nanoTime();
 
-			LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
-			return results;
-		}
+            return results;
+        }
 
-	}
+    }
+
+    public List<List<MatchCandidate>>  accumulate_matches_native_buffered_paired_list( String fileName, String fileName2,
+                                                                                      long init, int size) {
+
+        long initTime = System.nanoTime();
+
+        List<List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
+                //.mapPartitionsToPair(new FullQuery(fileName))
+                .mapPartitionsToPair(new PartialQueryNativeListPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params,
+                        this.taxa_, this.targets_))
+                .reduceByKey(new QueryReducerListNative())
+                .sortByKey()
+                .values()
+                .collect();
+
+        long endTime = System.nanoTime();
+
+        LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+        return results;
+
+
+    }
 
     //public TreeMap<LocationBasic, Integer> accumulate_matches_hashmapnativemode(String file_name, long query_number) {
-	public TreeMap<LocationBasic, Integer> accumulate_matches_native_single(String file_name, long query_number) {
+    public TreeMap<LocationBasic, Integer> accumulate_matches_native_single(String file_name, long query_number) {
 
         //long initTime = System.nanoTime();
 
@@ -1902,76 +2049,76 @@ public class Database implements Serializable{
 
     }
 
-	public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_hashmap_guava_buffered( String fileName, long init, int size, long total, long readed) {
+    public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_hashmap_guava_buffered( String fileName, long init, int size, long total, long readed) {
 
-		long initTime = System.nanoTime();
+        long initTime = System.nanoTime();
 
-		// Get results for this buffer
-		//List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
-		List<TreeMap<LocationBasic, Integer>> results = this.locationJavaHashMMRDD
-				//.mapPartitionsToPair(new FullQuery(fileName))
-				.mapPartitionsToPair(new PartialQueryGuavaTreeMap(fileName, init, size, total, readed, this.params.getResult_size()))
-				.reduceByKey(new QueryReducerTreeMapNative())
-				.sortByKey()
-				.values()
-				.collect();
+        // Get results for this buffer
+        //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
+        List<TreeMap<LocationBasic, Integer>> results = this.locationJavaHashMMRDD
+                //.mapPartitionsToPair(new FullQuery(fileName))
+                .mapPartitionsToPair(new PartialQueryGuavaTreeMap(fileName, init, size, total, readed, this.params.getResult_size()))
+                .reduceByKey(new QueryReducerTreeMapNative())
+                .sortByKey()
+                .values()
+                .collect();
 
-		long endTime = System.nanoTime();
+        long endTime = System.nanoTime();
 
-		LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+        LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
-		return results;
-
-
-	}
-
-	public TreeMap<LocationBasic, Integer> accumulate_matches_hashmap_guava_single(String file_name, long query_number) {
-
-		//long initTime = System.nanoTime();
-
-		// Get results for this buffer
-		//List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
-		TreeMap<LocationBasic, Integer> results = this.locationJavaHashMMRDD
-				.map(new PartialQueryGuavaTreeMapSingle(file_name, query_number, this.params.getResult_size()))
-				.reduce(new QueryReducerTreeMapNative());
+        return results;
 
 
-		//long endTime = System.nanoTime();
+    }
 
-		//LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+    public TreeMap<LocationBasic, Integer> accumulate_matches_hashmap_guava_single(String file_name, long query_number) {
 
-		return results;
+        //long initTime = System.nanoTime();
 
-	}
+        // Get results for this buffer
+        //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
+        TreeMap<LocationBasic, Integer> results = this.locationJavaHashMMRDD
+                .map(new PartialQueryGuavaTreeMapSingle(file_name, query_number, this.params.getResult_size()))
+                .reduce(new QueryReducerTreeMapNative());
 
 
-	//public TreeMap<LocationBasic, Integer> matches(Sketch query) {
-	public TreeMap<LocationBasic, Integer> matches(SequenceData query) {
+        //long endTime = System.nanoTime();
 
-		if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {
-			return this.accumulate_matches_hashmapmode(query);
-		}
-		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {
-			return null;
-		}
-		//else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
-		//	return this.accumulate_matches_native_treemap_single(query);
-		//}
-		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
-			return this.accumulate_matches_filter(query);
-		}
-		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
-			return this.accumulate_matches_combinemode(query);
-			//return this.accumulate_matches_filter(query);
-			//return this.accumulate_matches_combine(query);
-			//return this.accumulate_matches_combine_RDD(query);
-		}
+        //LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
-		return null;
+        return results;
 
-	}
+    }
 
-	public TreeMap<LocationBasic, Integer> matches(String file_name, long query_number) {
+
+    //public TreeMap<LocationBasic, Integer> matches(Sketch query) {
+    public TreeMap<LocationBasic, Integer> matches(SequenceData query) {
+
+        if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {
+            return this.accumulate_matches_hashmapmode(query);
+        }
+        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {
+            return null;
+        }
+        //else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
+        //	return this.accumulate_matches_native_treemap_single(query);
+        //}
+        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
+            return this.accumulate_matches_filter(query);
+        }
+        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
+            return this.accumulate_matches_combinemode(query);
+            //return this.accumulate_matches_filter(query);
+            //return this.accumulate_matches_combine(query);
+            //return this.accumulate_matches_combine_RDD(query);
+        }
+
+        return null;
+
+    }
+
+    public TreeMap<LocationBasic, Integer> matches(String file_name, long query_number) {
 
 		/*if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {
 			return this.accumulate_matches_hashmapmode(query);
@@ -1980,8 +2127,8 @@ public class Database implements Serializable{
 			return null;
 		}
 		else*/ if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
-			return this.accumulate_matches_native_single(file_name, query_number);
-		}/*
+            return this.accumulate_matches_native_single(file_name, query_number);
+        }/*
 		else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
 			return this.accumulate_matches_filter(query);
 		}
@@ -1992,22 +2139,22 @@ public class Database implements Serializable{
 			//return this.accumulate_matches_combine_RDD(query);
 		}*/
 
-		return null;
+        return null;
 
-	}
+    }
 
 
 
-	public List<TreeMap<LocationBasic, Integer>> matches_buffered(List<SequenceData> queries, long init, int size, long total, long readed) {
+    public List<TreeMap<LocationBasic, Integer>> matches_buffered(List<SequenceData> queries, long init, int size, long total, long readed) {
 
-		if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
-			LOG.warn("[JMAbuin] Using buffered mode");
-			return this.accumulate_matches_buffer_treemap2(queries, init, size, total, readed);
-			//return this.accumulate_matches_buffer_treemap(queries, init, size, total, readed);
-		}
+        if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
+            LOG.warn("[JMAbuin] Using buffered mode");
+            return this.accumulate_matches_buffer_treemap2(queries, init, size, total, readed);
+            //return this.accumulate_matches_buffer_treemap(queries, init, size, total, readed);
+        }
 
-		return null;
-	}
+        return null;
+    }
 
     public List<TreeMap<LocationBasic, Integer>> matches_buffered_local(String file_name, long init, int size, long total, long readed) {
 
@@ -2021,23 +2168,23 @@ public class Database implements Serializable{
     }
 
 
-	public TreeMap<LocationBasic, Integer> accumulate_matches_filter(SequenceData query) {
+    public TreeMap<LocationBasic, Integer> accumulate_matches_filter(SequenceData query) {
 
-		//TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
-		TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>();
+        //TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
+        TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>();
 
-		StringBuilder queryString = new StringBuilder();
+        StringBuilder queryString = new StringBuilder();
 
-		JavaRDD<LocationBasic> obtainedLocationsRDD = null;
+        JavaRDD<LocationBasic> obtainedLocationsRDD = null;
 
-		List<LocationBasic> obtainedLocations = new ArrayList<LocationBasic>();
+        List<LocationBasic> obtainedLocations = new ArrayList<LocationBasic>();
 
-		try {
+        try {
 
-			ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(query);
+            ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(query);
 
-			for(Sketch currentSketch : locations) {
-				for (int i : currentSketch.getFeatures()) {
+            for(Sketch currentSketch : locations) {
+                for (int i : currentSketch.getFeatures()) {
 /*
 				if(queryString.toString().isEmpty()) {
 					queryString.append("select * from MetaCacheSpark where key = " + i);
@@ -2046,54 +2193,54 @@ public class Database implements Serializable{
 					queryString.append(" or key = "+i);
 				}
 */
-					//Row results[] = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collect();
+                    //Row results[] = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collect();
                     List<Location> results = this.featuresDataframe_.filter(this.featuresDataframe_.col("key").equalTo(i)).collectAsList();
 
-					for (Location current_location : results) {
-						//ArrayList<LocationBasic> myList = (ArrayList<LocationBasic>) IOSerialize.fromString(currentRow.getString(1));
+                    for (Location current_location : results) {
+                        //ArrayList<LocationBasic> myList = (ArrayList<LocationBasic>) IOSerialize.fromString(currentRow.getString(1));
 
-						obtainedLocations.add(new LocationBasic(current_location.getTargetId(), current_location.getWindowId()));
-
-
-					}
-
-				}
-			}
+                        obtainedLocations.add(new LocationBasic(current_location.getTargetId(), current_location.getWindowId()));
 
 
-			//obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2Location());
+                    }
 
-			//obtainedLocations = obtainedLocationsRDD.collect();
-
-			//queryString.delete(0, queryString.toString().length());
-
-			for (LocationBasic obtainedLocation : obtainedLocations) {
-
-				if (res.containsKey(obtainedLocation)) {
-					res.put(obtainedLocation, res.get(obtainedLocation) + 1);
-				} else {
-					res.put(obtainedLocation, 1);
-				}
-
-			}
+                }
+            }
 
 
-			return res;
+            //obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2Location());
 
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-			LOG.error("General error in accumulate_matches: "+e.getMessage());
-			System.exit(1);
-		}
+            //obtainedLocations = obtainedLocationsRDD.collect();
 
-		return res;
-		//}
+            //queryString.delete(0, queryString.toString().length());
 
-	}
+            for (LocationBasic obtainedLocation : obtainedLocations) {
+
+                if (res.containsKey(obtainedLocation)) {
+                    res.put(obtainedLocation, res.get(obtainedLocation) + 1);
+                } else {
+                    res.put(obtainedLocation, 1);
+                }
+
+            }
 
 
-	public TreeMap<LocationBasic, Integer> accumulate_matches_combinemode(SequenceData query) {
+            return res;
+
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in accumulate_matches: "+e.getMessage());
+            System.exit(1);
+        }
+
+        return res;
+        //}
+
+    }
+
+
+    public TreeMap<LocationBasic, Integer> accumulate_matches_combinemode(SequenceData query) {
 
         //TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
         TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>();
@@ -2130,7 +2277,7 @@ public class Database implements Serializable{
                         }
                     }
 
-                 }
+                }
 
                 //LOG.warn("[JMAbuin] Number of locations: "+res.size());
                 //}
@@ -2148,186 +2295,186 @@ public class Database implements Serializable{
 
         return res;
 
-	}
+    }
 
 
-	// TODO: Here!!!
-	public TreeMap<LocationBasic, Integer> accumulate_matches_hashmapmode(SequenceData query) {
+    // TODO: Here!!!
+    public TreeMap<LocationBasic, Integer> accumulate_matches_hashmapmode(SequenceData query) {
 
-		//TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
-		TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>();
+        //TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
+        TreeMap<LocationBasic, Integer> res = new TreeMap<LocationBasic, Integer>();
 
-		try {
-			ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(query);
+        try {
+            ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(query);
 
-			for(Sketch currentSketch : locations) {
-				for (int i : currentSketch.getFeatures()) {
+            for(Sketch currentSketch : locations) {
+                for (int i : currentSketch.getFeatures()) {
 
-					List<LocationBasic> obtainedValues = this.locationJavaHashRDD
-							.mapPartitions(new SearchInHashMap(i), true)
-							.collect();
+                    List<LocationBasic> obtainedValues = this.locationJavaHashRDD
+                            .mapPartitions(new SearchInHashMap(i), true)
+                            .collect();
 
-					//for(List<LocationBasic> obtainedLocations: obtainedValues){
-					for (LocationBasic obtainedLocation : obtainedValues) {
+                    //for(List<LocationBasic> obtainedLocations: obtainedValues){
+                    for (LocationBasic obtainedLocation : obtainedValues) {
 
-						//Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
+                        //Location newLocation = new Location(i, obtainedLocation.getTargetId(), obtainedLocation.getWindowId());
 
-						if (res.containsKey(obtainedLocation)) {
-							res.put(obtainedLocation, res.get(obtainedLocation) + 1);
-						} else {
-							res.put(obtainedLocation, 1);
-						}
-					}
+                        if (res.containsKey(obtainedLocation)) {
+                            res.put(obtainedLocation, res.get(obtainedLocation) + 1);
+                        } else {
+                            res.put(obtainedLocation, 1);
+                        }
+                    }
 
-					//}
+                    //}
 
-				}
-
-
-				LOG.warn("[JMAbuin] Number of locations: " + res.size());
-			}
-			return res;
-			//}
-
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-			LOG.error("General error in accumulate_matches: "+e.getMessage());
-			System.exit(1);
-		}
-
-		return res;
-
-	}
+                }
 
 
+                LOG.warn("[JMAbuin] Number of locations: " + res.size());
+            }
+            return res;
+            //}
+
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in accumulate_matches: "+e.getMessage());
+            System.exit(1);
+        }
+
+        return res;
+
+    }
 
 
-	public TreeMap<Location, Integer> accumulate_matches(Sketch query) {
-
-		TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
-
-		StringBuilder queryString = new StringBuilder();
-
-		JavaRDD<Location> obtainedLocationsRDD = null;
-
-		List<Location> obtainedLocations = new ArrayList<Location>();
-
-		try {
 
 
-			for (int i : query.getFeatures()) {
+    public TreeMap<Location, Integer> accumulate_matches(Sketch query) {
 
-				if(queryString.toString().isEmpty()) {
-					queryString.append("select * from MetaCacheSpark where key = " + i);
-				}
-				else {
-					queryString.append(" or key = "+i);
-				}
+        TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
 
-			}
+        StringBuilder queryString = new StringBuilder();
 
-			obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Function<Row, Location>() {
+        JavaRDD<Location> obtainedLocationsRDD = null;
+
+        List<Location> obtainedLocations = new ArrayList<Location>();
+
+        try {
+
+
+            for (int i : query.getFeatures()) {
+
+                if(queryString.toString().isEmpty()) {
+                    queryString.append("select * from MetaCacheSpark where key = " + i);
+                }
+                else {
+                    queryString.append(" or key = "+i);
+                }
+
+            }
+
+            obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Function<Row, Location>() {
                 @Override
                 public Location call(Row row) throws Exception {
                     return new Location(row.getInt(0), row.getInt(1), row.getInt(2));
                 }
             });
 
-			obtainedLocations = obtainedLocationsRDD.collect();
+            obtainedLocations = obtainedLocationsRDD.collect();
 
-			queryString.delete(0, queryString.toString().length());
+            queryString.delete(0, queryString.toString().length());
 
-			for (Location obtainedLocation : obtainedLocations) {
+            for (Location obtainedLocation : obtainedLocations) {
 
-				if (res.containsKey(obtainedLocation)) {
-					res.put(obtainedLocation, res.get(obtainedLocation) + 1);
-				} else {
-					res.put(obtainedLocation, 1);
-				}
+                if (res.containsKey(obtainedLocation)) {
+                    res.put(obtainedLocation, res.get(obtainedLocation) + 1);
+                } else {
+                    res.put(obtainedLocation, 1);
+                }
 
-			}
-
-
-			return res;
-
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-			LOG.error("General error in accumulate_matches: "+e.getMessage());
-			System.exit(1);
-		}
-
-		return res;
-		//}
-
-	}
-
-	public void accumulate_matches(Sketch query, TreeMap<LocationBasic, Integer> res) {
-		try {
-			List<LocationBasic> obtainedLocations = new ArrayList<LocationBasic>();
-
-			JavaRDD<LocationBasic> obtainedLocationsRDD = null;
-			// Made queries
-			//for(Sketch currentLocation: query) {
-
-			StringBuilder queryString = new StringBuilder();
-
-			//for(Sketch currentSketch : query) {
-				for (int i : query.getFeatures()) {
-					//String queryString = "select * from parquetFeatures where key=" + i;
-					//DataFrame result = this.sqlContext.sql(queryString);
-
-					queryString.append("select * from MetaCacheSpark where key = " + i);
-
-					obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2LocationBasic());
-
-					obtainedLocations = obtainedLocationsRDD.collect();
-
-					queryString.delete(0, queryString.toString().length());
-
-					for (LocationBasic obtainedLocation : obtainedLocations) {
-
-						if (res.containsKey(obtainedLocation)) {
-							res.put(obtainedLocation, res.get(obtainedLocation) + 1);
-						} else {
-							res.put(obtainedLocation, 1);
-						}
-
-					}
-				}
-			//}
-
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-			LOG.error("General error in accumulate_matches: "+e.getMessage());
-			System.exit(1);
-		}
-
-		//}
-	}
-
-	public TreeMap<Location, Integer> accumulate_matches(ArrayList<Sketch> query) {
-
-		TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
-
-		StringBuilder queryString = new StringBuilder();
-
-		JavaRDD<Location> obtainedLocationsRDD = null;
-
-		List<Location> obtainedLocations = new ArrayList<Location>();
-
-		try {
+            }
 
 
-			for(Sketch currentSketch : query) {
-				for (int i : currentSketch.getFeatures()) {
+            return res;
 
-					//obtainedLocationsRDD = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location());
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in accumulate_matches: "+e.getMessage());
+            System.exit(1);
+        }
+
+        return res;
+        //}
+
+    }
+
+    public void accumulate_matches(Sketch query, TreeMap<LocationBasic, Integer> res) {
+        try {
+            List<LocationBasic> obtainedLocations = new ArrayList<LocationBasic>();
+
+            JavaRDD<LocationBasic> obtainedLocationsRDD = null;
+            // Made queries
+            //for(Sketch currentLocation: query) {
+
+            StringBuilder queryString = new StringBuilder();
+
+            //for(Sketch currentSketch : query) {
+            for (int i : query.getFeatures()) {
+                //String queryString = "select * from parquetFeatures where key=" + i;
+                //DataFrame result = this.sqlContext.sql(queryString);
+
+                queryString.append("select * from MetaCacheSpark where key = " + i);
+
+                obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Row2LocationBasic());
+
+                obtainedLocations = obtainedLocationsRDD.collect();
+
+                queryString.delete(0, queryString.toString().length());
+
+                for (LocationBasic obtainedLocation : obtainedLocations) {
+
+                    if (res.containsKey(obtainedLocation)) {
+                        res.put(obtainedLocation, res.get(obtainedLocation) + 1);
+                    } else {
+                        res.put(obtainedLocation, 1);
+                    }
+
+                }
+            }
+            //}
+
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in accumulate_matches: "+e.getMessage());
+            System.exit(1);
+        }
+
+        //}
+    }
+
+    public TreeMap<Location, Integer> accumulate_matches(ArrayList<Sketch> query) {
+
+        TreeMap<Location, Integer> res = new TreeMap<Location, Integer>(new LocationComparator());
+
+        StringBuilder queryString = new StringBuilder();
+
+        JavaRDD<Location> obtainedLocationsRDD = null;
+
+        List<Location> obtainedLocations = new ArrayList<Location>();
+
+        try {
 
 
-					queryString.append("select * from MetaCacheSpark where key = " + i);
+            for(Sketch currentSketch : query) {
+                for (int i : currentSketch.getFeatures()) {
+
+                    //obtainedLocationsRDD = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location());
+
+
+                    queryString.append("select * from MetaCacheSpark where key = " + i);
 
                     obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Function<Row, Location>() {
                         @Override
@@ -2336,57 +2483,57 @@ public class Database implements Serializable{
                         }
                     });
 
-					obtainedLocations = obtainedLocationsRDD.collect();
+                    obtainedLocations = obtainedLocationsRDD.collect();
 
-					queryString.delete(0, queryString.toString().length());
+                    queryString.delete(0, queryString.toString().length());
 
-					for (Location obtainedLocation : obtainedLocations) {
+                    for (Location obtainedLocation : obtainedLocations) {
 
-						if (res.containsKey(obtainedLocation)) {
-							res.put(obtainedLocation, res.get(obtainedLocation) + 1);
-						} else {
-							res.put(obtainedLocation, 1);
-						}
+                        if (res.containsKey(obtainedLocation)) {
+                            res.put(obtainedLocation, res.get(obtainedLocation) + 1);
+                        } else {
+                            res.put(obtainedLocation, 1);
+                        }
 
-					}
-				}
-			}
+                    }
+                }
+            }
 
-			return res;
+            return res;
 
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-			LOG.error("General error in accumulate_matches: "+e.getMessage());
-			System.exit(1);
-		}
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in accumulate_matches: "+e.getMessage());
+            System.exit(1);
+        }
 
-		return res;
-		//}
+        return res;
+        //}
 
-	}
+    }
 
-	public void accumulate_matches(ArrayList<Sketch> query, TreeMap<Location, Integer> res) {
-		try {
-			List<Location> obtainedLocations = new ArrayList<Location>();
+    public void accumulate_matches(ArrayList<Sketch> query, TreeMap<Location, Integer> res) {
+        try {
+            List<Location> obtainedLocations = new ArrayList<Location>();
 
-			JavaRDD<Location> obtainedLocationsRDD = null;
-			// Made queries
-			//for(Sketch currentLocation: query) {
+            JavaRDD<Location> obtainedLocationsRDD = null;
+            // Made queries
+            //for(Sketch currentLocation: query) {
 
-			StringBuilder queryString = new StringBuilder();
+            StringBuilder queryString = new StringBuilder();
 
-			for(Sketch currentSketch : query) {
-				for (int i : currentSketch.getFeatures()) {
-					//String queryString = "select * from parquetFeatures where key=" + i;
-					//DataFrame result = this.sqlContext.sql(queryString);
+            for(Sketch currentSketch : query) {
+                for (int i : currentSketch.getFeatures()) {
+                    //String queryString = "select * from parquetFeatures where key=" + i;
+                    //DataFrame result = this.sqlContext.sql(queryString);
 
-					if(queryString.toString().isEmpty()){
-						queryString.append("select * from MetaCacheSpark where key = " + i);
-					}
-					else {
-						queryString.append(" or key = " + i);
-					}
+                    if(queryString.toString().isEmpty()){
+                        queryString.append("select * from MetaCacheSpark where key = " + i);
+                    }
+                    else {
+                        queryString.append(" or key = " + i);
+                    }
 
 
 					/*obtainedLocationsRDD = this.featuresDataframe_.filter("key ="+i).javaRDD().map(new Row2Location());
@@ -2405,7 +2552,7 @@ public class Database implements Serializable{
 
 					}*/
 
-				}
+                }
 
                 obtainedLocationsRDD = this.sqlContext.sql(queryString.toString()).javaRDD().map(new Function<Row, Location>() {
                     @Override
@@ -2414,58 +2561,58 @@ public class Database implements Serializable{
                     }
                 });
 
-				obtainedLocations = obtainedLocationsRDD.collect();
+                obtainedLocations = obtainedLocationsRDD.collect();
 
-				queryString.delete(0, queryString.toString().length());
+                queryString.delete(0, queryString.toString().length());
 
-				for (Location obtainedLocation : obtainedLocations) {
+                for (Location obtainedLocation : obtainedLocations) {
 
-					if (res.containsKey(obtainedLocation)) {
-						res.put(obtainedLocation, res.get(obtainedLocation) + 1);
-					} else {
-						res.put(obtainedLocation, 1);
-					}
+                    if (res.containsKey(obtainedLocation)) {
+                        res.put(obtainedLocation, res.get(obtainedLocation) + 1);
+                    } else {
+                        res.put(obtainedLocation, 1);
+                    }
 
-				}
+                }
 
-				LOG.warn("[JMAbuin] Number of locations: "+obtainedLocations.size());
+                LOG.warn("[JMAbuin] Number of locations: "+obtainedLocations.size());
 
-			}
+            }
 
-		}
-		catch(Exception e) {
-			e.printStackTrace();
-			LOG.error("General error in accumulate_matches: "+e.getMessage());
-			System.exit(1);
-		}
+        }
+        catch(Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in accumulate_matches: "+e.getMessage());
+            System.exit(1);
+        }
 
-		//}
-	}
+        //}
+    }
 
-	public static long invalid_target_id() {
-		return max_target_count();
-	}
+    public static long invalid_target_id() {
+        return max_target_count();
+    }
 
 
-	public static long max_target_count() {
-		return Integer.MAX_VALUE;
-	}
+    public static long max_target_count() {
+        return Integer.MAX_VALUE;
+    }
 
-	public static long max_windows_per_target() {
-		return Integer.MAX_VALUE;
-	}
+    public static long max_windows_per_target() {
+        return Integer.MAX_VALUE;
+    }
 
-	public boolean empty() {
-		return features_.count() == 0;
-	}
+    public boolean empty() {
+        return features_.count() == 0;
+    }
 
-	public Taxon taxon_with_id(long id) {
-		return taxa_.getTaxa_().get(id);
-	}
+    public Taxon taxon_with_id(long id) {
+        return taxa_.getTaxa_().get(id);
+    }
 
-	public Taxon taxon_with_name(String name) {
+    public Taxon taxon_with_name(String name) {
 
-	    if (!this.name2tax_.containsKey(name)) {
+        if (!this.name2tax_.containsKey(name)) {
             return this.taxa_.getNoTaxon_();
         }
         else {
@@ -2514,16 +2661,16 @@ public class Database implements Serializable{
 
     }
 
-	public Long[] ranks(Taxon tax)  {
-		return this.taxa_.ranks((Long)tax.getTaxonId());
-	}
+    public Long[] ranks(Taxon tax)  {
+        return this.taxa_.ranks((Long)tax.getTaxonId());
+    }
 
-	public Classification ground_truth(String header) {
+    public Classification ground_truth(String header) {
 
         //try to extract query id and find the corresponding target in database
-	    Taxon tmp_tax = this.taxon_with_name(SequenceReader.extract_ncbi_accession_version_number(header));
+        Taxon tmp_tax = this.taxon_with_name(SequenceReader.extract_ncbi_accession_version_number(header));
 
-	    if (tmp_tax != this.taxa_.getNoTaxon_()) {
+        if (tmp_tax != this.taxa_.getNoTaxon_()) {
             return new Classification (tmp_tax.getTaxonId(), tmp_tax);
         }
 
@@ -2549,94 +2696,94 @@ public class Database implements Serializable{
 
         return new Classification();
 
-	}
+    }
 
-	//public Long[] ranks_of_target(long id) {
-	//	return targets_.get((int)id).getRanked_lineage();
-	//}
+    //public Long[] ranks_of_target(long id) {
+    //	return targets_.get((int)id).getRanked_lineage();
+    //}
 
-	public long[] ranks_of_target_basic(long id) {
+    public long[] ranks_of_target_basic(long id) {
 /*
 		if(targets_.get((int)id) == null) {
 			LOG.error("Can not find target id!!: "+id);
 			System.exit(-1);
 		}
 */
-		Long data[] = targets_.get((int)id).getRanked_lineage();
+        Long data[] = targets_.get((int)id).getRanked_lineage();
 
-		if(data == null) {
-			//LOG.warn("Data is null");
-			return null;
-		}
+        if(data == null) {
+            //LOG.warn("Data is null");
+            return null;
+        }
 
-		long returnedData[] = new long[data.length];
+        long returnedData[] = new long[data.length];
 
-		for(int i = 0; i< data.length; i++){
-			returnedData[i] = data[i].longValue();
-			//LOG.warn("JMABUIN: Taxa in target id: "+targets_.get((int)id).getTax()+ " value:" +i+" : " + returnedData[i]);
-		}
+        for(int i = 0; i< data.length; i++){
+            returnedData[i] = data[i].longValue();
+            //LOG.warn("JMABUIN: Taxa in target id: "+targets_.get((int)id).getTax()+ " value:" +i+" : " + returnedData[i]);
+        }
 
-		return returnedData;
-	}
+        return returnedData;
+    }
 
-	public Taxon ranked_lca_of_targets(int ta, int tb) {
+    public Taxon ranked_lca_of_targets(int ta, int tb) {
 
-		//LOG.warn("[JMABUIN] Un: "+ranks_of_target_basic(ta).length+ ", dous: "+ranks_of_target_basic(tb).length);
+        //LOG.warn("[JMABUIN] Un: "+ranks_of_target_basic(ta).length+ ", dous: "+ranks_of_target_basic(tb).length);
 
-		return taxa_.lca(ranks_of_target_basic(ta), ranks_of_target_basic(tb));
-	}
+        return taxa_.lca(ranks_of_target_basic(ta), ranks_of_target_basic(tb));
+    }
 
-	public Taxonomy.Rank lowest_common_rank(Classification a, Classification b) {
+    public Taxonomy.Rank lowest_common_rank(Classification a, Classification b) {
 
-		if(a.sequence_level() && b.sequence_level() &&
-				a.target() == b.target()) return Taxonomy.Rank.Sequence;
+        if(a.sequence_level() && b.sequence_level() &&
+                a.target() == b.target()) return Taxonomy.Rank.Sequence;
 
-		if(a.has_taxon() && b.has_taxon()) {
-			return this.ranked_lca(a.tax(), b.tax()).getRank();
-		}
+        if(a.has_taxon() && b.has_taxon()) {
+            return this.ranked_lca(a.tax(), b.tax()).getRank();
+        }
 
-		return Taxonomy.Rank.none;
-	}
+        return Taxonomy.Rank.none;
+    }
 
-	public Taxon ranked_lca(Taxon ta, Taxon tb) {
-		return taxa_.ranked_lca(ta, tb);
-	}
+    public Taxon ranked_lca(Taxon ta, Taxon tb) {
+        return taxa_.ranked_lca(ta, tb);
+    }
 
-	public boolean covers(Taxon t) {
-		return covers_taxon(t.getTaxonId());
-	}
+    public boolean covers(Taxon t) {
+        return covers_taxon(t.getTaxonId());
+    }
 
-	public boolean covers_taxon(long id) {
+    public boolean covers_taxon(long id) {
 
-		for(TargetProperty g : targets_) {
-			for(long taxid : g.getFull_lineage()) {
-				if(taxid == id) return true;
-			}
-		}
-		return false;
-	}
+        for(TargetProperty g : targets_) {
+            for(long taxid : g.getFull_lineage()) {
+                if(taxid == id) return true;
+            }
+        }
+        return false;
+    }
 
-	public String sequence_id_of_target(long tid) {
-		return targets_.get((int)tid).getIdentifier();
-	}
+    public String sequence_id_of_target(long tid) {
+        return targets_.get((int)tid).getIdentifier();
+    }
 
-	public SequenceOrigin origin_of_target(int id) {
-		return targets_.get(id).getOrigin();
-	}
+    public SequenceOrigin origin_of_target(int id) {
+        return targets_.get(id).getOrigin();
+    }
 
-	public Taxon find_taxon_id(String id) {
+    public Taxon find_taxon_id(String id) {
 
-	    if(this.name2tax_.containsKey(id)) {
-	        long tid = this.targets_.get(this.name2tax_.get(id)).getTax();
+        if(this.name2tax_.containsKey(id)) {
+            long tid = this.targets_.get(this.name2tax_.get(id)).getTax();
 
-	        return  this.taxa_.getTaxa_().get(tid);
+            return  this.taxa_.getTaxa_().get(tid);
 
         }
 
         String ceiling_key = this.name2tax_.ceilingKey(id);
 
-	    if (ceiling_key == null) {
-	        return this.taxa_.getNoTaxon_();
+        if (ceiling_key == null) {
+            return this.taxa_.getNoTaxon_();
         }
 
         //if nearest match contains 'name' as prefix -> good enough

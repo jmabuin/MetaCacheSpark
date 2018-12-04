@@ -38,10 +38,7 @@ import org.apache.spark.sql.Row;
 import scala.Tuple2;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class Build implements Serializable {
 
@@ -102,10 +99,10 @@ public class Build implements Serializable {
 	public Taxonomy make_taxonomic_hierarchy(String taxNodesFile, String taxNamesFile, String mergeTaxFile ) {
 
 		//using taxon_id = taxonomy::taxon_id;
-
+		Taxonomy tax = new Taxonomy();
 		//read scientific taxon names
 		//failure to do so will not be fatal
-		HashMap<Long, String> taxonNames = new HashMap<Long,String>(); // TaxId, Name
+		TreeMap<Long, String> taxonNames = new TreeMap<Long,String>(); // TaxId, Name
 		BufferedReader br;
 		//JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
 
@@ -159,7 +156,7 @@ public class Build implements Serializable {
 			inputStream.close();
 			//fs.close();
 
-			LOG.info("Done.");
+			LOG.info("Done. Taxon names: " + taxonNames.size());
 		}
 		catch (IOException e) {
 			LOG.error("Could not read taxon names file "+ taxNamesFile+ " because of IO error; continuing with ids only.");
@@ -207,13 +204,14 @@ public class Build implements Serializable {
 
 				mergedTaxa.put(oldId, newId);
 
+				tax.emplace(oldId, newId, "", "");
 			}
 
 			br.close();
 			inputStream.close();
 			//fs.close();
 
-			LOG.info("Done.");
+			LOG.info("Done. mergedTaxa: " + mergedTaxa.size());
 		}
 		catch (IOException e) {
 			LOG.error("Could not read taxonomic node mergers file "+ mergeTaxFile+ "");
@@ -222,7 +220,7 @@ public class Build implements Serializable {
 		}
 
 		//read taxonomic structure
-		Taxonomy tax = new Taxonomy();
+
 
 		try {
 			//br = new BufferedReader(new FileReader(taxNodesFile));
@@ -410,12 +408,29 @@ public class Build implements Serializable {
             db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
 		}
 */
+
         if(!input_files.isEmpty()) {
+
+ /*       	if (!inputDirs.isEmpty()) {
+				db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
+			}
+        	else {
+        		ArrayList<String> input = new ArrayList<>();
+        		input.add(this.param.getInfiles());
+				db.buildDatabaseMultiPartitions(input, sequ2taxid, infoMode);
+			}
+*/
             if((input_files.size() > 1000) && (!inputDirs.isEmpty())) {
                 db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
             }
+            //else if (input_files.size() == 1) {
+            	//db.buildDatabase2(input_files.get(0), sequ2taxid, infoMode);
+				//ArrayList<String> input = new ArrayList<>();
+				//input.add(this.param.getInfiles());
+			//	db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
+			//}
             else {
-                db.buildDatabaseInputFormat(input_files, sequ2taxid, infoMode);
+				db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
             }
 
         }

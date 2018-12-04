@@ -3,9 +3,10 @@ package com.github.jmabuin.metacachespark.options;
 import com.github.jmabuin.metacachespark.EnumModes;
 import com.github.jmabuin.metacachespark.database.Taxonomy;
 
+import java.io.Serializable;
 import java.util.Properties;
 
-public class MetaCacheProperties {
+public class MetaCacheProperties implements Serializable {
 
     // Default options values
     /*
@@ -52,6 +53,7 @@ public class MetaCacheProperties {
 
     private int hitsMin                     = 0;        // < 1 : deduced from database parameters
     private double hitsDiff                 = 0.5;
+    private double hitsDiffFraction         = 1.0;
     private int insertSizeMax               = 0;        // Maximum range in sequence that read (pair) is expected to be in
     private boolean weightHitsWithWindows   = false;
 
@@ -94,6 +96,7 @@ public class MetaCacheProperties {
 
         this.hitsMin                 = Integer.parseInt(properties.getProperty("hitsMin"));
         this.hitsDiff                = Double.parseDouble(properties.getProperty("hitsDiff"));
+        this.hitsDiffFraction        = Double.parseDouble(properties.getProperty("hitsDiffFraction"));
         this.insertSizeMax           = Integer.parseInt(properties.getProperty("insertSizeMax"));
         this.weightHitsWithWindows   = Boolean.parseBoolean("weightHitsWithWindows");
 
@@ -264,4 +267,9 @@ public class MetaCacheProperties {
     public void setHitsMin(int hitsMin) {
         this.hitsMin = hitsMin;
     }
+
+    public double getHitsDiffFraction() {
+        return hitsDiffFraction;
+    }
+
 }

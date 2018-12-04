@@ -7,16 +7,13 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by chema on 1/16/17.
  */
 //public class Sketcher2Pair implements FlatMapFunction<Iterator<Sequence>,HashMap<Integer, ArrayList<LocationBasic>>> {
-public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Sequence>,Integer, List<LocationBasic>> {
+public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequence>, List<Location>> {
 
 	private static final Log LOG = LogFactory.getLog(Sketcher2Pair.class);
 	private short k_;
@@ -34,12 +31,12 @@ public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Seq
 		return Integer.MAX_VALUE;
 	}
 
-	private HashMap<String, Integer> sequencesIndexes;
+	private TreeMap<String, Integer> sequencesIndexes;
 	private HashMap<Integer, Integer> lookup;
 	private int firstEmptyPosition;
 
 
-	public Sketcher2PairPartitions(HashMap<String, Integer> sequencesIndexes) {
+	public Sketcher2PairPartitions(TreeMap<String, Integer> sequencesIndexes) {
 
 		this.sequencesIndexes = sequencesIndexes;
 		//this.firstEmptyPosition = 0;
@@ -47,24 +44,9 @@ public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Seq
 	}
 
 	@Override
-	public Iterator<Tuple2<Integer, List<LocationBasic>>> call(Iterator<Sequence> inputSequences){
+	public Iterator<List<Location>> call(Iterator<Sequence> inputSequences){
 
-		//public Iterable<Integer,Location> call(Sequence inputSequence) {
-
-		int initialSize = 5;
-
-		ArrayList<Tuple2<Integer, List<LocationBasic>>> returnedValues = new ArrayList<Tuple2<Integer, List<LocationBasic>>>();
-
-		//returnedValues.ensureCapacity(initialSize);
-
-		this.firstEmptyPosition = 0;
-
-		for(int i=0; i< initialSize; i++) {
-
-			returnedValues.add(null);
-
-		}
-
+		ArrayList<List<Location>> returnedValues = new ArrayList<List<Location>>();
 
 		long initTime = System.nanoTime();
 		long endTime;
@@ -79,9 +61,11 @@ public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Seq
 
 		String currentWindow = "";
 		int numWindows = 0;
+		int current_sketch_size = MCSConfiguration.sketchSize;
 
 		while(inputSequences.hasNext()) {
 			Sequence inputSequence = inputSequences.next();
+			ArrayList<Location> seq_returnedValues = new ArrayList<Location>();
 
 			currentStart = 0;
 			currentEnd = MCSConfiguration.windowSize;
@@ -89,12 +73,6 @@ public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Seq
 			currentWindow = "";
 			numWindows = 0;
 
-			// We iterate over windows (with overlap)
-			//while (currentEnd <= inputSequence.getData().length()) {
-
-			LOG.warn("[JMAbuin] Processing sequence: "+inputSequence.getHeader()+ " with length " +
-					inputSequence.getData().length());
-			LOG.warn("Consumed memory: "+ ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024.0/1024.0)+" MB");
 			while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
 				//Sketch resultSketch = new Sketch();
 
@@ -102,43 +80,33 @@ public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Seq
 					currentEnd = inputSequence.getData().length();
 				}
 
+				current_sketch_size = MCSConfiguration.sketchSize;
+
 				if ((currentEnd - currentStart) >= MCSConfiguration.kmerSize) {
 
-					currentWindow = inputSequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
+					if (currentEnd - currentStart < MCSConfiguration.kmerSize * 2){
+						current_sketch_size = currentEnd - currentStart - MCSConfiguration.kmerSize + 1;
+					}
 
+
+					//LOG.warn("[JMAbuin] Current window is: " + currentWindow);
 					// We compute the k-mers. In C
-					int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
+					int[] sketchValues = HashFunctions.window2sketch32(inputSequence.getData().substring(currentStart, currentEnd)
+							, current_sketch_size, MCSConfiguration.kmerSize);
 
-					//LOG.warn("[JMAbuin] CurrentWindow sketch size: "+sketchValues.length);
+					if (sketchValues != null) {
+						//LOG.warn("[JMAbuin] CurrentWindow sketch size: " + sketchValues.length);
 
-					for (int newValue : sketchValues) {
+						for (int newValue : sketchValues) {
 
-						this.insert(returnedValues,newValue, this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows);
-
-						/*if(lookup.containsKey(newValue)) {
-							int pos = lookup.get(newValue);
-
-							if(returnedValues.get(pos)._2().size() < 256) {
-								returnedValues.get(pos)._2().add(new LocationBasic(this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
-							}
+							//LOG.warn("Calculated value: " + newValue);
+							seq_returnedValues.add(
+									new Location(newValue, this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows));
 
 
 						}
-						else {
-							lookup.put(newValue, returnedValues.size());
-
-							List<LocationBasic> newList = new ArrayList<LocationBasic>();
-							newList.add(new LocationBasic(this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows));
-
-							returnedValues.add(new Tuple2<Integer, List<LocationBasic>>(newValue, newList));
-
-						}*/
-
-
-						//returnedValues.add(new Tuple2<Integer, LocationBasic>(newValue,
-						//		new LocationBasic(this.sequencesIndexes.get(inputSequence.getIdentifier()), numWindows)));
-
 					}
+
 
 				}
 				numWindows++;
@@ -146,6 +114,8 @@ public class Sketcher2PairPartitions implements PairFlatMapFunction<Iterator<Seq
 				currentEnd = currentStart + MCSConfiguration.windowSize;
 
 			}
+
+			returnedValues.add(seq_returnedValues);
 			//LOG.warn("[JMAbuin] Total windows: "+numWindows);
 
 		}

@@ -35,7 +35,7 @@ public class FastaSequenceReader2 implements FlatMapFunction<Tuple2<String, Text
     }
 
     @Override
-    public Iterator<Sequence> call(Tuple2<String, Text> arg0) {
+    public Iterator<Sequence> call(Tuple2<String, Text> arg0) { // <File, Bunch of FASTA sequences (Theoreyically one)>
         StringBuffer header = new StringBuffer();
         StringBuffer data = new StringBuffer();
 
@@ -50,14 +50,15 @@ public class FastaSequenceReader2 implements FlatMapFunction<Tuple2<String, Text
 
         //while(arg0.hasNext()) {
 
-        currentInput.delete(0, currentInput.length());
-        currentFile.delete(0, currentFile.length());
+        //currentInput.delete(0, currentInput.length());
+        //currentFile.delete(0, currentFile.length());
 
         //currentItem = arg0.next();
         currentInput.append(arg0._2().toString());
         currentFile.append(arg0._1());
 
         if(!currentInput.toString().startsWith(">")) {
+            //LOG.warn("Data not starting with \'>\'! " + currentInput.toString());
             return returnedValues.iterator();
         }
 
@@ -94,6 +95,8 @@ public class FastaSequenceReader2 implements FlatMapFunction<Tuple2<String, Text
             returnedValues.add(new Sequence(sequence_number, header.toString(), data.toString(), ""));
 
         }
+
+        LOG.warn("Number of sequences before rank them is: " + returnedValues.size());
 
         int currentIndexNumber = 0;
 
