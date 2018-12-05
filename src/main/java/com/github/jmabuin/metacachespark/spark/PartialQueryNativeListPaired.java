@@ -191,6 +191,7 @@ public class PartialQueryNativeListPaired implements PairFlatMapFunction<Iterato
                         }
                     }
 
+                    // These hits are already the TOP hits
                     List<MatchCandidate> hits = this.insert_all(current_results, numWindows);
 
                     //LOG.warn("Items for sequence " + currentSequence +" is: " + hits.size());

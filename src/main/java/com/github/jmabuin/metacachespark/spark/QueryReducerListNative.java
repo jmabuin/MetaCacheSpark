@@ -73,6 +73,9 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
             if (v.getHits() >= threshold) {
                 results.add(v);
             }
+            else {
+                break;
+            }
 
         }
 

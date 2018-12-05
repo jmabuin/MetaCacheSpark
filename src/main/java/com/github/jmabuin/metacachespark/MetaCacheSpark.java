@@ -1,6 +1,7 @@
 package com.github.jmabuin.metacachespark;
 import com.esotericsoftware.kryo.serializers.MapSerializer;
 import com.github.jmabuin.metacachespark.database.LocationBasicComparator;
+import com.github.jmabuin.metacachespark.database.MatchCandidate;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -8,6 +9,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.TreeMap;
 
 /**
@@ -43,7 +45,7 @@ public class MetaCacheSpark implements Serializable {
 			// Kryo serializer
 			sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
 
-			Class[] serializedClasses = {Location.class, Sketch.class, TreeMap.class};
+			Class[] serializedClasses = {Location.class, Sketch.class, TreeMap.class, LocationBasic.class, MatchCandidate.class, List.class};
 			sparkConf.registerKryoClasses(serializedClasses);
 
 
@@ -73,25 +75,13 @@ public class MetaCacheSpark implements Serializable {
 
 			// Kryo serializer
 			sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
-			sparkConf.set("spark.kryoserializer.buffer.max","512m");
-			sparkConf.set("spark.driver.maxResultSize", "2g");
+			sparkConf.set("spark.kryoserializer.buffer.max","1024m");
+			sparkConf.set("spark.driver.maxResultSize", "4g");
 
 			sparkConf.set("spark.sql.tungsten.enabled", "true");
 			sparkConf.set("spark.io.compression.codec", "snappy");
 			sparkConf.set("spark.sql.parquet.compression.codec", "snappy");
 
-
-
-			/*
-			sparkConf.set("spark.sql.tungsten.enabled", "true")
-sparkConf.set("spark.eventLog.enabled", "true")
-sparkConf.set("spark.app.id", "YourApp")
-sparkConf.set("spark.io.compression.codec", "snappy")
-sparkConf.set("spark.rdd.compress", "true")
-sparkConf.set("spark.streaming.backpressure.enabled", "true")
-
-sparkConf.set("spark.sql.parquet.compression.codec", "snappy")
-			 */
 
 /*
 			TreeMap<LocationBasic, Integer> proba = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());
@@ -108,14 +98,16 @@ sparkConf.set("spark.sql.parquet.compression.codec", "snappy")
 
 			MapSerializer serializer = new MapSerializer();
 */
-			sparkConf.set("spark.kryo.registrator","com.github.jmabuin.metacachespark.MyKryoRegistrator");
+			//sparkConf.set("spark.kryo.registrator","com.github.jmabuin.metacachespark.MyKryoRegistrator");
+			Class[] serializedClasses = {Location.class, Sketch.class, TreeMap.class, LocationBasic.class, MatchCandidate.class, List.class};
+			sparkConf.registerKryoClasses(serializedClasses);
 
 
 			//The ctx is created from the previous config
 			JavaSparkContext ctx = new JavaSparkContext(sparkConf);
 			//ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
             ctx.setLogLevel("WARN");
-			LOG.warn("Using old Spark version!! - " + ctx.version());
+			LOG.warn("Using Spark version - " + ctx.version());
 
 			// Get arguments and do my stuff
 			//String queryArgs[] = newOptions.getOtherOptions();

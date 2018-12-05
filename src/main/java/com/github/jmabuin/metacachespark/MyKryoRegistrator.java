@@ -3,9 +3,11 @@ package com.github.jmabuin.metacachespark;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.MapSerializer;
 import com.github.jmabuin.metacachespark.database.LocationBasicComparator;
+import com.github.jmabuin.metacachespark.database.MatchCandidate;
 import org.apache.spark.serializer.KryoRegistrator;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.TreeMap;
 
 /**
@@ -29,6 +31,8 @@ public class MyKryoRegistrator implements KryoRegistrator, Serializable {
         kryo.register(Locations.class);
         kryo.register(Integer.class);
         kryo.register(LocationBasicComparator.class);
+        kryo.register(MatchCandidate.class);
+        kryo.register(List.class);
 
                 /*
                 Location.class,

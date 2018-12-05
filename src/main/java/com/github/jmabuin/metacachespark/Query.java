@@ -2088,17 +2088,17 @@ public class Query implements Serializable {
                 }
 
                 //print results
-                /*if (this.param.getProperties().isShowAllHits()) {
+                if (this.param.getProperties().isShowAllHits()) {
                     //LOG.warn("Showing all hits");
-                    show_matches_basic(d, this.db, hits, this.param.getProperties().getLowestRank());
+                    show_matches_list(d, this.db, tophits, this.param.getProperties().getLowestRank());
                     d.write(this.param.getProperties().getOutSeparator());
                 }
                 if (this.param.getProperties().isShowTopHits()) {
                     //LOG.warn("Showing top hits");
-                    show_matches_basic(d, this.db, tophits, this.param.getProperties().getLowestRank());
+                    show_matches_list(d, this.db, tophits, this.param.getProperties().getLowestRank());
                     d.write(this.param.getProperties().getOutSeparator());
                 }
-                if (this.param.getProperties().isShowLocations()) {
+                /*if (this.param.getProperties().isShowLocations()) {
                     show_candidate_ranges(d, this.db, tophits);
                     d.write(this.param.getProperties().getOutSeparator());
                 }*/
@@ -2622,6 +2622,8 @@ public class Query implements Serializable {
 
         }
 
+        //LOG.warn("Final LCA is: " + lca.getTaxonName());
+
         return lca;
         /*
 
@@ -3058,6 +3060,47 @@ public class Query implements Serializable {
                     os.write(Long.toString(taxid) + ':' + r.getValue() +
                             '/'+ r.getKey().getTargetId()+
                             '/' + r.getKey().getWindowId()+ ',');
+                    os.newLine();
+                }
+            }
+        }
+        catch(IOException e) {
+            LOG.error("IOException in function show_matches: "+ e.getMessage());
+            System.exit(1);
+        }
+        catch(Exception e) {
+            LOG.error("Exception in function show_matches: "+ e.getMessage());
+            System.exit(1);
+        }
+
+    }
+
+
+    public void show_matches_list(BufferedWriter os, Database db, MatchesInWindowList matchesWindow,
+                                   Taxonomy.Rank lowest)	{
+
+        //TreeMap<LocationBasic, Integer> matches = matchesWindow.getMatches();
+        List<MatchCandidate> matches = matchesWindow.getTop_list();
+
+        if(matches.isEmpty()) {
+            return;
+        }
+        try {
+            if(lowest == Taxonomy.Rank.Sequence) {
+                for(MatchCandidate r : matches) {
+                    os.write(db.sequence_id_of_target(r.getTgt())+
+                            '/'+ r.getTgt()+
+                            '/' + r.getHits()+
+                            ':' + r.getTax().getTaxonName() + ',');
+                    os.newLine();
+                }
+            }
+            else {
+                for(MatchCandidate r : matches) {
+                    long taxid = db.ranks_of_target(r.getTgt())[lowest.ordinal()];
+                    os.write(Long.toString(taxid) + ':' + r.getHits() +
+                            '/'+ r.getTgt()+
+                            '/' + r.getTax().getTaxonName()+ ',');
                     os.newLine();
                 }
             }
