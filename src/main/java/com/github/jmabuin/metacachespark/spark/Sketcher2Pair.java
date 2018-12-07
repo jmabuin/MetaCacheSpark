@@ -81,6 +81,7 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
 				kmer = "";
 				kmer32 = 0;
 				//LOG.warn("[JMAbuin] Current window is: " + currentWindow);
+
 				// We compute the k-mers. In C
 				int sketchValues[] = HashFunctions.window2sketch32(inputSequence.getData().substring(currentStart, currentEnd)
 						, current_sketch_size, MCSConfiguration.kmerSize);

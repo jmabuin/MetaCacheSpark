@@ -28,9 +28,11 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
 
     private static final Log LOG = LogFactory.getLog(Fasta2Sequence.class);
     private HashMap<String, Long> sequ2taxid;
+    private HashMap<String, Integer> targets_positions;
 
-    public Fasta2Sequence(HashMap<String, Long> sequ2taxid) {
+    public Fasta2Sequence(HashMap<String, Long> sequ2taxid, HashMap<String, Integer> targets_positions) {
         this.sequ2taxid = sequ2taxid;
+        this.targets_positions = targets_positions;
     }
 
     @Override
@@ -46,7 +48,7 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
 
             Configuration conf = new Configuration();
             FileSystem fs = FileSystem.get(conf);
-            long sequence_number = 0;
+            //long sequence_number = 0;
 
             while(fileNames.hasNext()) {
 
@@ -74,8 +76,8 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
                                 //returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1,
                                 //		header.toString(), -1));
                                 LOG.warn("Adding sequence : " + header.toString());
-                                returnValues.add(new Sequence(sequence_number, header.toString(), data.toString(), ""));
-                                sequence_number++;
+                                returnValues.add(new Sequence(this.targets_positions.get(header.toString()), header.toString(), data.toString(), ""));
+                                //sequence_number++;
                             }
 
                             header.delete(0,header.length());
@@ -99,12 +101,12 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
 
                     if ((!data.toString().isEmpty()) && (!header.toString().isEmpty())) {
                         LOG.warn("Adding last sequence : " + header.toString());
-                        returnValues.add(new Sequence(sequence_number, header.toString(), data.toString(), ""));
+                        returnValues.add(new Sequence(this.targets_positions.get(header.toString()), header.toString(), data.toString(), ""));
 
                     }
 
 
-                    int currentIndexNumber = 0;
+                    //int currentIndexNumber = 0;
 
                     for (Sequence currentSequence : returnValues) {
                         //LOG.info("Processing file: "+ currentFile);
@@ -146,11 +148,11 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
                         }
 
                         currentSequence.setTaxid(taxid);
-                        currentSequence.getSequenceOrigin().setIndex(currentIndexNumber);
+                        currentSequence.getSequenceOrigin().setIndex(this.targets_positions.get(currentSequence.getHeader()));
                         currentSequence.getSequenceOrigin().setFilename(fileName);
                         currentSequence.setSeqId(seqId);
 
-                        currentIndexNumber++;
+                        //currentIndexNumber++;
                     }
 
 

@@ -1,6 +1,8 @@
 package com.github.jmabuin.metacachespark.database;
 
 import com.github.jmabuin.metacachespark.LocationBasic;
+import com.github.jmabuin.metacachespark.TargetProperty;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -22,224 +24,29 @@ public class MatchesInWindowBasic {
 	private int tgt_[];
 	private IndexRange pos_[];
 	public static int maxNo = 2;
-	private TreeMap<LocationBasic, Integer> matches;
-	private TreeMap<LocationBasic, Integer> tophits;
+	private List<LocationBasic> matches;
+	private List<MatchCandidate> tophits;
+	private List<MatchCandidate> allhits;
+	private MetaCacheOptions options;
+	private Taxonomy taxa_;
+	private List<TargetProperty> targets_;
 	//private TreeMap<LocationBasic, Integer> matches_HM;
 
-	public MatchesInWindowBasic(TreeMap<LocationBasic, Integer> matches, long numWindows) {
-		this.hits_ = new long[maxNo];
-		this.tgt_ = new int[maxNo];
-		this.pos_ = new IndexRange[maxNo];
+	public MatchesInWindowBasic(List<LocationBasic> matches, long numWindows, MetaCacheOptions options, Taxonomy taxa_, List<TargetProperty> targets_) {
 
-		for(int i = 0; i< this.pos_.length; i++) {
-			this.pos_[i] = new IndexRange();
-		}
-
-		this.coveredWins_ = numWindows;
 		this.matches = matches;
+		this.coveredWins_ = numWindows;
+		this.options = options;
+		this.taxa_ = taxa_;
+		this.targets_ = targets_;
+
+		this.tophits = new ArrayList<>();
+		this.allhits = new ArrayList<>();
+
+		this.insert_all(this.matches, this.coveredWins_);
 
 
-		for(int i = 0; i < maxNo; ++i) {
-			tgt_[i] = Integer.MAX_VALUE;
-			hits_[i] = 0;
-		}
 
-		int tgt = Integer.MAX_VALUE;
-		long hits = 0;
-		long maxHits = 0;
-		long win = 0;
-		long maxWinBeg = 0;
-		long maxWinEnd = 0;
-
-		//check hits per query sequence
-		Map.Entry<LocationBasic, Integer> fst = matches.firstEntry();
-		Map.Entry<LocationBasic, Integer> lst = fst;
-
-		ArrayList<Map.Entry<LocationBasic, Integer>> arrayListMatches = new ArrayList<Map.Entry<LocationBasic, Integer>>(matches.entrySet());
-
-		int entryFST = 0;
-
-		for(int entryLST = 0; entryLST< arrayListMatches.size(); entryLST++) {
-			lst = arrayListMatches.get(entryLST);
-
-			//look for neighboring windows with the highest total hit count
-			//as long as we are in the same target and the windows are in a
-			//contiguous range
-			if(lst.getKey().getTargetId() == tgt) {
-				//add new hits to the right
-				hits += lst.getValue();
-				//subtract hits to the left that fall out of range
-				while(fst != lst &&	(lst.getKey().getWindowId() - fst.getKey().getWindowId()) >= numWindows)
-				{
-					hits -= fst.getValue();
-					//move left side of range
-					++entryFST;
-					fst = arrayListMatches.get(entryFST);
-					win = fst.getKey().getWindowId();
-				}
-				//track best of the local sub-ranges
-				if(hits > maxHits) {
-					maxHits = hits;
-					maxWinBeg = win;
-					maxWinEnd = win + Math.abs(entryLST - entryFST);//distance(fst,lst);
-				}
-			}
-			else {
-				//reset to new target
-				++numTgts_;
-				win = arrayListMatches.get(entryLST).getKey().getWindowId();
-				tgt = arrayListMatches.get(entryLST).getKey().getTargetId();
-				hits = arrayListMatches.get(entryLST).getValue();
-				//LOG.warn("tgt is: " + tgt + ", hits is: " + hits);
-				maxHits = hits;
-				maxWinBeg = win;
-				maxWinEnd = win;
-				//fst = lst;
-				entryFST = entryLST;
-			}
-			//keep track of 'maxNo' largest
-			//TODO binary search for large maxNo?
-			for(int i = 0; i < maxNo; ++i) {
-				if(maxHits >= hits_[i]) {
-					//shift to the right
-					for(int j = maxNo-1; j > i; --j) {
-						hits_[j] = hits_[j-1];
-						tgt_[j] = tgt_[j-1];
-						pos_[j] = pos_[j-1];
-					}
-					//set hits & associated sequence (position)
-					hits_[i] = maxHits;
-					tgt_[i] = tgt;
-					pos_[i].setBeg(maxWinBeg);
-					pos_[i].setEnd(maxWinEnd);
-					break;
-				}
-			}
-
-		}
-
-		//LOG.warn("Targets: " + tgt_[0] + " :: " + tgt_[1]);
-
-
-		/* Original code
-		//check hits per query sequence
-        auto fst = begin(matches);
-        auto lst = fst;
-        while(lst != end(matches)) {
-            //look for neighboring windows with the highest total hit count
-            //as long as we are in the same target and the windows are in a
-            //contiguous range
-            if(lst->first.tgt == tgt) {
-                //add new hits to the right
-                hits += lst->second;
-                //subtract hits to the left that fall out of range
-                while(fst != lst &&
-                     (lst->first.win - fst->first.win) >= numWindows)
-                {
-                    hits -= fst->second;
-                    //move left side of range
-                    ++fst;
-                    win = fst->first.win;
-                }
-                //track best of the local sub-ranges
-                if(hits > maxHits) {
-                    maxHits = hits;
-                    maxWinBeg = win;
-                    maxWinEnd = win + distance(fst,lst);
-                }
-            }
-            else {
-                //reset to new target
-                ++numTgts_;
-                win = lst->first.win;
-                tgt = lst->first.tgt;
-                hits = lst->second;
-                maxHits = hits;
-                maxWinBeg = win;
-                maxWinEnd = win;
-                fst = lst;
-            }
-            //keep track of 'maxNo' largest
-            //TODO binary search for large maxNo?
-            for(int i = 0; i < maxNo; ++i) {
-                if(maxHits >= hits_[i]) {
-                    //shift to the right
-                    for(int j = maxNo-1; j > i; --j) {
-                        hits_[j] = hits_[j-1];
-                        tgt_[j] = tgt_[j-1];
-                        pos_[j] = pos_[j-1];
-                    }
-                    //set hits & associated sequence (position)
-                    hits_[i] = maxHits;
-                    tgt_[i] = tgt;
-                    pos_[i].beg = maxWinBeg;
-                    pos_[i].end = maxWinEnd;
-                    break;
-                }
-            }
-            ++lst;
-        }
-		 */
-
-		/*
-		using hit_count = match_candidate::count_type;
-
-    using std::begin;
-    using std::end;
-
-    auto fst = begin(matches);
-
-    //list empty?
-    if(fst == end(matches)) return;
-
-    //first entry in list
-    hit_count hits = 1;
-    match_candidate curBest;
-    curBest.tax = fst->tax;
-    curBest.hits = hits;
-    curBest.pos.beg = fst->win;
-    curBest.pos.end = fst->win;
-    auto lst = fst;
-    ++lst;
-
-    //rest of list: check hits per query sequence
-    while(lst != end(matches)) {
-        //look for neighboring windows with the highest total hit count
-        //as long as we are in the same target and the windows are in a
-        //contiguous range
-        if(lst->tax == curBest.tax) {
-            //add new hits to the right
-            hits++;
-            //subtract hits to the left that fall out of range
-            while(fst != lst &&
-                (lst->win - fst->win) >= numWindows)
-            {
-                hits--;
-                //move left side of range
-                ++fst;
-            }
-            //track best of the local sub-ranges
-            if(hits > curBest.hits) {
-                curBest.hits = hits;
-                curBest.pos.beg = fst->win;
-                curBest.pos.end = lst->win;
-            }
-        }
-        else { //end of current target
-            if(!consume(curBest)) return;
-            //reset to new target
-            fst = lst;
-            hits = 1;
-            curBest.tax  = fst->tax;
-            curBest.hits = hits;
-            curBest.pos.beg = fst->win;
-            curBest.pos.end = fst->win;
-        }
-
-        ++lst;
-    }
-    if(!consume(curBest)) return;
-		 */
 
 
 	}
@@ -296,7 +103,215 @@ public class MatchesInWindowBasic {
 		return coveredWins_;
 	}
 
-	public TreeMap<LocationBasic, Integer> getMatches() {
+	public List<LocationBasic> getMatches() {
 		return matches;
+	}
+
+	public List<MatchCandidate> get_top_hits() {return this.tophits;}
+
+	public List<MatchCandidate> get_all_hits() {return this.allhits;}
+
+
+	private List<MatchCandidate> insert_all(List<LocationBasic> all_hits, long num_windows) {
+
+		HashMap<Integer, MatchCandidate> hits_map = new HashMap<>();
+		//List<MatchCandidate> top_list = new ArrayList<>();
+
+		CandidateGenerationRules rules = new CandidateGenerationRules();
+		rules.setMaxWindowsInRange((int)num_windows);
+
+		//rules.setMaxWindowsInRange(numWindows);
+
+		if(all_hits.isEmpty()) {
+			LOG.warn("Matches is empty!");
+			return this.tophits;
+		}
+		//else {
+		//    LOG.warn("We have matches!");
+		//}
+
+		//Sort candidates list in ASCENDING order by tgt and window
+		Collections.sort(all_hits, new Comparator<LocationBasic>() {
+			public int compare(LocationBasic o1,
+							   LocationBasic o2)
+			{
+
+				if (o1.getTargetId() > o2.getTargetId()) {
+					return 1;
+				}
+
+				if (o1.getTargetId() < o2.getTargetId()) {
+					return -1;
+				}
+
+				if (o1.getTargetId() == o2.getTargetId()) {
+					if (o1.getWindowId() > o2.getWindowId()) {
+						return 1;
+					}
+
+					if (o1.getWindowId() < o2.getWindowId()) {
+						return -1;
+					}
+
+					return 0;
+
+				}
+				return 0;
+
+			}
+		});
+
+
+		//check hits per query sequence
+		LocationBasic fst = all_hits.get(0);//matches.firstEntry();
+
+		long hits = 1;
+		MatchCandidate curBest = new MatchCandidate();
+		curBest.setTax(this.get_taxon(fst));
+		curBest.setTgt(fst.getTargetId());
+		curBest.setHits(hits);
+		curBest.setPos_beg(fst.getWindowId());
+		curBest.setPos_end(fst.getWindowId());
+
+		LocationBasic lst;// = fst;
+
+		int entryFST = 0;
+		int entryLST = entryFST + 1;
+
+		// Iterate over candidates
+		//LOG.warn("processing Candidate list");
+		//for(entryLST = entryFST + 1; entryLST< all_hits.size(); entryLST++) {
+        while(entryLST < all_hits.size()) {
+
+			lst = all_hits.get(entryLST);
+
+			//look for neighboring windows with the highest total hit count
+			//as long as we are in the same target and the windows are in a
+			//contiguous range
+			if(lst.getTargetId() == curBest.getTgt()) {
+				//add new hits to the right
+				hits++;
+
+				//subtract hits to the left that fall out of range
+				while((entryFST != entryLST) && ((lst.getWindowId() - fst.getWindowId()) >= rules.getMaxWindowsInRange()))  {
+					hits--;
+					//move left side of range
+					++entryFST;
+					fst = all_hits.get(entryFST);
+					//win = fst.getKey().getWindowId();
+				}
+				//track best of the local sub-ranges
+				if(hits > curBest.getHits()) {
+					curBest.setHits(hits);
+					curBest.setPos_beg(fst.getWindowId());
+					curBest.setPos_end(lst.getWindowId());
+				}
+			}
+			else {
+				//end of current target
+				this.insert_into_hashmap(hits_map, new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()), rules.getMaxCandidates());
+				//reset to new target
+				entryFST = entryLST;
+				fst = all_hits.get(entryFST);
+
+				hits = 1;
+				curBest.setTgt(fst.getTargetId());
+				curBest.setTax(this.get_taxon(fst));
+				curBest.setPos_beg(fst.getWindowId());
+				curBest.setPos_end(fst.getWindowId());
+				curBest.setHits(hits);
+			}
+
+			++entryLST;
+
+		}
+
+		this.insert_into_hashmap(hits_map, new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()),
+				rules.getMaxCandidates());
+
+		if (!hits_map.isEmpty()) {
+
+			List<Map.Entry<Integer, MatchCandidate>> list = new ArrayList<>(hits_map.entrySet());
+			//list.sort(Map.Entry.comparingByValue());
+
+			// Sorting the list in DESCENDING order based on hits
+			Collections.sort(list, new Comparator<Map.Entry<Integer, MatchCandidate>>() {
+				public int compare(Map.Entry<Integer, MatchCandidate> o1,
+								   Map.Entry<Integer, MatchCandidate> o2) {
+
+					if (o1.getValue().getHits() < o2.getValue().getHits()) {
+						return 1;
+					}
+
+					if (o1.getValue().getHits() > o2.getValue().getHits()) {
+						return -1;
+					}
+
+					return 0;
+
+				}
+			});
+
+			//Collections.reverse(list);
+
+			MatchCandidate best = list.get(0).getValue();
+			//this.best.setHits(list.get(list.size()-1).getValue());
+			//this.lca = this.best.getTax();
+
+			if (best.getHits() < this.options.getProperties().getHitsMin()) {
+				return new ArrayList<MatchCandidate>();
+			}
+
+			double threshold = best.getHits() > this.options.getProperties().getHitsMin() ?
+					(best.getHits() - this.options.getProperties().getHitsMin()) *
+							this.options.getProperties().getHitsDiffFraction() : 0;
+			//LOG.warn("Threshold: Best hits: " + best.getHits());
+			//LOG.warn("Threshold: " + threshold);
+			for (int i = 0; i < list.size(); ++i) {
+				Map.Entry<Integer, MatchCandidate> current_entry = list.get(i);
+                //LOG.warn("Best candidate item : " + i + " :: " + current_entry.getValue().getTgt() + " :: " + current_entry.getValue().getHits());
+				/*if (i>list.size()-5){
+					LOG.warn("Best candidate item : " + i + " :: " + current_entry.getValue().getTgt() + " :: " + current_entry.getValue().getHits());
+				}*/
+				MatchCandidate current_cand = current_entry.getValue();
+				this.allhits.add(current_cand);
+
+				if (current_entry.getValue().getHits() > threshold) {
+
+					//current_cand.setHits(current_entry.getValue());
+					this.tophits.add(current_cand);
+				}
+
+			}
+		}
+		else {
+			LOG.warn("Hits list is empty!! ");
+		}
+
+		return this.tophits;
+
+	}
+
+	private void insert_into_hashmap(HashMap<Integer, MatchCandidate> hm, MatchCandidate cand, long max_candidates) {
+
+		if (hm.containsKey(cand.getTgt())) {
+			//LOG.warn("Contains key Processing in insert " + cand.getTgt() + " :: " + cand.getHits());
+			if (cand.getHits() > hm.get(cand.getTgt()).getHits()) {
+				hm.put(cand.getTgt(), cand);
+			}
+		}
+		else if (hm.size() < max_candidates) {
+			//LOG.warn("Inserting " + cand.getTgt() + " :: " + cand.getHits());
+			hm.put(cand.getTgt(), cand);
+
+		}
+
+	}
+
+	private Taxon get_taxon(LocationBasic entry) {
+		//LOG.warn("Getting taxon for TgtId: " + entry.getTargetId());
+		//LOG.warn("Target is: " + entry.getTargetId());
+		//LOG.warn("Taxa from target in targets_ is: " + this.targets_.get(entry.getTargetId()).getTax());
+		return this.taxa_.getTaxa_().get(this.targets_.get(entry.getTargetId()).getTax());
 	}
 }

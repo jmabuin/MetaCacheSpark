@@ -14,12 +14,13 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
 
     @Override
     public List<MatchCandidate> call(List<MatchCandidate> v1, List<MatchCandidate> v2) {
-
+/*
         long best = 0;
         long best_v1 = 0;
         long best_v2 = 0;
 
         if (!v1.isEmpty()) {
+
             best_v1 = v1.get(0).getHits();
 
         }
@@ -39,12 +40,34 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
             threshold = v2.get(0).getHits() > 1 ?
                     (v2.get(0).getHits() - 1) * 1 : 0;
         }
+*/
 
 
 
 
+        //v1.addAll(v2);
 
-        v1.addAll(v2);
+        for (MatchCandidate m1: v1) {
+
+            for(MatchCandidate m2: v2) {
+
+                if (m1 == m2) {
+                    m1.setHits(m1.getHits() + m2.getHits());
+                    break;
+                }
+
+            }
+
+        }
+
+        for (MatchCandidate m2: v2) {
+
+            if (!v1.contains(m2)) {
+                v1.add(m2);
+            }
+
+        }
+
 
 
         // Sort candidates in DESCENDING order according number of hits
@@ -66,18 +89,27 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
             }
         });
 
+
         List<MatchCandidate> results = new ArrayList<>();
 
-        for (MatchCandidate v: v1) {
+        if (!v1.isEmpty()){
+            double threshold = v1.get(0).getHits() > 1 ?
+                    (v1.get(0).getHits() - 1) * 1 : 0;
 
-            if (v.getHits() >= threshold) {
-                results.add(v);
-            }
-            else {
-                break;
-            }
 
+
+            for (MatchCandidate v: v1) {
+
+                if (v.getHits() >= threshold) {
+                    results.add(v);
+                }
+                else {
+                    break;
+                }
+
+            }
         }
+
 
         return results;
 

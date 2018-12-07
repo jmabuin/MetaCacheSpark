@@ -9,7 +9,7 @@ public class SequenceOrigin implements Serializable {
 
 
 	private String filename = "";
-	private int index = 0;  //if file contains more than one sequence
+	private int index = 0;  //if file contains more than one sequence. This is the TGT
 
 
 

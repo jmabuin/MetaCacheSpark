@@ -35,6 +35,10 @@ public class Pair2HashMapNative implements Function2<Integer, Iterator<Tuple2<In
 
 		}
 
+		int total_deleted = map.post_process(false, false);
+
+		LOG.warn("Number of deleted features: " + total_deleted);
+
 		returnedValues.add(map);
 
 		return returnedValues.iterator();

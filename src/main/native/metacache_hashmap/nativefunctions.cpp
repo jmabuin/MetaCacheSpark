@@ -23,7 +23,11 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
     unsigned int unsigned_key = (unsigned)key;
 
-    map->insert(unsigned_key, newLocation);
+    //map->insert(unsigned_key, newLocation);
+    auto it = map->insert(unsigned_key, newLocation);
+    if(it->size() > 254) {
+        map->shrink(it, 254);
+    }
 
     //int numItems = 7;
 
@@ -53,7 +57,8 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     }
 
     //map->write_binary_to_file(newFileName);
-    write_binary(ofs, *map);
+    //write_binary(ofs, *map);
+    write_natural(ofs, *map);
 
     ofs.close();
     env->ReleaseStringUTFChars(fileName, nativeString);
@@ -97,7 +102,7 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
 
         iarr = env->NewIntArray(sit->size()*2);
         foundValues = (int *)malloc(sizeof(int) * sit->size() * 2);
-        std::cerr << "Number of items for key: " << key << " is " << sit->size() << std::endl;
+        //std::cerr << "Number of items for key: " << key << " is " << sit->size() << std::endl;
         int i = 0;
 
         for(const auto& pos : *sit) {
@@ -110,9 +115,9 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
         env->SetIntArrayRegion(iarr, 0, sit->size() * 2, foundValues);
         free(foundValues);
     }
-    else {
-        std::cerr << "No bucket for key: " << key << std::endl;
-    }
+    //else {
+    //    std::cerr << "No bucket for key: " << key << std::endl;
+    //}
 
     return iarr;
 
@@ -146,10 +151,10 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
     unsigned int unsigned_key = (unsigned)key;
 
-    if (unsigned_key == 0) {
+    //if (unsigned_key == 0) {
 
-        return map->size();
-    }
+    //    return map->size();
+    //}
 
     int value1 = (int) v1;
     int value2 = (int) v2;
@@ -163,12 +168,24 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     if (sid != map->end()) {
         //if(std::find(v.begin(), v.end(), x) != v.end()) {
         if ((sid->second.size() < 254) && (std::find(sid->second.begin(), sid->second.end(), newLocation) == sid->second.end())) {
-            sid->second.push_back(newLocation);
-            //sid->second.push_back(value2);
+        //if (std::find(sid->second.begin(), sid->second.end(), newLocation) == sid->second.end()) {
+            //sid->second.push_back(newLocation);
+            sid->second.insert(std::upper_bound( sid->second.begin(), sid->second.end(), newLocation ),
+                        newLocation
+                    );
         }
-        else if (sid->second.size() >= 254) {
+        else if ((sid->second.size() >= 254) && (std::find(sid->second.begin(), sid->second.end(), newLocation) == sid->second.end())) {
 
             marked_for_deletion.insert(unsigned_key);
+            std::vector<location>::iterator pos = std::upper_bound( sid->second.begin(), sid->second.end(), newLocation );
+
+            if (pos != sid->second.end()) {
+
+                sid->second.insert(pos, newLocation);
+                sid->second.resize(254);
+            }
+
+
         }
 
     }
@@ -339,7 +356,7 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
 
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_post_1process (JNIEnv *env, jobject jobj, jboolean over_populated, jboolean ambiguous) {
-
+/*
     if (over_populated) {
         for (unsigned current_value: marked_for_deletion) {
             auto sid = map->find(current_value);
@@ -353,7 +370,22 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
         }
 
     }
+    else {
+
+        std::unordered_map<unsigned, std::vector<location>>::iterator current_it;
+
+        for (current_it = map->begin(); current_it != map->end(); ++current_it) {
+
+            if (current_it->second.size() > 254) {
+                current_it->second.resize(254);
+            }
+
+        }
+    }
 
     return marked_for_deletion.size();
+    */
+
+    return 1;
 
 }

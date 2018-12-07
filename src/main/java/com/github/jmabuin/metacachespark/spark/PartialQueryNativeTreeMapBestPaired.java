@@ -3,8 +3,12 @@ package com.github.jmabuin.metacachespark.spark;
 import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.Sketch;
+import com.github.jmabuin.metacachespark.TargetProperty;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
+import com.github.jmabuin.metacachespark.database.MatchCandidate;
+import com.github.jmabuin.metacachespark.database.Taxonomy;
 import com.github.jmabuin.metacachespark.io.*;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -21,7 +25,7 @@ import java.util.*;
 /**
  * Created by Jose M. Abuin on 3/28/17.
  */
-public class PartialQueryNativeTreeMapBestPaired implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, TreeMap<LocationBasic, Integer>> {
+public class PartialQueryNativeTreeMapBestPaired implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, List<LocationBasic>> {
 
     private static final Log LOG = LogFactory.getLog(PartialQueryNativeTreeMapBestPaired.class);
 
@@ -29,27 +33,34 @@ public class PartialQueryNativeTreeMapBestPaired implements PairFlatMapFunction<
     private String fileName2;
     private long init;
     private int bufferSize;
-    private long total;
-    private long readed;
-    private int result_size;
+    private List<TargetProperty> targets_;
+    private Taxonomy taxa_;
+    private MetaCacheOptions options;
+    private long window_stride;
 
-    public PartialQueryNativeTreeMapBestPaired(String file_name, String file_name2, long init, int bufferSize, long total, long readed, int result_size) {
+    public PartialQueryNativeTreeMapBestPaired(String file_name, String file_name2, long init, int bufferSize//) {
+            , long window_stride, MetaCacheOptions options, Taxonomy taxa_, List<TargetProperty> targets_) {
         this.fileName = file_name;
         this.fileName2 = file_name2;
         this.init = init;
         this.bufferSize = bufferSize;
-        this.total = total;
-        this.readed = readed;
-        this.result_size = result_size;
+        this.targets_ = targets_;
+        this.taxa_ = taxa_;
+        this.options = options;
+        this.window_stride = window_stride;
 
     }
 
     @Override
-    public Iterator<Tuple2<Long, TreeMap<LocationBasic, Integer>>> call(Iterator<HashMultiMapNative> myHashMaps) {
+    public Iterator<Tuple2<Long, List<LocationBasic>>> call(Iterator<HashMultiMapNative> myHashMaps) {
 
-        List<Tuple2<Long, TreeMap<LocationBasic, Integer>>> finalResults = new ArrayList<Tuple2<Long, TreeMap<LocationBasic, Integer>>>();
+        List<Tuple2<Long, List<LocationBasic>>> finalResults = new ArrayList<Tuple2<Long, List<LocationBasic>>>();
 
-        try{
+
+
+        try {
+            SequenceFileReaderNative seqReader;
+            SequenceFileReaderNative2 seqReader2;
 
             Configuration conf = new Configuration();
             FileSystem fs = FileSystem.get(conf);
@@ -59,11 +70,10 @@ public class PartialQueryNativeTreeMapBestPaired implements PairFlatMapFunction<
 
             File tmp_file = new File(local_file_path.getName());
 
-            if(!tmp_file.exists()){
+            if (!tmp_file.exists()) {
                 fs.copyToLocalFile(hdfs_file_path, local_file_path);
                 LOG.info("File " + local_file_path.getName() + " copied");
-            }
-            else {
+            } else {
                 LOG.info("File " + local_file_path.getName() + " already exists. Not copying.");
             }
 
@@ -72,21 +82,20 @@ public class PartialQueryNativeTreeMapBestPaired implements PairFlatMapFunction<
 
             File tmp_file2 = new File(local_file_path2.getName());
 
-            if(!tmp_file2.exists()){
+            if (!tmp_file2.exists()) {
                 fs.copyToLocalFile(hdfs_file_path2, local_file_path2);
                 LOG.info("File " + local_file_path2.getName() + " copied");
-            }
-            else {
+            } else {
                 LOG.info("File " + local_file_path2.getName() + " already exists. Not copying.");
             }
 
             String local_file_name = local_file_path.getName();
-            SequenceFileReaderNative seqReader = new SequenceFileReaderNative(local_file_name);
-
             String local_file_name2 = local_file_path2.getName();
-            SequenceFileReaderNative2 seqReader2 = new SequenceFileReaderNative2(local_file_name2);
 
-            if (this.init!=0) {
+            seqReader = new SequenceFileReaderNative(local_file_name);
+            seqReader2 = new SequenceFileReaderNative2(local_file_name2);
+
+            if (this.init != 0) {
                 seqReader.skip(this.init);
                 seqReader2.skip(this.init);
             }
@@ -96,18 +105,16 @@ public class PartialQueryNativeTreeMapBestPaired implements PairFlatMapFunction<
 
             long currentSequence = this.init;
 
-            //LOG.warn("Init at sequence: " + currentSequence);
-
             // Theoretically there is only one HashMap per partition
-            while(myHashMaps.hasNext()){
+            while (myHashMaps.hasNext()) {
 
                 HashMultiMapNative currentHashMap = myHashMaps.next();
 
-                // HashMap to store hits from the two sequences
-                HashMap<LocationBasic, Integer> all_hits = new HashMap<>();
-                //TreeMap<Integer, LocationBasic> all_hits_sorted = new TreeMap<>();
+                //LOG.info("Processing hashmap " + currentSequence );
 
-                while((seqReader.next() != null) && (seqReader2.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
+                LocationBasic loc = new LocationBasic();
+
+                while ((seqReader.next() != null) && (seqReader2.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
 
                     String header = seqReader.get_header();
                     String data = seqReader.get_data();
@@ -117,109 +124,78 @@ public class PartialQueryNativeTreeMapBestPaired implements PairFlatMapFunction<
                     String data2 = seqReader2.get_data();
                     String qua2 = seqReader2.get_quality();
 
+                    long numWindows = (2 + Math.max(data.length() + data2.length(), this.options.getProperties().getInsertSizeMax()) / this.window_stride);
+
                     if (seqReader.get_header().isEmpty() || seqReader2.get_header().isEmpty()) {
                         continue;
                     }
 
-                    // TreeMap to store BEST results for this pair of sequences
-                    TreeMap<LocationBasic, Integer> current_results = new TreeMap<>();
+                    // TreeMap where hits from this sequences will be stored
+                    List<LocationBasic> current_results = new ArrayList<>();
 
-                    //if ((currentSequence == this.init) || (currentSequence >= (this.init + this.bufferSize-5))) {
-                    if ((currentSequence == this.init) || (currentSequence == this.init + this.bufferSize - 1)) {
+                    if ((currentSequence == this.init) || (currentSequence == this.init + 1)) {
                         LOG.warn("Processing sequence " + currentSequence + " :: " + header + " :: " + header2);
-                        LOG.warn(data);
-                        LOG.warn(data2);
                     }
+
 
                     SequenceData currentData = new SequenceData(header, data, qua);
                     SequenceData currentData2 = new SequenceData(header2, data2, qua2);
 
-                    //LOG.warn("getting sketches for "+ " :: " + header + " :: " + header2);
                     locations = SequenceFileReader.getSketchStatic(currentData);
                     locations2 = SequenceFileReader.getSketchStatic(currentData2);
 
-                    all_hits.clear();
-
                     //int block_size = locations.size() * this.result_size;
-                    //LOG.warn("Getting locations for "+ " :: " + header);
-                    for(Sketch currentSketch: locations) {
 
-                        for(int location: currentSketch.getFeatures()) {
+                    for (Sketch currentSketch : locations) {
 
-                            LocationBasic[] locations_obtained = currentHashMap.get_locations(location);
+                        for (int location : currentSketch.getFeatures()) {
 
-                            if(locations_obtained != null) {
+                            LocationBasic locations_obtained[] = currentHashMap.get_locations(location);
 
-                                for (int i = 0; i< locations_obtained.length; ++i){
+                            if (locations_obtained != null) {
 
-                                    if (all_hits.containsKey(locations_obtained[i])) {
-                                        all_hits.put(locations_obtained[i], all_hits.get(locations_obtained[i]) + 1);
-                                    }
-                                    else{
-                                        all_hits.put(locations_obtained[i], 1);
-                                    }
+
+                                for (int i = 0; i < locations_obtained.length; ++i) {
+
+                                    current_results.add(locations_obtained[i]);
 
                                 }
                             }
                         }
                     }
 
-                    //LOG.warn("Getting locations for "+ " :: " + header2);
-                    for(Sketch currentSketch: locations2) {
+                    for (Sketch currentSketch : locations2) {
 
-                        for(int location: currentSketch.getFeatures()) {
+                        for (int location : currentSketch.getFeatures()) {
 
-                            LocationBasic[] locations_obtained = currentHashMap.get_locations(location);
+                            LocationBasic locations_obtained[] = currentHashMap.get_locations(location);
 
-                            if(locations_obtained != null) {
+                            if (locations_obtained != null) {
 
-                                for (int i = 0; i< locations_obtained.length; ++i){
 
-                                    if (all_hits.containsKey(locations_obtained[i])) {
-                                        all_hits.put(locations_obtained[i], all_hits.get(locations_obtained[i]) + 1);
-                                    }
-                                    else{
-                                        all_hits.put(locations_obtained[i], 1);
-                                    }
+                                for (int i = 0; i < locations_obtained.length; ++i) {
+
+                                    current_results.add(locations_obtained[i]);
 
                                 }
                             }
                         }
                     }
 
-                    if (!all_hits.isEmpty()) {
 
-                        List<Map.Entry<LocationBasic, Integer>> list = new ArrayList<>(all_hits.entrySet());
-                        list.sort(Map.Entry.comparingByValue());
-                        //Collections.reverse(list);
-                        //LOG.warn("Size of hashmap: " + all_hits.size() + ", size of list: " + list.size());
-                        //for(Map.Entry<LocationBasic, Integer> current_entry : list) {
-                        for (int i = list.size() - 1, current_number_of_values = 0; (current_number_of_values < this.result_size) && (i >= 0); --i, ++current_number_of_values) {
-                            Map.Entry<LocationBasic, Integer> current_entry = list.get(i);
-
-                            if (current_results.containsKey(current_entry.getKey())) {
-                                current_results.put(current_entry.getKey(), current_results.get(current_entry.getKey()) + current_entry.getValue());
-                            } else {
-                                current_results.put(current_entry.getKey(), current_entry.getValue());
-                            }
-
-                        }
-
-                    }
-
-                    finalResults.add(new Tuple2<Long, TreeMap<LocationBasic, Integer>>(currentSequence, current_results));
+                    //LOG.warn("Adding " + current_results.size() +" to sequence " + currentSequence);
+                    finalResults.add(new Tuple2<Long, List<LocationBasic>>(currentSequence, current_results));
 
                     currentSequence++;
+
+                    //current_results.clear();
                     locations.clear();
                     locations2.clear();
                 }
 
-                LOG.warn("Ending process!!!!");
                 seqReader.close();
                 seqReader2.close();
             }
-
-            //LOG.warn("Ending buffer " + currentSequence);
 
             return finalResults.iterator();
 

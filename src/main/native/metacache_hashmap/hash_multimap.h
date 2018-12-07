@@ -916,8 +916,35 @@ public:
         m.serialize(os);
     }
 
+    friend void write_natural(std::ostream& os, const hash_multimap& m) {
+        m.serialize_natural(os);
+    }
+
 
 private:
+
+    void serialize_natural(std::ostream& os) const {
+            for(const auto& bucket : buckets_) {
+                if(!bucket.empty()) {
+
+                    os << bucket.key() << ":";
+
+                    for(const auto& v : bucket) {
+                        os << v.tgt << ";" << v.win << ";";
+
+                    }
+
+                    os << "\n";
+                }
+            }
+
+
+        }
+
+    void deserialize_natural(std::istream& is) {
+
+    }
+
     //---------------------------------------------------------------
     void deserialize(std::istream& is)
     {

@@ -34,9 +34,9 @@ public class Locations2HashMapNative implements FlatMapFunction<Iterator<List<Lo
 
         }
 
-        int total_deleted = map.post_process(true, false);
+        //int total_deleted = map.post_process(true, false);
 
-        LOG.warn("Number of deleted features: " + total_deleted);
+        //LOG.warn("Number of deleted features: " + total_deleted);
 
         returnedValues.add(map);
 

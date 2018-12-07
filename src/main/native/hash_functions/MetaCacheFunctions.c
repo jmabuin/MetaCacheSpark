@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <vector>
+#include <climits>
 
 inline unsigned long make_reverse_complement64C(unsigned long s, unsigned char k) {
     s = ((s >> 2)  & 0x3333333333333333ul) | ((s & 0x3333333333333333ul) << 2);
@@ -101,8 +102,8 @@ inline unsigned long make_canonical64C(unsigned long s, unsigned char k) {
 
 inline std::vector<unsigned> window2sketch(const char *window, int sketchSize, int kmerSize) {
 
-    unsigned int *sketchValues = (unsigned int *)malloc(sizeof(unsigned int) * sketchSize);
-    std::vector<unsigned> sketchValues_vector;
+
+    std::vector<unsigned> sketch;
 
 
     int i = 0;
@@ -121,23 +122,23 @@ inline std::vector<unsigned> window2sketch(const char *window, int sketchSize, i
     const char *windowTMP = window;
 
     unsigned int kmerMsk = 0xFFFFFFFFu;
-    unsigned int ambigMsk = 0xFFFFFFFFu;
-    unsigned short ambig;
+    unsigned short ambigMsk = 0xFFFFu;
+    unsigned short ambig = 0x0000u;
 
 
 
-    kmerMsk >>= (sizeof(kmerMsk) * 8) - (len * 2);
-    ambigMsk >>= (sizeof(ambigMsk) * 8) - len;
+    kmerMsk >>= (sizeof(kmerMsk) * CHAR_BIT) - (len * 2);
+    ambigMsk >>= (sizeof(ambigMsk) * CHAR_BIT) - len;
 
-    ambig = 0x0000u;
     //char kmersStr[strlen(window) - kmerSize][kmerSize+1];
     //unsigned int kmersU[strlen(window) - kmerSize];
 
     // Initialize array
-    for (i = 0; i< sketchSize; i++) {
+    /*for (i = 0; i< sketchSize; i++) {
 
         sketchValues[i] = 0xFFFFFFFF;
     }
+    */
 
     // We compute the k-mers
     int tmpLen = kmerSize;
@@ -184,10 +185,37 @@ inline std::vector<unsigned> window2sketch(const char *window, int sketchSize, i
 
                if(!ambig) {
                     hashValue = thomas_mueller_hash(make_canonical32C(kmer32,16));//HashFunctions.make_canonical(this.hash_(kmer32), MCSConfiguration.kmerSize);
-                    //hashValue = 44;
+
                     //fprintf(stderr,"[JMAbuin] resulting value: %u %d\n", hashValue, hashValue);
 
                     // Insert into array if needed
+                    if (sketch.empty()) {
+                        sketch.push_back(hashValue);
+                    }
+                    else {
+                        if(sketch.size() == sketchSize)  {
+                            if(hashValue < sketch.back()) {
+                                auto pos = std::lower_bound(sketch.begin(), sketch.end(), hashValue);
+                                //make sure we don't insert the same feature more than once
+                                if(pos != sketch.end() && *pos != hashValue) {
+                                    sketch.pop_back();
+                                    sketch.insert(pos, hashValue);
+                                }
+                            }
+                        }
+                        else {
+                            auto pos = std::lower_bound(sketch.begin(), sketch.end(), hashValue);
+                            //make sure we don't insert the same feature more than once
+                            if (*pos != hashValue){
+                                sketch.insert(pos, hashValue);
+                            }
+
+                        }
+                    }
+
+
+
+                    /*
                     if(hashValue < sketchValues[sketchSize-1]) {
 
                         for(j = 0 ; j < sketchSize ; j++){
@@ -205,6 +233,7 @@ inline std::vector<unsigned> window2sketch(const char *window, int sketchSize, i
 
 
                     }
+                    */
                 }
                 //windowTMP+=tmpLen;
                 //tmpLen = 1;
@@ -214,15 +243,15 @@ inline std::vector<unsigned> window2sketch(const char *window, int sketchSize, i
         //}
 
     }
-
+/*
     for (i = 0; i< sketchSize; i++) {
             if(sketchValues[i] != 0xFFFFFFFF) {
                 sketchValues_vector.push_back(sketchValues[i]);
             }
         }
     free(sketchValues);
-
-    return sketchValues_vector;
+*/
+    return sketch;
 
 }
 
@@ -401,7 +430,7 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_kmer
 JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions_window2sketch32 (JNIEnv *env, jclass thisObj, jstring window, jint sketchSize, jint kmerSize) {
 
     const char *windowInput = env->GetStringUTFChars(window, 0);
-    jintArray iarr = env->NewIntArray(sketchSize);
+
 
     //fprintf(stderr,"[JMAbuin] Antes de w2s %s\n", __func__);
 
@@ -421,6 +450,7 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_HashFunctions
         fprintf(stderr,"[JMAbuin] Despois de w2s %u %d, %s\n",returnValues[i],returnValues[i],__func__);
     }*/
 
+    jintArray iarr = env->NewIntArray(returnValues_vector.size());
     env->SetIntArrayRegion(iarr, 0, returnValues_vector.size(), returnValues);
     free(returnValues);
     return iarr;

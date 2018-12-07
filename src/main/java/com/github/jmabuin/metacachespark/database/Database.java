@@ -66,7 +66,7 @@ public class Database implements Serializable{
     private Dataset<Locations> featuresDataset;
     //private DataFrame targetPropertiesDataframe_;
     private JavaRDD<TargetProperty> targetPropertiesJavaRDD;
-    private HashMap<String,Integer> sid2gid_;
+    private HashMap<String,Integer> targets_positions;
     private TreeMap<String, Integer> name2tax_;
     private Taxonomy taxa_;
     private TaxonomyParam taxonomyParam;
@@ -124,6 +124,7 @@ public class Database implements Serializable{
 
         this.targets_ = new ArrayList<TargetProperty>();
         this.name2tax_ = new TreeMap<String,Integer>();
+        this.targets_positions = new HashMap<>();
         //this.sid2gid_ = new HashMap<String, Integer>();
 
         this.params = params;
@@ -536,49 +537,36 @@ public class Database implements Serializable{
             this.inputSequences = null;
             //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
 
+            int current_target = 0;
+
+            FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+            for (String new_file: infiles) {
+                LOG.warn("Adding file " + new_file + " to targets positions...");
+                FSDataInputStream is = fs.open(new Path(new_file));
+
+                BufferedReader br = new BufferedReader(new InputStreamReader(is));
+
+                String currentLine;
+
+                while((currentLine = br.readLine()) != null) {
+
+                    if(currentLine.startsWith(">")) {
+                        this.targets_positions.put(currentLine.substring(1), current_target);
+                        ++current_target;
+                    }
+
+                }
+
+                br.close();
+                is.close();
+
+
+            }
+
 
             if(this.params.isMyWholeTextFiles()) {
-				/*
-			    if(this.numPartitions != 1) {
-                    inputData = this.jsc.parallelize(infiles, this.numPartitions)
-                            .mapPartitionsToPair(new MyWholeTextFiles(), true);
-                }
-                else {
-                    inputData = this.jsc.parallelize(infiles)
-                            .mapPartitionsToPair(new MyWholeTextFiles() );
-                }
-                */
+
                 JavaRDD<String> tmpInput = this.jsc.parallelize(infiles);
-
-                /*for (String currentDir : infiles) {
-                    LOG.warn("Starting to build database from " + currentDir + " with MyWholeTextFiles");
-
-                    if (tmpInput == null) {
-                        tmpInput = this.jsc.wholeTextFiles(currentDir).keys();
-                    } else {
-                        tmpInput = this.jsc.wholeTextFiles(currentDir).keys()
-                                .union(tmpInput);
-                    }
-                }
-
-                int repartition_files = 1;
-
-                if (this.numPartitions == 1) {
-                    repartition_files = this.jsc.getConf().getInt("spark.executor.instances", 1);
-                }
-                else {
-                    repartition_files = this.numPartitions;
-                }
-
-                inputData = tmpInput
-                        //.keys()
-                        .repartition(repartition_files)
-                        .mapPartitionsToPair(new MyWholeTextFiles(), true)
-                        .persist(StorageLevel.DISK_ONLY());
-*/
-
-
-                //LOG.warn("Number of partitions for input files:" + inputData.count());
 
                 int repartition_files = 1;
 
@@ -592,7 +580,9 @@ public class Database implements Serializable{
 
 
                 this.inputSequences = tmpInput
-                        .mapPartitions(new Fasta2Sequence(sequ2taxid));
+                        .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions));
+
+                LOG.warn("The total number of input sequences is: " + this.inputSequences.count());
 
                 //List<Long> lenghts_array = new ArrayList<>();
 
@@ -600,7 +590,6 @@ public class Database implements Serializable{
                             item.getData().length(), item.getHeader()))
                         .sortByKey(false)
                         .collect();
-
 
 
                 HashMap<String, Integer> all_lengths = new HashMap<>();
@@ -619,12 +608,14 @@ public class Database implements Serializable{
 
 
                 this.inputSequences = tmpInput
-                        .mapPartitions(new Fasta2Sequence(sequ2taxid))
+                        .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions))
                         //.repartition(repartition_files)
                         .mapToPair(item -> new Tuple2<String, Sequence>(item.getHeader(), item))
                         .partitionBy(new MyCustomPartitionerStr(this.numPartitions, all_lengths))
                         .values()
                         .persist(StorageLevel.MEMORY_AND_DISK());
+
+                LOG.warn("The total number of input sorted sequences is: " + this.inputSequences.count());
 
                 //.flatMap(new Fasta2Sequence(sequ2taxid))
                 //.persist(StorageLevel.DISK_ONLY());
@@ -668,7 +659,10 @@ public class Database implements Serializable{
 
 
             this.targetPropertiesJavaRDD = this.inputSequences
-                    .map(new Sequence2TargetProperty());
+                    .map(new Sequence2TargetProperty())
+                    .mapToPair(item -> new Tuple2<Integer, TargetProperty>(item.getOrigin().getIndex(), item))
+                    .sortByKey(true)
+                    .values();
 
             this.targets_= this.targetPropertiesJavaRDD.collect();
 
@@ -716,14 +710,14 @@ public class Database implements Serializable{
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapMC");
-                //this.locationJavaPairListRDD = this.inputSequences
-                //		.mapPartitionsToPair(new Sketcher2PairPartitions(this.name2tax_), true);
-                this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        //.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
-                        //.repartition(this.params.getPartitions())
+                /*this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .mapPartitions(new Sketcher2PairPartitions(this.name2tax_), true)
-                        .mapPartitions(new Locations2HashMapNative(), true);
-                        //.mapPartitions(new PostProcessing(), true);
+                        .mapPartitions(new Locations2HashMapNative(), true);*/
+                this.locationJavaRDDHashMultiMapNative = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
+
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
                 LOG.warn("Building database with isBuildModeParquetDataframe");
@@ -1870,7 +1864,7 @@ public class Database implements Serializable{
 
         // Get results for this buffer
         //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
-        List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+        /*List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
                 //.mapPartitionsToPair(new FullQuery(fileName))
                 .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, total, readed, this.params.getResult_size()))
                 .reduceByKey(new QueryReducerTreeMapNative())
@@ -1881,8 +1875,8 @@ public class Database implements Serializable{
         long endTime = System.nanoTime();
 
         LOG.warn("JMAbuin time in insert into HashMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
-
-        return results;
+*/
+        return null;
 
 
     }
@@ -1893,7 +1887,7 @@ public class Database implements Serializable{
         long initTime = System.nanoTime();
 
         // Get results for this buffer
-        if (this.params.getResult_size() > 0) {
+       /* if (this.params.getResult_size() > 0) {
             List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
                     //.mapPartitionsToPair(new FullQuery(fileName))
                     .mapPartitionsToPair(new PartialQueryNativeTreeMapBest(fileName, init, size, total, readed, this.params.getResult_size()))
@@ -1922,19 +1916,22 @@ public class Database implements Serializable{
             LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
             return results;
-        }
+        }*/
+       return null;
 
     }
 
-    public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_native_buffered_paired( String fileName, String fileName2, long init, int size, long total, long readed) {
+    public List<List<LocationBasic>>  accumulate_matches_native_buffered_paired( String fileName, String fileName2,
+                                                                                             long init, int size) {
 
         long initTime = System.nanoTime();
 
         // Get results for this buffer
-        if (this.params.getResult_size() > 0) {
-            List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
+        //if (this.params.getResult_size() > 0) {
+            List<List<LocationBasic>> results = this.locationJavaRDDHashMultiMapNative
                     //.mapPartitionsToPair(new FullQuery(fileName))
-                    .mapPartitionsToPair(new PartialQueryNativeTreeMapBestPaired(fileName, fileName2, init, size, total, readed, this.params.getResult_size()))
+                    .mapPartitionsToPair(new PartialQueryNativeTreeMapBestPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params,
+                            this.taxa_, this.targets_))
                     .reduceByKey(new QueryReducerTreeMapNative())
                     .sortByKey()
                     .values()
@@ -1945,8 +1942,8 @@ public class Database implements Serializable{
             LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
             return results;
-        }
-        else {
+        //}
+        /*else {
             List<TreeMap<LocationBasic, Integer>> results = this.locationJavaRDDHashMultiMapNative
                     //.mapPartitionsToPair(new FullQuery(fileName))
                     .mapPartitionsToPair(new PartialQueryNativeTreeMapPaired(fileName, fileName2, init, size, total, readed, this.params.getResult_size()))
@@ -1960,7 +1957,7 @@ public class Database implements Serializable{
             LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
             return results;
-        }
+        }*/
 
     }
 
@@ -1994,16 +1991,16 @@ public class Database implements Serializable{
 
         // Get results for this buffer
         //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
-        TreeMap<LocationBasic, Integer> results = this.locationJavaRDDHashMultiMapNative
-                .map(new PartialQueryNativeTreeMapSingle(file_name, query_number, this.params.getResult_size()))
-                .reduce(new QueryReducerTreeMapNative());
+        TreeMap<LocationBasic, Integer> results;// = this.locationJavaRDDHashMultiMapNative
+                //.map(new PartialQueryNativeTreeMapSingle(file_name, query_number, this.params.getResult_size()))
+                //.reduce(new QueryReducerTreeMapNative());
 
 
         //long endTime = System.nanoTime();
 
         //LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
-        return results;
+        return null;
 
     }
 
@@ -2013,7 +2010,7 @@ public class Database implements Serializable{
 
         // Get results for this buffer
         //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
-        List<TreeMap<LocationBasic, Integer>> results = this.locationJavaHashRDD
+        /*List<TreeMap<LocationBasic, Integer>> results = this.locationJavaHashRDD
                 //.mapPartitionsToPair(new FullQuery(fileName))
                 .mapPartitionsToPair(new PartialQueryJavaTreeMap(fileName, init, size, total, readed, this.params.getResult_size()))
                 .reduceByKey(new QueryReducerTreeMapNative())
@@ -2024,8 +2021,8 @@ public class Database implements Serializable{
         long endTime = System.nanoTime();
 
         LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
-
-        return results;
+*/
+        return null;
 
 
     }
@@ -2036,7 +2033,7 @@ public class Database implements Serializable{
 
         // Get results for this buffer
         //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
-        TreeMap<LocationBasic, Integer> results = this.locationJavaHashRDD
+       /* TreeMap<LocationBasic, Integer> results = this.locationJavaHashRDD
                 .map(new PartialQueryJavaTreeMapSingle(file_name, query_number, this.params.getResult_size()))
                 .reduce(new QueryReducerTreeMapNative());
 
@@ -2044,15 +2041,15 @@ public class Database implements Serializable{
         //long endTime = System.nanoTime();
 
         //LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
-
-        return results;
+*/
+        return null;
 
     }
 
     public List<TreeMap<LocationBasic, Integer>>  accumulate_matches_hashmap_guava_buffered( String fileName, long init, int size, long total, long readed) {
 
         long initTime = System.nanoTime();
-
+/*
         // Get results for this buffer
         //List<Tuple2<Long,HashMap<LocationBasic, Integer>>> results = this.locationJavaRDDHashMultiMapNative
         List<TreeMap<LocationBasic, Integer>> results = this.locationJavaHashMMRDD
@@ -2068,12 +2065,13 @@ public class Database implements Serializable{
         LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
         return results;
-
+*/
+return null;
 
     }
 
     public TreeMap<LocationBasic, Integer> accumulate_matches_hashmap_guava_single(String file_name, long query_number) {
-
+/*
         //long initTime = System.nanoTime();
 
         // Get results for this buffer
@@ -2088,7 +2086,8 @@ public class Database implements Serializable{
         //LOG.warn("JMAbuin time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
 
         return results;
-
+*/
+return null;
     }
 
 
