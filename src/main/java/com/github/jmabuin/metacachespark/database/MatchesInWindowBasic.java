@@ -265,14 +265,10 @@ public class MatchesInWindowBasic {
 			double threshold = best.getHits() > this.options.getProperties().getHitsMin() ?
 					(best.getHits() - this.options.getProperties().getHitsMin()) *
 							this.options.getProperties().getHitsDiffFraction() : 0;
-			//LOG.warn("Threshold: Best hits: " + best.getHits());
-			//LOG.warn("Threshold: " + threshold);
-			for (int i = 0; i < list.size(); ++i) {
+
+            for (int i = 0; i < list.size(); ++i) {
 				Map.Entry<Integer, MatchCandidate> current_entry = list.get(i);
-                //LOG.warn("Best candidate item : " + i + " :: " + current_entry.getValue().getTgt() + " :: " + current_entry.getValue().getHits());
-				/*if (i>list.size()-5){
-					LOG.warn("Best candidate item : " + i + " :: " + current_entry.getValue().getTgt() + " :: " + current_entry.getValue().getHits());
-				}*/
+
 				MatchCandidate current_cand = current_entry.getValue();
 				this.allhits.add(current_cand);
 
@@ -314,4 +310,24 @@ public class MatchesInWindowBasic {
 		//LOG.warn("Taxa from target in targets_ is: " + this.targets_.get(entry.getTargetId()).getTax());
 		return this.taxa_.getTaxa_().get(this.targets_.get(entry.getTargetId()).getTax());
 	}
+
+	public void print_top_hits() {
+
+	    for(MatchCandidate candidate: this.tophits) {
+
+	        LOG.warn(candidate.getTax().getTaxonName() + " (" + candidate.getTgt() + "): " + candidate.getHits() );
+
+        }
+
+    }
+
+    public void print_all_hits() {
+
+        for(MatchCandidate candidate: this.allhits) {
+
+            LOG.warn(candidate.getTax().getTaxonName() + " (" + candidate.getTgt() + "): " + candidate.getHits() );
+
+        }
+
+    }
 }

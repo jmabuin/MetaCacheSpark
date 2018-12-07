@@ -162,24 +162,6 @@ public class Taxon implements Serializable {
 		return this.rank.name();
 
 	}
-/*
-	public void read_binary(ObjectInputStream istream, Taxon t){
-
-
-
-		Taxon newTaxon = (Taxon) IOSerialize.read_binary(istream, IOSerialize.DataTypes.TAXON);
-
-		t.setTaxonId(newTaxon.getTaxonId());
-		t.setParentId(newTaxon.getParentId());
-		t.setRank(newTaxon.rank);
-		t.setTaxonName(newTaxon.getTaxonName());
-	}
-
-	public void write_binary(ObjectOutputStream ostream, Taxon t) {
-		IOSerialize.write_binary(ostream, t, IOSerialize.DataTypes.TAXON);
-	}
-	*/
-
 
 	/**
 	 * Getter for the Taxon ID

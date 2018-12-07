@@ -29,7 +29,9 @@ public class Classification {
     }
 
     public boolean sequence_level() {
-        return tid_ != Database.invalid_target_id();
+        //return tid_ != Database.invalid_target_id();
+
+        return this.tax_.getRank() == Taxonomy.Rank.Sequence;
     }
 
     public boolean none() {
@@ -45,5 +47,17 @@ public class Classification {
 
     public Taxonomy.Rank rank()  {
         return this.sequence_level() ? Taxonomy.Rank.Sequence : (this.has_taxon() ? tax_.getRank() : Taxonomy.Rank.none);
+    }
+
+    public void print() {
+        if (this.tax_!= null) {
+            System.out.println("Name: " + this.tax_.getTaxonName());
+            System.out.println("Taxon level : " + this.tax_.getRank().name());
+            System.out.println("ID: " + this.tax_.getTaxonId() + ", Parent ID: " + this.tax_.getParentId());
+        }
+        else {
+            System.out.println("This classification taxon information is null");
+        }
+
     }
 }

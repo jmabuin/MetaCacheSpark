@@ -444,10 +444,12 @@ public class Query implements Serializable {
             int bufferSize = this.param.getBuffer_size();
 
             SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
+            SequenceFileReaderLocal seqReader2 = new SequenceFileReaderLocal(f2, 0);
 
             LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
 
             SequenceData data;
+            SequenceData data2;
 
             for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
                 //while((currentRead < startRead+bufferSize) && ) {
@@ -469,12 +471,13 @@ public class Query implements Serializable {
 
                     //Theoretically, number on sequences in data is the same as number of hits
                     data = seqReader.next();
+                    data2 = seqReader2.next();
 
                     if((i == 0) || (i == hits.size()-1)) {
                         LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
                     }
 
-                    if(data == null) {
+                    if((data == null) || (data2 == null)) {
                         LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
                         break;
                     }
@@ -482,7 +485,7 @@ public class Query implements Serializable {
                     List<LocationBasic> currentHits = hits.get((int)i);
 
                     this.process_database_answer_basic(data.getHeader(), data.getData(),
-                            "", currentHits, d, stats);
+                            data2.getData(), currentHits, d, stats);
 
                 }
 
@@ -492,6 +495,7 @@ public class Query implements Serializable {
             }
 
             seqReader.close();
+            seqReader2.close();
 
             //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
 
@@ -1409,8 +1413,15 @@ public class Query implements Serializable {
         //classify ----------------------------------
         long numWindows = ( 2 + Math.max(query1.length() + query2.length(),this.param.getProperties().getInsertSizeMax()) / this.db.getTargetWindowStride_());
 
+        //LOG.warn("Max Number of Windows: " + numWindows);
+        //LOG.warn("Size 1: " + query1.length());
+        //LOG.warn("Size 2: " + query2.length());
+        //LOG.warn("Insert max: " + this.param.getProperties().getInsertSizeMax());
+        //LOG.warn("Stride: " + this.db.getTargetWindowStride_());
         MatchesInWindowBasic matches = new MatchesInWindowBasic(hits, numWindows, this.param, this.db.getTaxa_(), this.db.getTargets_());
+        //matches.print_all_hits();
         Classification cls = this.sequence_classification(matches);
+        //cls.print();
 
         if(this.param.getProperties().isTestPrecision()) {
             //LOG.warn("[JMAbuin] Enter into assign precision with rank: " + Taxonomy.rank_name(cls.rank()));
@@ -1962,6 +1973,40 @@ public class Query implements Serializable {
 
     }
 
+    public void show_ranks_of_target(BufferedWriter os, Database db, Taxon tid, EnumModes.taxon_print_mode mode, Taxonomy.Rank lowest,
+                                     Taxonomy.Rank highest) {
+        //since targets don't have their own taxonId, print their sequence id
+        try {
+            if(lowest == Taxonomy.Rank.Sequence) {
+                if(mode != EnumModes.taxon_print_mode.id_only) {
+                    os.write("sequence:"+tid.getTaxonName());
+                    os.newLine();
+
+                } //else {
+                //    os.write(db.sequence_id_of_target(tid));
+                //    os.newLine();
+                //}
+            }
+
+            if(highest == Taxonomy.Rank.Sequence) return;
+
+            if(lowest == Taxonomy.Rank.Sequence) os.write(',');
+
+            //show_ranks(os, db, db.ranks_of_target((int)tid), mode, lowest, highest);
+            //LOG.warn("The taxon id in show_ranks_of_target is: " + tid.getTaxonId());
+            show_ranks(os, db, this.db.getTaxa_().ranks((Long)tid.getTaxonId()), mode, lowest, highest);
+        }
+        catch(IOException e) {
+            LOG.error("IOException in function show_ranks_of_target: "+ e.getMessage());
+            System.exit(1);
+        }
+        catch(Exception e) {
+            LOG.error("Exception in function show_ranks_of_target: "+ e.getMessage());
+            System.exit(1);
+        }
+
+    }
+
 
     public Classification sequence_classification(MatchesInWindow cand) {
 
@@ -1995,39 +2040,15 @@ public class Query implements Serializable {
 
 
         if (cand.get_top_hits().isEmpty()) {
-            //LOG.warn("top list is empty!");
+            //LOG.warn("Top list is empty!");
             return new Classification();
         }
 
-        int best = cand.get_top_hits().get(0).getTgt();
-        return new Classification(best, lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
-                this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
-
-/*
-        long wc = this.param.getProperties().isWeightHitsWithWindows() ? cand.covered_windows() > 1 ? cand.covered_windows() - 1 : 1 : 1;
-
-        //sum of top-2 hits < threshold => considered not classifiable
-        if((cand.hits(0) + cand.hits(1)) < wc* this.param.getProperties().getHitsMin()) {
-            //LOG.warn("[JMAbuin] First if");
-            return new Classification();
-        }
-
-        //either top 2 are the same sequences with at least 'hitsMin' many hits
-        //(checked before) or hit difference between these top 2 is above threshhold
-        if( (cand.target_id(0) == cand.target_id(1))
-                || (cand.hits(0) - cand.hits(1)) >= wc * this.param.getProperties().getHitsMin())
-        {
-            //return top candidate
-            int tid = cand.target_id(0);
-
-            //LOG.warn("[JMAbuin] Second if with tid: "+tid);
-            return new Classification(tid, db.taxon_of_target((long)tid));
-        }
-
-        //LOG.warn("[JMAbuin] Last if");
-        return new Classification(lowest_common_taxon(MatchesInWindowBasic.maxNo, cand, (float)this.param.getProperties().getHitsDiff(),
-                this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
-*/
+        //int best = cand.get_top_hits().get(0).getTgt();
+        //return new Classification(best, lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
+        //        this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
+        return new Classification(lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
+                        this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
 
     }
 
@@ -2035,7 +2056,7 @@ public class Query implements Serializable {
 
 
         if (cand.getTop_list().isEmpty()) {
-            //LOG.warn("top list is empty!");
+            //LOG.warn("Top list is empty!");
             return new Classification();
         }
 
@@ -2196,11 +2217,11 @@ public class Query implements Serializable {
 
         //int best_pos = cand.getTop_list().size() - 1;
         Taxon lca = db.taxon_of_target((long)cand.get_top_hits().get(0).getTgt());
-        //LOG.warn("Best taxon is: " + lca.getTaxonName() + ", hits: " + cand.getTop_list().get(0).getHits());
+        //LOG.warn("Best taxon is: " + lca.getTaxonName() + ", hits: " + cand.get_top_hits().get(0).getHits());
 
         for (int i = 1; i < cand.get_top_hits().size(); ++i) {
-            //LOG.warn("Other taxon is: " + db.taxon_of_target((long)cand.getTop_list().get(i).getTgt()).getTaxonName() +
-            //        ", hits: " + cand.getTop_list().get(i).getHits());
+            //LOG.warn("Other taxon is: " + db.taxon_of_target((long)cand.get_top_hits().get(i).getTgt()).getTaxonName() +
+             //       ", hits: " + cand.get_top_hits().get(i).getHits());
             lca = this.db.ranked_lca(lca, cand.get_top_hits().get(i).getTax());
             //LOG.warn("Obtained LCA: " + lca.getTaxonName());
             if (lca == null || lca == this.db.getTaxa_().getNoTaxon_() || lca.getRank().ordinal() > this.param.getProperties().getHighestRank().ordinal()) {
@@ -2946,17 +2967,22 @@ public class Query implements Serializable {
     void show_classification(BufferedWriter os, Database db, Classification cls) {
         try {
             if(cls.sequence_level()) {
+                //LOG.warn("Sequence Level");
                 Taxonomy.Rank rmax = this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : this.param.getProperties().getLowestRank();
 
-                show_ranks_of_target(os, db, cls.target(),
+                //show_ranks_of_target(os, db, cls.target(),
+                show_ranks_of_target(os, db, cls.tax(),
                         this.param.getProperties().getShowTaxaAs(), this.param.getProperties().getLowestRank(), rmax);
             }
             else if(cls.has_taxon()) {
+                //LOG.warn("NO Sequence Level");
                 if(cls.rank().ordinal() > this.param.getProperties().getHighestRank().ordinal()) {
+                    //LOG.warn("NO Sequence Level e nada");
                     os.write("--");
                     os.newLine();
                 }
                 else {
+                    //LOG.warn("NO Sequence Level e algo");
                     Taxonomy.Rank rmin = this.param.getProperties().getLowestRank().ordinal() < cls.rank().ordinal() ? cls.rank() : this.param.getProperties().getLowestRank();
                     Taxonomy.Rank rmax = this.param.getProperties().isShowLineage() ? this.param.getProperties().getHighestRank() : rmin;
 
@@ -2965,6 +2991,7 @@ public class Query implements Serializable {
                 }
             }
             else {
+                //LOG.warn("NO Sequence Level e nada de nada");
                 os.write("--");
                 os.newLine();
             }

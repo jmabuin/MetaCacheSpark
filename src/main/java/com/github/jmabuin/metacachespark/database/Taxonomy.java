@@ -376,8 +376,8 @@ public class Taxonomy implements Serializable {
 	 * @param tax The Taxon
 	 * @return An Array containing the IDs of the Taxons that compose the Taxon lineage.
 	 */
-	public long[] ranks(Taxon tax) {
-		return this.ranks(tax.getTaxonId());
+	public Long[] ranks(Taxon tax) {
+		return this.ranks((Long)tax.getTaxonId());
 	}
 
 	/**
@@ -687,8 +687,31 @@ public class Taxonomy implements Serializable {
 
 				String parts[] = currentLine.split(":");
 
-				this.taxa_.put(Long.parseLong(parts[0]), new Taxon(Long.parseLong(parts[1]), Long.parseLong(parts[2])
-						, parts[3], Taxonomy.rank_from_name(parts[4].toLowerCase())));
+				if (parts.length ==5) {
+					this.taxa_.put(Long.parseLong(parts[0]), new Taxon(Long.parseLong(parts[1]), Long.parseLong(parts[2])
+							, parts[3], Taxonomy.rank_from_name(parts[4].toLowerCase())));
+				}
+				else {
+					Long index = Long.parseLong(parts[0]);
+					Long id = Long.parseLong(parts[1]);
+					Long parent_id = Long.parseLong(parts[2]);
+
+					StringBuilder name = new StringBuilder();
+
+					for (int i = 3; i< parts.length -2; ++i ) {
+						name.append(parts[i]);
+						if (i < parts.length -3) {
+							name.append(":");
+						}
+
+					}
+
+
+					Taxonomy.Rank rank = Taxonomy.rank_from_name(parts[parts.length -1 ].toLowerCase());
+
+					this.taxa_.put(index, new Taxon(id, parent_id
+							, name.toString(), rank));
+				}
 
 			}
 
