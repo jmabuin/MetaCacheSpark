@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
+ * Copyright 2019 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
  *
  * <p>This file is part of MetaCacheSpark.
  *
@@ -14,6 +14,7 @@
  * <p>You should have received a copy of the GNU General Public License along with MetaCacheSpark. If not,
  * see <http://www.gnu.org/licenses/>.
  */
+
 package com.github.jmabuin.metacachespark;
 
 import com.github.jmabuin.metacachespark.database.Database;

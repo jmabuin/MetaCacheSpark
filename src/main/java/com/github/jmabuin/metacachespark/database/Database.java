@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
+ * Copyright 2019 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
  *
  * <p>This file is part of MetaCacheSpark.
  *
@@ -21,21 +21,15 @@ import com.github.jmabuin.metacachespark.io.*;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import com.github.jmabuin.metacachespark.spark.*;
 import com.google.common.collect.HashMultimap;
-//import edu.berkeley.cs.amplab.spark.indexedrdd.IndexedRDD;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.*;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.spark.HashPartitioner;
 import org.apache.spark.RangePartitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
-import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
@@ -710,9 +704,7 @@ public class Database implements Serializable{
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapMC");
-                /*this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_), true)
-                        .mapPartitions(new Locations2HashMapNative(), true);*/
+
                 this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.numPartitions))
@@ -1966,11 +1958,20 @@ public class Database implements Serializable{
 
         long initTime = System.nanoTime();
 
-        List<List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
-                //.mapPartitionsToPair(new FullQuery(fileName))
+        /*List<List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
                 .mapPartitionsToPair(new PartialQueryNativeListPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params,
                         this.taxa_, this.targets_))
                 .reduceByKey(new QueryReducerListNative())
+                .sortByKey()
+                .values()
+                .collect();*/
+        List<List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
+                .mapPartitionsToPair(new PartialQueryNativeTreeMapBestPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params,
+                        this.taxa_, this.targets_))
+                .groupByKey()
+                .mapToPair(new Locations2MatchCandidates(this.getTargetWindowStride_(), this.params,
+                        this.taxa_, this.targets_))
+                //.reduceByKey(new QueryReducerListNative())
                 .sortByKey()
                 .values()
                 .collect();

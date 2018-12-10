@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
+ * Copyright 2019 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
  *
  * <p>This file is part of MetaCacheSpark.
  *

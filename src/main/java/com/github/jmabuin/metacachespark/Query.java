@@ -1,17 +1,32 @@
+/**
+ * Copyright 2019 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
+ *
+ * <p>This file is part of MetaCacheSpark.
+ *
+ * <p>MetaCacheSpark is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * <p>MetaCacheSpark is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+ * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * <p>You should have received a copy of the GNU General Public License along with MetaCacheSpark. If not,
+ * see <http://www.gnu.org/licenses/>.
+ */
+
 package com.github.jmabuin.metacachespark;
 
 
 import com.github.jmabuin.metacachespark.database.*;
 import com.github.jmabuin.metacachespark.io.*;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
-import com.github.jmabuin.metacachespark.spark.FastaSketcher4Query;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import java.io.*;
@@ -366,8 +381,8 @@ public class Query implements Serializable {
             String fname2 = infilenames[i+1];
 
             LOG.warn("Classifying file pairs on " + fname1 + " and " + fname2 );
-            this.classify_pairs(fname1, fname2, d, stats);
-            //this.classify_pairs_list(fname1, fname2, d, stats);
+            //this.classify_pairs(fname1, fname2, d, stats);
+            this.classify_pairs_list(fname1, fname2, d, stats);
 
         }
 
@@ -549,10 +564,12 @@ public class Query implements Serializable {
             int bufferSize = this.param.getBuffer_size();
 
             SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
+            SequenceFileReaderLocal seqReader2 = new SequenceFileReaderLocal(f1, 0);
 
             LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
 
             SequenceData data;
+            SequenceData data2;
 
             for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
                 //while((currentRead < startRead+bufferSize) && ) {
@@ -574,12 +591,13 @@ public class Query implements Serializable {
 
                     //Theoretically, number on sequences in data is the same as number of hits
                     data = seqReader.next();
+                    data2 = seqReader2.next();
 
                     if((i == 0) || (i == hits.size()-1)) {
                         LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
                     }
 
-                    if(data == null) {
+                    if((data == null) || (data2 == null)) {
                         LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
                         break;
                     }
@@ -587,7 +605,7 @@ public class Query implements Serializable {
                     List<MatchCandidate> currentHits = hits.get((int)i);
 
                     this.process_database_answer_basic_list(data.getHeader(), data.getData(),
-                            "", currentHits, d, stats);
+                            data2.getData(), currentHits, d, stats);
 
                 }
 
@@ -2060,8 +2078,10 @@ public class Query implements Serializable {
             return new Classification();
         }
 
-        int best = cand.getTop_list().get(0).getTgt();
-        return new Classification(best, lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
+        //int best = cand.get_top_hits().get(0).getTgt();
+        //return new Classification(best, lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
+        //        this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
+        return new Classification(lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
                 this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
 
 

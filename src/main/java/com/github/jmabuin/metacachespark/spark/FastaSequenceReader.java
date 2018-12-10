@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
+ * Copyright 2019 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
  *
  * <p>This file is part of MetaCacheSpark.
  *
@@ -14,15 +14,15 @@
  * <p>You should have received a copy of the GNU General Public License along with MetaCacheSpark. If not,
  * see <http://www.gnu.org/licenses/>.
  */
+
 package com.github.jmabuin.metacachespark.spark;
-//import org.apache.spark.api.java.function.Function2;
+
 import com.github.jmabuin.metacachespark.Build;
 import com.github.jmabuin.metacachespark.Sequence;
 import com.github.jmabuin.metacachespark.io.SequenceReader;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function2;
 import scala.Tuple2;
 
 import java.util.*;

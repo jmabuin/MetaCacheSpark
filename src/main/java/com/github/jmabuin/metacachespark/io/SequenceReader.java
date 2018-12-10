@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
+ * Copyright 2019 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
  *
  * <p>This file is part of MetaCacheSpark.
  *
@@ -17,22 +17,9 @@
 
 package com.github.jmabuin.metacachespark.io;
 
-import com.github.jmabuin.metacachespark.HashFunctions;
-import com.github.jmabuin.metacachespark.MCSConfiguration;
-import com.github.jmabuin.metacachespark.Sketch;
-import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.spark.api.java.JavaSparkContext;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Serializable;
-import java.util.ArrayList;
 
 /**
  * Base class to read a sequence file (FASTA or FASTQ) sequentially from HDFS.
