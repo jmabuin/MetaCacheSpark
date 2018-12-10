@@ -28,12 +28,15 @@
 #include "../location.h"
 
 //HashMultiMap *map;
-std::unordered_map<unsigned, std::vector<location>> *map;
+std::unordered_map<unsigned, std::vector<location>> *map = nullptr;
 std::set<unsigned> marked_for_deletion;
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_init (JNIEnv *env, jobject jobj) {
 
     //map = new HashMultiMap();
+    if (map != nullptr) {
+        map->clear();
+    }
     map = new std::unordered_map<unsigned, std::vector<location>>();
 
     return 1;
@@ -246,6 +249,26 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
 
 }
 
+JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_keys (JNIEnv *env, jobject jobj) {
+    jintArray iarr = env->NewIntArray(map->size());
+
+    int *keys = (int *)malloc(sizeof(int) * map->size());
+
+    std::unordered_map<unsigned, std::vector<location>>::iterator it = map->begin();
+
+    unsigned i = 0;
+    for(it = map->begin(); it != map->end(); ++it) {
+        keys[i] = it->first;
+        ++i;
+    }
+
+    env->SetIntArrayRegion(iarr, 0, map->size(), keys);
+
+    free(keys);
+
+    return iarr;
+
+}
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_post_1process (JNIEnv *env, jobject jobj, jboolean over_populated, jboolean ambiguous) {
 /*

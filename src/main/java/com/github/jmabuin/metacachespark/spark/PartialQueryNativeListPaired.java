@@ -245,7 +245,7 @@ public class PartialQueryNativeListPaired implements PairFlatMapFunction<Iterato
         List<MatchCandidate> top_list = new ArrayList<>();
 
         CandidateGenerationRules rules = new CandidateGenerationRules();
-        //rules.setMaxWindowsInRange((int)num_windows);
+        rules.setMaxWindowsInRange((int)num_windows);
 
         //rules.setMaxWindowsInRange(numWindows);
 
@@ -349,7 +349,7 @@ public class PartialQueryNativeListPaired implements PairFlatMapFunction<Iterato
             else {
                 //end of current target
                 //this.insert(curBest);
-                this.insert_into_hashmap(hits_map, new MatchCandidate(curBest.getTgt(), hits, curBest.getPos(), curBest.getTax()), rules.getMaxCandidates());
+                this.insert_into_hashmap(hits_map, new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()), rules.getMaxCandidates());
                 //reset to new target
                 entryFST = entryLST;
                 fst = all_hits.get(entryFST);
@@ -409,9 +409,9 @@ public class PartialQueryNativeListPaired implements PairFlatMapFunction<Iterato
             for (int i = 0; i < list.size(); ++i) {
                 Map.Entry<Integer, MatchCandidate> current_entry = list.get(i);
 
-				/*if (i>list.size()-5){
-					LOG.warn("Best candidate item : " + i + " :: " + current_entry.getValue().getTgt() + " :: " + current_entry.getValue().getHits());
-				}*/
+				//if (i>list.size()-5){
+				//	LOG.warn("Candidate item : " + i + " :: " + current_entry.getValue().getTgt() + " :: " + current_entry.getValue().getHits());
+				//}
                 if (current_entry.getValue().getHits() > threshold) {
                     MatchCandidate current_cand = current_entry.getValue();
                     //current_cand.setHits(current_entry.getValue());
@@ -422,9 +422,9 @@ public class PartialQueryNativeListPaired implements PairFlatMapFunction<Iterato
 
             }
         }
-        else {
-            LOG.warn("Hits list is empty!! ");
-        }
+        //else {
+        //    LOG.warn("Hits list is empty!! ");
+        //}
 
         return top_list;
 

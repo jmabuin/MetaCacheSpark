@@ -705,10 +705,30 @@ public class Database implements Serializable{
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapMC");
 
-                this.locationJavaRDDHashMultiMapNative = this.inputSequences
+                // This is the correct one so far
+                /*this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.numPartitions))
                         .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
+                        */
+
+                /*this.locationJavaRDDHashMultiMapNative = this.inputSequences
+                        .flatMap(new Sketcher(this.name2tax_))
+                        .mapToPair(item -> new Tuple2<Integer, Location>(item.getTargetId(), item) )
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapToPair(item -> new Tuple2<Integer, LocationBasic>(item._2.getKey(), new LocationBasic(item._2.getTargetId(), item._2.getWindowId())))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);*/
+
+                this.locationJavaRDDHashMultiMapNative = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .values()
+                        .mapPartitionsWithIndex(new Locations2HashMapNativeIndexed(), true);
+
+
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
@@ -1967,7 +1987,7 @@ public class Database implements Serializable{
                 .collect();*/
         List<List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
                 .mapPartitionsToPair(new PartialQueryNativeTreeMapBestPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params,
-                        this.taxa_, this.targets_))
+                        this.taxa_, this.targets_), true)
                 .groupByKey()
                 .mapToPair(new Locations2MatchCandidates(this.getTargetWindowStride_(), this.params,
                         this.taxa_, this.targets_))
@@ -1984,6 +2004,30 @@ public class Database implements Serializable{
 
 
     }
+
+
+    public List<List<MatchCandidate>> accumulate_matches_native_buffered_best( String fileName, String fileName2,
+                                                                              long init, int size) {
+
+        long initTime = System.nanoTime();
+
+        List<List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
+                .mapPartitionsToPair(new PartialQueryNativeListPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params,
+                        this.taxa_, this.targets_), true)
+                .reduceByKey(new QueryReducerListNative(this.params))
+                .sortByKey()
+                .values()
+                .collect();
+
+        long endTime = System.nanoTime();
+
+        LOG.warn("Time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+        return results;
+
+
+    }
+
 
     //public TreeMap<LocationBasic, Integer> accumulate_matches_hashmapnativemode(String file_name, long query_number) {
     public TreeMap<LocationBasic, Integer> accumulate_matches_native_single(String file_name, long query_number) {

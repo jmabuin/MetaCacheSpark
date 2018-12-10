@@ -77,8 +77,6 @@ public class Locations2MatchCandidates implements PairFunction<Tuple2<Long, Iter
         CandidateGenerationRules rules = new CandidateGenerationRules();
         rules.setMaxWindowsInRange((int)num_windows);
 
-        //rules.setMaxWindowsInRange(numWindows);
-
         if(all_hits.isEmpty()) {
             LOG.warn("Matches is empty!");
             return tophits;

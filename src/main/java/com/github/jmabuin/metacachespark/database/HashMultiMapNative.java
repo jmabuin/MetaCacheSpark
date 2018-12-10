@@ -52,6 +52,7 @@ public class HashMultiMapNative implements Serializable {
 	private native int init();
 	public native int add(int key, int value1, int value2);
 	public native int[] get(int key);
+	public native int[] keys();
 	public native int size();
 	public native void write(String fileName);
 	public native void read(String fileName);

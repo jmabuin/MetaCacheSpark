@@ -334,4 +334,14 @@ public class MatchesInWindowList implements Serializable {
 	public List<MatchCandidate> getTop_list(){
 		return this.top_list;
 	}
+
+	public void print_top_hits() {
+
+		for(MatchCandidate candidate: this.top_list) {
+
+			LOG.warn(candidate.getTax().getTaxonName() + " (" + candidate.getTgt() + "): " + candidate.getHits() );
+
+		}
+
+	}
 }

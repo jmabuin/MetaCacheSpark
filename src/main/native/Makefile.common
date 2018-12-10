@@ -13,7 +13,7 @@ BUILD_DIR_MYMAP = build_mymap
 BUILD_DIR_SEQUENCEREADER = build_seqreader
 
 DIALECT = -std=c++14
-WARNINGS = -Wall -Wextra -Wpedantic
+WARNINGS = -Wno-unused-variable -Wall
 
 # JAVA variables #######
 ifndef JAVA_HOME

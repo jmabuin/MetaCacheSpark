@@ -53,7 +53,7 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
     private TreeMap<String, Integer> sequencesIndexes;
 
     public Sketcher2Pair(TreeMap<String, Integer> sequencesIndexes) {
-        super();
+        //super();
         this.sequencesIndexes = sequencesIndexes;
     }
 

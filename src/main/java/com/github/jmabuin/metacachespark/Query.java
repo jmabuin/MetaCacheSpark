@@ -382,8 +382,8 @@ public class Query implements Serializable {
 
             LOG.warn("Classifying file pairs on " + fname1 + " and " + fname2 );
             //this.classify_pairs(fname1, fname2, d, stats);
-            this.classify_pairs_list(fname1, fname2, d, stats);
-
+            //this.classify_pairs_list(fname1, fname2, d, stats);
+            this.classify_pairs_best(fname1, fname2, d, stats);
         }
 
     }
@@ -627,6 +627,113 @@ public class Query implements Serializable {
 
 
     }
+
+    public void classify_pairs_best(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
+
+        LOG.warn("Entering classify_pairs");
+        try {
+
+            long totalReads = 0;
+            long totalReads2 = 0;
+
+            if (FilesysUtility.isFastaFile(f1) && FilesysUtility.isFastaFile(f2)) {
+                totalReads = FilesysUtility.readsInFastaFile(f1);
+                totalReads2 = FilesysUtility.readsInFastaFile(f1);
+
+                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+
+                if (totalReads != totalReads2) {
+                    System.exit(1);
+                }
+
+            }
+            else if (FilesysUtility.isFastqFile(f1) && FilesysUtility.isFastqFile(f2)) {
+                totalReads = FilesysUtility.readsInFastqFile(f1);
+                totalReads2 = FilesysUtility.readsInFastqFile(f1);
+
+                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+                if (totalReads != totalReads2) {
+
+                    System.exit(1);
+                }
+            }
+            else {
+                LOG.error("Not recognized file format in " + f1 + " and " + f2);
+                System.exit(1);
+            }
+
+
+            long startRead;
+            int bufferSize = this.param.getBuffer_size();
+
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
+            SequenceFileReaderLocal seqReader2 = new SequenceFileReaderLocal(f2, 0);
+
+            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+
+            SequenceData data;
+            SequenceData data2;
+
+            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
+                //while((currentRead < startRead+bufferSize) && ) {
+
+                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+
+
+                // Get corresponding hits for this buffer
+                List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
+                        startRead, bufferSize);
+
+                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
+
+                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
+                long initTime = System.nanoTime();
+                //LocationBasic current_key;
+
+                for(long i = 0;  i < hits.size() ; i++) {
+
+                    //Theoretically, number on sequences in data is the same as number of hits
+                    data = seqReader.next();
+                    data2 = seqReader2.next();
+
+                    if((i == 0) || (i == hits.size()-1)) {
+                        LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
+                    }
+
+                    if((data == null) || (data2 == null)) {
+                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
+                        break;
+                    }
+
+                    List<MatchCandidate> currentHits = hits.get((int)i);
+
+                    this.process_database_answer_basic_list(data.getHeader(), data.getData(),
+                            data2.getData(), currentHits, d, stats);
+
+                }
+
+                long endTime = System.nanoTime();
+
+                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
+            }
+
+            seqReader.close();
+            seqReader2.close();
+
+            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in classify_pairs: "+e.getMessage());
+            System.exit(1);
+        }
+
+    }
+
+
 
     public void classify_main(String filename, BufferedWriter d, ClassificationStatistics stats){
 
@@ -1715,7 +1822,9 @@ public class Query implements Serializable {
 
         //LOG.warn("Starting classification");
         MatchesInWindowList tophits = new MatchesInWindowList(hits, (int)numWindows, this.db.getTargets_(), this.db.getTaxa_(), this.param);
+        //tophits.print_top_hits();
         Classification cls = this.sequence_classification(tophits);
+        //cls.print();
         //LOG.warn("Starting classification done");
         if(this.param.getProperties().isTestPrecision()) {
             //LOG.warn("[JMAbuin] Enter into assign precision with rank: " + Taxonomy.rank_name(cls.rank()));

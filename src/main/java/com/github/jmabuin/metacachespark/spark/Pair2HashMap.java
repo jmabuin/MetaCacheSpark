@@ -50,7 +50,7 @@ public class Pair2HashMap implements Function2<Integer, Iterator<Tuple2<Integer,
             Integer key = currentItem._1;
             LocationBasic current_location = new LocationBasic(currentItem._2().getTargetId(), currentItem._2().getWindowId());
 
-            if (map.containsKey(key) && map.get(key).size() < 32) {
+            if (map.containsKey(key) && map.get(key).size() < 254) {
                 map.get(key).add(current_location);
             }
             else if (!map.containsKey(key)){

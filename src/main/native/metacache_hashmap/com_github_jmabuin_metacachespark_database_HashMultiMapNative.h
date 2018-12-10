@@ -33,6 +33,14 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
 
 /*
  * Class:     com_github_jmabuin_metacachespark_database_HashMultiMapNative
+ * Method:    keys
+ * Signature: ()[I
+ */
+JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_keys
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     com_github_jmabuin_metacachespark_database_HashMultiMapNative
  * Method:    size
  * Signature: ()I
  */

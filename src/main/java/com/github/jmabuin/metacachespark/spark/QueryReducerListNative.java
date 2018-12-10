@@ -20,6 +20,7 @@ package com.github.jmabuin.metacachespark.spark;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.database.MatchCandidate;
 import com.github.jmabuin.metacachespark.database.MatchesInWindowList;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.spark.api.java.function.Function2;
 
 import java.util.*;
@@ -29,89 +30,53 @@ import java.util.*;
  */
 public class QueryReducerListNative implements Function2<List<MatchCandidate>, List<MatchCandidate>, List<MatchCandidate>> {
 
+    private MetaCacheOptions options;
+
+    public QueryReducerListNative(MetaCacheOptions options) {
+        this.options = options;
+    }
+
     @Override
     public List<MatchCandidate> call(List<MatchCandidate> v1, List<MatchCandidate> v2) {
-/*
-        long best = 0;
-        long best_v1 = 0;
-        long best_v2 = 0;
 
-        if (!v1.isEmpty()) {
-
-            best_v1 = v1.get(0).getHits();
-
-        }
-
-        if (!v2.isEmpty()) {
-            best_v2 = v2.get(0).getHits();
-        }
-
-        double threshold = 0.0;
-
-
-        if (best_v1 >= best_v2 && best_v1 > 0) {
-            threshold = v1.get(0).getHits() > 1 ?
-                    (v1.get(0).getHits() - 1) * 1 : 0;
-        }
-        else if (best_v2 > 0){
-            threshold = v2.get(0).getHits() > 1 ?
-                    (v2.get(0).getHits() - 1) * 1 : 0;
-        }
-*/
-
-
-
-
-        //v1.addAll(v2);
-
-        for (MatchCandidate m1: v1) {
-
-            for(MatchCandidate m2: v2) {
-
-                if (m1 == m2) {
-                    m1.setHits(m1.getHits() + m2.getHits());
-                    break;
-                }
-
-            }
-
-        }
-
-        for (MatchCandidate m2: v2) {
-
-            if (!v1.contains(m2)) {
-                v1.add(m2);
-            }
-
-        }
-
-
-
-        // Sort candidates in DESCENDING order according number of hits
-        Collections.sort(v1, new Comparator<MatchCandidate>() {
-            public int compare(MatchCandidate o1,
-                               MatchCandidate o2)
-            {
-
-                if (o1.getHits() < o2.getHits()) {
-                    return 1;
-                }
-
-                if (o1.getHits() > o2.getHits()) {
-                    return -1;
-                }
-
-                return 0;
-
-            }
-        });
-
+        v1.addAll(v2);
 
         List<MatchCandidate> results = new ArrayList<>();
 
-        if (!v1.isEmpty()){
-            double threshold = v1.get(0).getHits() > 1 ?
-                    (v1.get(0).getHits() - 1) * 1 : 0;
+        if (!v1.isEmpty()) {
+
+            // Sort candidates in DESCENDING order according number of hits
+            Collections.sort(v1, new Comparator<MatchCandidate>() {
+                public int compare(MatchCandidate o1,
+                                   MatchCandidate o2)
+                {
+
+                    if (o1.getHits() < o2.getHits()) {
+                        return 1;
+                    }
+
+                    if (o1.getHits() > o2.getHits()) {
+                        return -1;
+                    }
+
+                    return 0;
+
+                }
+            });
+
+
+
+            MatchCandidate best = v1.get(0);
+            //this.best.setHits(list.get(list.size()-1).getValue());
+            //this.lca = this.best.getTax();
+
+            if (best.getHits() < this.options.getProperties().getHitsMin()) {
+                return new ArrayList<MatchCandidate>();
+            }
+
+            double threshold = best.getHits() > this.options.getProperties().getHitsMin() ?
+                    (best.getHits() - this.options.getProperties().getHitsMin()) *
+                            this.options.getProperties().getHitsDiffFraction() : 0;
 
 
 
@@ -125,6 +90,7 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
                 }
 
             }
+
         }
 
 
