@@ -25,11 +25,121 @@
 #include <algorithm>
 #include <set>
 
+#include "io_serialize.h"
 #include "../location.h"
 
 //HashMultiMap *map;
 std::unordered_map<unsigned, std::vector<location>> *map = nullptr;
 std::set<unsigned> marked_for_deletion;
+
+size_t add_to_map(unsigned key, location loc) {
+
+    auto sid = map->find(key);
+
+        if (sid != map->end()) {
+            //if(std::find(v.begin(), v.end(), x) != v.end()) {
+            if ((sid->second.size() < 254) && (std::find(sid->second.begin(), sid->second.end(), loc) == sid->second.end())) {
+            //if (std::find(sid->second.begin(), sid->second.end(), newLocation) == sid->second.end()) {
+                //sid->second.push_back(newLocation);
+                sid->second.insert(std::upper_bound( sid->second.begin(), sid->second.end(), loc ),
+                            loc
+                        );
+            }
+            else if ((sid->second.size() >= 254) && (std::find(sid->second.begin(), sid->second.end(), loc) == sid->second.end())) {
+
+                //marked_for_deletion.insert(key);
+                std::vector<location>::iterator pos = std::upper_bound( sid->second.begin(), sid->second.end(), loc );
+
+                if (pos != sid->second.end()) {
+
+                    sid->second.insert(pos, loc);
+                    sid->second.resize(254);
+                }
+
+
+            }
+
+        }
+        else {
+
+            std::vector<location> new_vector;
+            new_vector.push_back(loc);
+            //new_vector.push_back(value2);
+
+            std::pair<unsigned, std::vector<location>> new_item(key, new_vector);
+            map->insert(new_item);
+
+        }
+
+        return map->size();
+}
+
+void serialize(std::ostream& os) {
+
+            mc::write_binary(os, map->size());
+            //write_binary(os, len_t(value_count()));
+
+            std::vector<unsigned> target_id_buf;
+            std::vector<unsigned> window_id_buf;
+
+            //for(const auto& bucket : buckets_) {
+            for(auto bucket = map->begin(); bucket!=map->end(); ++bucket) {
+                //if(!bucket.empty()) {
+                    mc::write_binary(os, bucket->first);
+                    mc::write_binary(os, bucket->second.size());
+
+                    target_id_buf.clear();
+                    target_id_buf.reserve(bucket->second.size());
+                    window_id_buf.clear();
+                    window_id_buf.reserve(bucket->second.size());
+
+                    for(const auto& v : bucket->second) {
+                        target_id_buf.emplace_back(v.tgt);
+                        window_id_buf.emplace_back(v.win);
+                    }
+
+                    mc::write_binary(os, target_id_buf);
+                    mc::write_binary(os, window_id_buf);
+                //}
+            }
+
+}
+
+
+void deserialize(std::istream& is) {
+
+        size_t nkeys = 0;
+        mc::read_binary(is, nkeys);
+        //len_t nvalues = 0;
+        //read_binary(is, nvalues);
+
+        if(nkeys > 0) {
+
+            std::vector<unsigned> target_id_buf;
+            std::vector<unsigned> window_id_buf;
+
+            for(size_t i = 0; i < nkeys; ++i) {
+                unsigned key;
+                size_t nvals = 0;
+                mc::read_binary(is, key);
+                mc::read_binary(is, nvals);
+
+                if(nvals > 0) {
+                    mc::read_binary(is, target_id_buf);
+                    mc::read_binary(is, window_id_buf);
+
+
+
+                    for(size_t i = 0; i < nvals; ++i) {
+                        add_to_map(key, location{target_id_buf[i], window_id_buf[i]});
+                    }
+                }
+            }
+
+        }
+    }
+
+
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_init (JNIEnv *env, jobject jobj) {
 
@@ -57,7 +167,7 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     location newLocation = location((unsigned)v1, (unsigned)v2);
 
         //map->insert(unsigned_key, newLocation);
-
+/*
     auto sid = map->find(unsigned_key);
 
     if (sid != map->end()) {
@@ -96,6 +206,7 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     }
 
     return map->size();
+    */ return add_to_map(unsigned_key, newLocation);
 
 }
 
@@ -110,7 +221,7 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     const char *nativeString = env->GetStringUTFChars(fileName, 0);
 
     std::string newFileName(nativeString);
-
+/*
     std::ofstream ofs;
 
     ofs.open(newFileName);
@@ -138,6 +249,19 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     }
 
     ofs.close();
+    */
+
+    std::ofstream os{newFileName, std::ios::out | std::ios::binary};
+
+    if(!os.good()) {
+        std::cerr << "Can't open file" << newFileName << std::endl;
+        exit(1);
+    }
+
+    serialize(os);
+
+    os.close();
+
     env->ReleaseStringUTFChars(fileName, nativeString);
   }
 
@@ -146,7 +270,7 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
     std::string newFileName(nativeString);
     //map->read_binary_from_file(newFileName);
-    std::ifstream ifs;
+    /*std::ifstream ifs;
 
     ifs.open(newFileName);
 
@@ -205,7 +329,16 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
         }
 
     ifs.close();
+*/
 
+std::ifstream is{newFileName, std::ios::in | std::ios::binary};
+
+        if(!is.good()) {
+            std::cerr << "Can't open file" << newFileName << std::endl;
+                    exit(1);
+        }
+
+        deserialize(is);
 
 
     env->ReleaseStringUTFChars(fileName, nativeString);
@@ -304,3 +437,5 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     return 1;
 
 }
+
+

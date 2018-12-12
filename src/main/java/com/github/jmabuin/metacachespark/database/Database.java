@@ -1745,6 +1745,9 @@ public class Database implements Serializable{
 
         }
         else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
+
+            long init_time = System.nanoTime();
+
             LOG.warn("Loading database with isBuildModeHashMultiMapMC");
             //this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
@@ -1766,10 +1769,14 @@ public class Database implements Serializable{
 
             this.locationJavaRDDHashMultiMapNative = filesNamesRDD
                     .mapPartitionsWithIndex(new ReadHashMapNative(), true)
-                    .persist(StorageLevel.MEMORY_AND_DISK());
+                    .persist(StorageLevel.MEMORY_ONLY());
 
 
             LOG.warn("The number of paired persisted entries is: " + this.locationJavaRDDHashMultiMapNative.count());
+
+            long end_time = System.nanoTime();
+
+            LOG.warn("Time spent in loading database from HDFS is: " + ((end_time - init_time) / 1e9) + " seconds");
         }
         else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
             LOG.warn("Loading database with isBuildModeParquetDataframe");
@@ -2006,19 +2013,23 @@ public class Database implements Serializable{
     }
 
 
-    public List<List<MatchCandidate>> accumulate_matches_native_buffered_best( String fileName, String fileName2,
+    //public List<List<MatchCandidate>> accumulate_matches_native_buffered_best( String fileName, String fileName2,
+    public Map<Long, List<MatchCandidate>> accumulate_matches_native_buffered_best( String fileName, String fileName2,
                                                                               long init, int size) {
 
         long initTime = System.nanoTime();
 
-        List<List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
+        //List<List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
+        /*Map<Long, List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
                 .mapPartitionsToPair(new PartialQueryNativeListPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params,
                         this.taxa_, this.targets_), true)
                 .reduceByKey(new QueryReducerListNative(this.params))
-                .sortByKey()
-                .values()
-                .collect();
-
+                .collectAsMap();
+*/
+        Map<Long, List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
+                .mapPartitionsToPair(new PartialQueryNativeListPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                .reduceByKey(new QueryReducerListNative(this.params))
+                .collectAsMap();
         long endTime = System.nanoTime();
 
         LOG.warn("Time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");

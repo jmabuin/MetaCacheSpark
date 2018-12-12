@@ -66,6 +66,12 @@ public class MatchesInWindowList implements Serializable {
 		this.all_hits = null;
 		this.top_list = matches;
 
+		// Rank candidates
+		for (MatchCandidate m: this.top_list) {
+
+			m.setTax(this.get_taxon(m.getTgt()));
+
+		}
 
 	}
 /*
@@ -343,5 +349,12 @@ public class MatchesInWindowList implements Serializable {
 
 		}
 
+	}
+
+	private Taxon get_taxon(int tgt_id) {
+		//LOG.warn("Getting taxon for TgtId: " + entry.getTargetId());
+		//LOG.warn("Target is: " + entry.getTargetId());
+		//LOG.warn("Taxa from target in targets_ is: " + this.targets_.get(entry.getTargetId()).getTax());
+		return this.taxa_.getTaxa_().get(this.targets_.get(tgt_id).getTax());
 	}
 }

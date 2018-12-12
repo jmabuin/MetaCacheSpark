@@ -133,7 +133,7 @@ public class MetaCacheSpark implements Serializable {
 
             long endTime = System.nanoTime();
 
-            LOG.info("End of program. Total time: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("End of program. Total time: " + ((endTime - initTime) / 1e9) + " seconds");
 		}
 		else {
 			System.out.println("Not recognized option");

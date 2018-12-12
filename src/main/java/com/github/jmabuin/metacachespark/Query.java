@@ -247,7 +247,7 @@ public class Query implements Serializable {
             int numQueries = (this.param.getProperties().getPairing() == EnumModes.pairing_mode.none) ? stats.total() :
                     2 * stats.total();
 
-            double speed = (double)numQueries / ((double)(endTime - initTime)/1e9/60.0);
+            double speed = (60.0 * (double)numQueries) / ((double)(endTime - initTime)/1e9);
 
             comment.append("queries:       " + numQueries + "\n");
             //comment.append("basic queries: " + stats.total()+"\n");
@@ -631,6 +631,8 @@ public class Query implements Serializable {
     public void classify_pairs_best(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
 
         LOG.warn("Entering classify_pairs");
+        long initTime = System.nanoTime();
+
         try {
 
             long totalReads = 0;
@@ -683,17 +685,22 @@ public class Query implements Serializable {
 
 
                 // Get corresponding hits for this buffer
-                List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
-                        startRead, bufferSize);
+                //List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
+                //        startRead, bufferSize);
+                Map<Long, List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
+                                startRead, bufferSize);
 
                 LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
 
                 //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                long initTime = System.nanoTime();
+
                 //LocationBasic current_key;
+
+                long current_read;
 
                 for(long i = 0;  i < hits.size() ; i++) {
 
+                    current_read = startRead + i;
                     //Theoretically, number on sequences in data is the same as number of hits
                     data = seqReader.next();
                     data2 = seqReader2.next();
@@ -707,21 +714,24 @@ public class Query implements Serializable {
                         break;
                     }
 
-                    List<MatchCandidate> currentHits = hits.get((int)i);
+                    List<MatchCandidate> currentHits = hits.get(current_read);
 
                     this.process_database_answer_basic_list(data.getHeader(), data.getData(),
                             data2.getData(), currentHits, d, stats);
 
                 }
 
-                long endTime = System.nanoTime();
 
-                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
+
+
             }
 
             seqReader.close();
             seqReader2.close();
 
+            long endTime = System.nanoTime();
+
+            LOG.warn("Time in classify_pairs_best is: " + ((endTime - initTime) / 1e9) + " seconds");
             //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
 
         }

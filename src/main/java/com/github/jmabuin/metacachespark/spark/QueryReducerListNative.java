@@ -17,10 +17,10 @@
 
 package com.github.jmabuin.metacachespark.spark;
 
-import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.database.MatchCandidate;
-import com.github.jmabuin.metacachespark.database.MatchesInWindowList;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.Function2;
 
 import java.util.*;
@@ -29,6 +29,8 @@ import java.util.*;
  * Created by chema on 3/30/17.
  */
 public class QueryReducerListNative implements Function2<List<MatchCandidate>, List<MatchCandidate>, List<MatchCandidate>> {
+
+    //private static final Log LOG = LogFactory.getLog(QueryReducerListNative.class);
 
     private MetaCacheOptions options;
 
@@ -39,17 +41,65 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
     @Override
     public List<MatchCandidate> call(List<MatchCandidate> v1, List<MatchCandidate> v2) {
 
-        v1.addAll(v2);
+        long initTime = System.nanoTime();
+
+        //v1.addAll(v2);
 
         List<MatchCandidate> results = new ArrayList<>();
 
-        if (!v1.isEmpty()) {
+        long best_v1 = 0;
+        long best_v2 = 0;
+        long best_all = 0;
 
+        if (!v2.isEmpty()){
+            best_v2 = v2.get(0).getHits();
+        }
+
+        if (!v1.isEmpty()) {
+            best_v1 = v1.get(0).getHits();
+        }
+
+        if (best_v1 > best_v2) {
+            best_all = best_v1;
+        }
+        else {
+            best_all = best_v2;
+        }
+
+        double threshold = best_all > this.options.getProperties().getHitsMin() ?
+                (best_all - this.options.getProperties().getHitsMin()) *
+                        this.options.getProperties().getHitsDiffFraction() : 0;
+
+
+
+        for (MatchCandidate v: v1) {
+
+            if (v.getHits() > threshold) {
+                results.add(v);
+            }
+            else {
+                break;
+            }
+
+        }
+
+        for (MatchCandidate v: v2) {
+
+            if (v.getHits() > threshold) {
+                results.add(v);
+            }
+            else {
+                break;
+            }
+
+        }
+
+        if (!results.isEmpty()) {
             // Sort candidates in DESCENDING order according number of hits
-            Collections.sort(v1, new Comparator<MatchCandidate>() {
+            //Collections.sort(v1, new Comparator<MatchCandidate>() {
+            results.sort(new Comparator<MatchCandidate>() {
                 public int compare(MatchCandidate o1,
-                                   MatchCandidate o2)
-                {
+                                   MatchCandidate o2) {
 
                     if (o1.getHits() < o2.getHits()) {
                         return 1;
@@ -64,38 +114,22 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
                 }
             });
 
-
-
-            MatchCandidate best = v1.get(0);
+            MatchCandidate best = results.get(0);
             //this.best.setHits(list.get(list.size()-1).getValue());
             //this.lca = this.best.getTax();
 
             if (best.getHits() < this.options.getProperties().getHitsMin()) {
                 return new ArrayList<MatchCandidate>();
             }
-
-            double threshold = best.getHits() > this.options.getProperties().getHitsMin() ?
-                    (best.getHits() - this.options.getProperties().getHitsMin()) *
-                            this.options.getProperties().getHitsDiffFraction() : 0;
-
-
-
-            for (MatchCandidate v: v1) {
-
-                if (v.getHits() >= threshold) {
-                    results.add(v);
-                }
-                else {
-                    break;
-                }
-
-            }
-
         }
 
 
+        //long endTime = System.nanoTime();
+
+        //LOG.warn("Time spent in reduction phase is: " + ((endTime - initTime) / 1e9) + " seconds");
+
         return results;
 
-    }
+}
 
 }
