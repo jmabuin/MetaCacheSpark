@@ -35,14 +35,14 @@ public class Locations2MatchCandidates implements PairFunction<Tuple2<Long, Iter
 
     private static final Log LOG = LogFactory.getLog(Locations2MatchCandidates.class);
 
-    private List<TargetProperty> targets_;
-    private Taxonomy taxa_;
+    //private List<TargetProperty> targets_;
+    //private Taxonomy taxa_;
     private MetaCacheOptions options;
     private long window_stride;
 
-    public Locations2MatchCandidates(long window_stride, MetaCacheOptions options, Taxonomy taxa_, List<TargetProperty> targets_) {
-        this.targets_ = targets_;
-        this.taxa_ = taxa_;
+    public Locations2MatchCandidates(long window_stride, MetaCacheOptions options) {
+        //this.targets_ = targets_;
+        //this.taxa_ = taxa_;
         this.options = options;
         this.window_stride = window_stride;
     }
@@ -122,7 +122,7 @@ public class Locations2MatchCandidates implements PairFunction<Tuple2<Long, Iter
 
         long hits = 1;
         MatchCandidate curBest = new MatchCandidate();
-        curBest.setTax(this.get_taxon(fst));
+        //curBest.setTax(this.get_taxon(fst));
         curBest.setTgt(fst.getTargetId());
         curBest.setHits(hits);
         curBest.setPos_beg(fst.getWindowId());
@@ -171,7 +171,7 @@ public class Locations2MatchCandidates implements PairFunction<Tuple2<Long, Iter
 
                 hits = 1;
                 curBest.setTgt(fst.getTargetId());
-                curBest.setTax(this.get_taxon(fst));
+                //curBest.setTax(this.get_taxon(fst));
                 curBest.setPos_beg(fst.getWindowId());
                 curBest.setPos_end(fst.getWindowId());
                 curBest.setHits(hits);
@@ -258,10 +258,10 @@ public class Locations2MatchCandidates implements PairFunction<Tuple2<Long, Iter
         }
 
     }
-
+/*
     private Taxon get_taxon(LocationBasic entry) {
 
         return this.taxa_.getTaxa_().get(this.targets_.get(entry.getTargetId()).getTax());
     }
-
+*/
 }

@@ -35,11 +35,12 @@ import java.util.*;
 /**
  * Created by Jose M. Abuin on 3/28/17.
  */
-public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, List<MatchCandidate>> {
+public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, List<MatchCandidate>> {
 
-    private static final Log LOG = LogFactory.getLog(PartialQueryNative.class);
+    private static final Log LOG = LogFactory.getLog(PartialQueryNativePaired.class);
 
     private String fileName;
+    private String fileName2;
     private long init;
     private int bufferSize;
     //private List<TargetProperty> targets_;
@@ -47,9 +48,10 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
     private MetaCacheOptions options;
     private long window_stride;
 
-    public PartialQueryNative(String file_name, long init, int bufferSize//) {
-            ,long window_stride, MetaCacheOptions options){//}, Taxonomy taxa_, List<TargetProperty> targets_) {
+    public PartialQueryNativePaired(String file_name, String file_name2, long init, int bufferSize//) {
+            , long window_stride, MetaCacheOptions options){//}, Taxonomy taxa_, List<TargetProperty> targets_) {
         this.fileName = file_name;
+        this.fileName2 = file_name2;
         this.init = init;
         this.bufferSize = bufferSize;
         //this.targets_ = targets_;
@@ -59,8 +61,9 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
     }
 
-    public PartialQueryNative(String file_name, long init, int bufferSize) {
+    public PartialQueryNativePaired(String file_name, String file_name2, long init, int bufferSize) {
         this.fileName = file_name;
+        this.fileName2 = file_name2;
         this.init = init;
         this.bufferSize = bufferSize;
         //this.targets_ = targets_;
@@ -78,6 +81,7 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
         try{
             SequenceFileReaderNative seqReader;
+            SequenceFileReaderNative2 seqReader2;
 
             Configuration conf = new Configuration();
             FileSystem fs = FileSystem.get(conf);
@@ -95,17 +99,32 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
                 LOG.info("File " + local_file_path.getName() + " already exists. Not copying.");
             }
 
+            Path hdfs_file_path2 = new Path(this.fileName2);
+            Path local_file_path2 = new Path(hdfs_file_path2.getName());
 
+            File tmp_file2 = new File(local_file_path2.getName());
+
+            if(!tmp_file2.exists()){
+                fs.copyToLocalFile(hdfs_file_path2, local_file_path2);
+                LOG.info("File " + local_file_path2.getName() + " copied");
+            }
+            else {
+                LOG.info("File " + local_file_path2.getName() + " already exists. Not copying.");
+            }
 
             String local_file_name = local_file_path.getName();
+            String local_file_name2 = local_file_path2.getName();
 
             seqReader = new SequenceFileReaderNative(local_file_name);
+            seqReader2 = new SequenceFileReaderNative2(local_file_name2);
 
             if (this.init!=0) {
                 seqReader.skip(this.init);
+                seqReader2.skip(this.init);
             }
 
             ArrayList<Sketch> locations = new ArrayList<Sketch>();
+            ArrayList<Sketch> locations2 = new ArrayList<Sketch>();
 
             long currentSequence = this.init;
 
@@ -116,15 +135,19 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
                 //LOG.info("Processing hashmap " + currentSequence );
 
-                while((seqReader.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
+                while((seqReader.next() != null) && (seqReader2.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
 
                     String header = seqReader.get_header();
                     String data = seqReader.get_data();
                     String qua = seqReader.get_quality();
 
-                    long numWindows = ( 2 + Math.max(data.length(), this.options.getProperties().getInsertSizeMax()) / this.window_stride);
+                    String header2 = seqReader2.get_header();
+                    String data2 = seqReader2.get_data();
+                    String qua2 = seqReader2.get_quality();
 
-                    if (seqReader.get_header().isEmpty()) {
+                    long numWindows = ( 2 + Math.max(data.length() + data2.length(), this.options.getProperties().getInsertSizeMax()) / this.window_stride);
+
+                    if (seqReader.get_header().isEmpty() || seqReader2.get_header().isEmpty()) {
                         continue;
                     }
 
@@ -132,17 +155,32 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
                     List<LocationBasic> current_results = new ArrayList<>();
 
                     if ((currentSequence == this.init) || (currentSequence == this.init +1 )) {
-                        LOG.warn("Processing sequence " + currentSequence + " :: " + header);
+                        LOG.warn("Processing sequence " + currentSequence + " :: " + header + " :: " + header2);
                     }
 
 
                     SequenceData currentData = new SequenceData(header, data, qua);
+                    SequenceData currentData2 = new SequenceData(header2, data2, qua2);
 
                     locations = SequenceFileReader.getSketchStatic(currentData);
+                    locations2 = SequenceFileReader.getSketchStatic(currentData2);
 
                     //int block_size = locations.size() * this.result_size;
 
                     for(Sketch currentSketch: locations) {
+
+                        for(int location: currentSketch.getFeatures()) {
+
+                            LocationBasic[] locations_obtained = currentHashMap.get_locations(location);
+
+                            if(locations_obtained != null) {
+
+                                current_results.addAll(Arrays.asList(locations_obtained));
+                            }
+                        }
+                    }
+
+                    for(Sketch currentSketch: locations2) {
 
                         for(int location: currentSketch.getFeatures()) {
 
@@ -164,9 +202,11 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
                     //current_results.clear();
                     locations.clear();
+                    locations2.clear();
                 }
 
                 seqReader.close();
+                seqReader2.close();
             }
 
             //long endTime = System.nanoTime();
@@ -284,7 +324,7 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
             else {
                 //end of current target
                 //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
-                best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+                    best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
                 //}
                 //reset to new target
                 entryFST = entryLST;
@@ -301,7 +341,7 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
         }
         //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
-        best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+            best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
         //}
 
         if (best_hits.isEmpty()) {

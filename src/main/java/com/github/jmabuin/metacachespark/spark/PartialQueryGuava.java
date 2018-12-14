@@ -17,10 +17,15 @@
 
 package com.github.jmabuin.metacachespark.spark;
 
-import com.github.jmabuin.metacachespark.*;
-import com.github.jmabuin.metacachespark.database.*;
-import com.github.jmabuin.metacachespark.io.*;
+import com.github.jmabuin.metacachespark.LocationBasic;
+import com.github.jmabuin.metacachespark.Sketch;
+import com.github.jmabuin.metacachespark.database.CandidateGenerationRules;
+import com.github.jmabuin.metacachespark.database.MatchCandidate;
+import com.github.jmabuin.metacachespark.io.SequenceData;
+import com.github.jmabuin.metacachespark.io.SequenceFileReader;
+import com.github.jmabuin.metacachespark.io.SequenceFileReaderNative;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
+import com.google.common.collect.HashMultimap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -35,9 +40,9 @@ import java.util.*;
 /**
  * Created by Jose M. Abuin on 3/28/17.
  */
-public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, List<MatchCandidate>> {
+public class PartialQueryGuava implements PairFlatMapFunction<Iterator<HashMultimap<Integer, LocationBasic>>, Long, List<MatchCandidate>> {
 
-    private static final Log LOG = LogFactory.getLog(PartialQueryNative.class);
+    private static final Log LOG = LogFactory.getLog(PartialQueryGuava.class);
 
     private String fileName;
     private long init;
@@ -47,8 +52,7 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
     private MetaCacheOptions options;
     private long window_stride;
 
-    public PartialQueryNative(String file_name, long init, int bufferSize//) {
-            ,long window_stride, MetaCacheOptions options){//}, Taxonomy taxa_, List<TargetProperty> targets_) {
+    public PartialQueryGuava(String file_name, long init, int bufferSize,long window_stride, MetaCacheOptions options){
         this.fileName = file_name;
         this.init = init;
         this.bufferSize = bufferSize;
@@ -59,20 +63,8 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
     }
 
-    public PartialQueryNative(String file_name, long init, int bufferSize) {
-        this.fileName = file_name;
-        this.init = init;
-        this.bufferSize = bufferSize;
-        //this.targets_ = targets_;
-        //this.taxa_ = taxa_;
-
-
-    }
-
     @Override
-    public Iterator<Tuple2<Long, List<MatchCandidate>>> call(Iterator<HashMultiMapNative> myHashMaps) {
-
-        //long initTime = System.nanoTime();
+    public Iterator<Tuple2<Long, List<MatchCandidate>>> call(Iterator<HashMultimap<Integer, LocationBasic>> myHashMaps) {
 
         List<Tuple2<Long, List<MatchCandidate>>> finalResults = new ArrayList<Tuple2<Long, List<MatchCandidate>>>();
 
@@ -112,7 +104,7 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
             // Theoretically there is only one HashMap per partition
             while(myHashMaps.hasNext()){
 
-                HashMultiMapNative currentHashMap = myHashMaps.next();
+                HashMultimap<Integer, LocationBasic> currentHashMap = myHashMaps.next();
 
                 //LOG.info("Processing hashmap " + currentSequence );
 
@@ -146,11 +138,11 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
                         for(int location: currentSketch.getFeatures()) {
 
-                            LocationBasic[] locations_obtained = currentHashMap.get_locations(location);
+                            Set<LocationBasic> locations_obtained = currentHashMap.get(location);
 
                             if(locations_obtained != null) {
 
-                                current_results.addAll(Arrays.asList(locations_obtained));
+                                current_results.addAll(locations_obtained);
                             }
                         }
                     }
@@ -180,13 +172,8 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
             LOG.error("ERROR in PartialQueryNativePaired: "+e.getMessage());
             System.exit(-1);
         }
-
-
-
-
         return finalResults.iterator();
     }
-
 
     private List<MatchCandidate> insert_all(List<LocationBasic> all_hits, long num_windows) {
 
@@ -358,27 +345,5 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
     }
 
-    private void insert_into_hashmap(HashMap<Integer, MatchCandidate> hm, MatchCandidate cand, long max_candidates) {
 
-        if (hm.containsKey(cand.getTgt())) {
-            //LOG.warn("Contains key Processing in insert " + cand.getTgt() + " :: " + cand.getHits());
-            if (cand.getHits() > hm.get(cand.getTgt()).getHits()) {
-                hm.put(cand.getTgt(), cand);
-            }
-        }
-        else if (hm.size() < max_candidates) {
-            //LOG.warn("Inserting " + cand.getTgt() + " :: " + cand.getHits());
-            hm.put(cand.getTgt(), cand);
-
-        }
-
-    }
-/*
-    private Taxon get_taxon(LocationBasic entry) {
-        //LOG.warn("Getting taxon for TgtId: " + entry.getTargetId());
-        //LOG.warn("Target is: " + entry.getTargetId());
-        //LOG.warn("Taxa from target in targets_ is: " + this.targets_.get(entry.getTargetId()).getTax());
-        return this.taxa_.getTaxa_().get(this.targets_.get(entry.getTargetId()).getTax());
-    }
-*/
 }

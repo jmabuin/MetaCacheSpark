@@ -381,9 +381,10 @@ public class Query implements Serializable {
             String fname2 = infilenames[i+1];
 
             LOG.warn("Classifying file pairs on " + fname1 + " and " + fname2 );
-            //this.classify_pairs(fname1, fname2, d, stats);
+            this.classify_pairs(fname1, fname2, d, stats);
             //this.classify_pairs_list(fname1, fname2, d, stats);
-            this.classify_pairs_best(fname1, fname2, d, stats);
+            //this.classify_pairs_best(fname1, fname2, d, stats);
+            //this.classify_pairs_main(fname1, fname2, d, stats);
         }
 
     }
@@ -398,7 +399,7 @@ public class Query implements Serializable {
 
                 LOG.warn("Processing file "+fname);
 
-                this.classify_main(fname, d, stats);
+                this.classify(fname, d, stats);
 
             }
         }
@@ -408,227 +409,10 @@ public class Query implements Serializable {
             System.exit(1);
         }
 
-
-
     }
 
-    /**
-     * @param f1
-     * @param f2
-     * @param d
-     * @param stats
-     */
+
     public void classify_pairs(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
-
-        LOG.warn("Entering classify_pairs");
-        try {
-
-            long totalReads = 0;
-            long totalReads2 = 0;
-
-            if (FilesysUtility.isFastaFile(f1) && FilesysUtility.isFastaFile(f2)) {
-                totalReads = FilesysUtility.readsInFastaFile(f1);
-                totalReads2 = FilesysUtility.readsInFastaFile(f1);
-
-                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
-                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
-
-                if (totalReads != totalReads2) {
-                    System.exit(1);
-                }
-
-            }
-            else if (FilesysUtility.isFastqFile(f1) && FilesysUtility.isFastqFile(f2)) {
-                totalReads = FilesysUtility.readsInFastqFile(f1);
-                totalReads2 = FilesysUtility.readsInFastqFile(f1);
-
-                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
-                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
-                if (totalReads != totalReads2) {
-
-                    System.exit(1);
-                }
-            }
-            else {
-                LOG.error("Not recognized file format in " + f1 + " and " + f2);
-                System.exit(1);
-            }
-
-
-            long startRead;
-            int bufferSize = this.param.getBuffer_size();
-
-            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
-            SequenceFileReaderLocal seqReader2 = new SequenceFileReaderLocal(f2, 0);
-
-            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
-
-            SequenceData data;
-            SequenceData data2;
-
-            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
-                //while((currentRead < startRead+bufferSize) && ) {
-
-                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
-
-
-                // Get corresponding hits for this buffer
-                List<List<LocationBasic>> hits = this.db.accumulate_matches_native_buffered_paired(f1, f2,
-                        startRead, bufferSize);
-
-                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                long initTime = System.nanoTime();
-                //LocationBasic current_key;
-
-                for(long i = 0;  i < hits.size() ; i++) {
-
-                    //Theoretically, number on sequences in data is the same as number of hits
-                    data = seqReader.next();
-                    data2 = seqReader2.next();
-
-                    if((i == 0) || (i == hits.size()-1)) {
-                        LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
-                    }
-
-                    if((data == null) || (data2 == null)) {
-                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
-                        break;
-                    }
-
-                    List<LocationBasic> currentHits = hits.get((int)i);
-
-                    this.process_database_answer_basic(data.getHeader(), data.getData(),
-                            data2.getData(), currentHits, d, stats);
-
-                }
-
-                long endTime = System.nanoTime();
-
-                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
-            }
-
-            seqReader.close();
-            seqReader2.close();
-
-            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            LOG.error("General error in classify_pairs: "+e.getMessage());
-            System.exit(1);
-        }
-
-    }
-
-    public void classify_pairs_list(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
-
-        LOG.warn("Entering classify_pairs_list");
-        try {
-
-            long totalReads = 0;
-            long totalReads2 = 0;
-
-            if (FilesysUtility.isFastaFile(f1) && FilesysUtility.isFastaFile(f2)) {
-                totalReads = FilesysUtility.readsInFastaFile(f1);
-                totalReads2 = FilesysUtility.readsInFastaFile(f1);
-
-                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
-                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
-
-                if (totalReads != totalReads2) {
-                    System.exit(1);
-                }
-
-            }
-            else if (FilesysUtility.isFastqFile(f1) && FilesysUtility.isFastqFile(f2)) {
-                totalReads = FilesysUtility.readsInFastqFile(f1);
-                totalReads2 = FilesysUtility.readsInFastqFile(f1);
-
-                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
-                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
-                if (totalReads != totalReads2) {
-
-                    System.exit(1);
-                }
-            }
-            else {
-                LOG.error("Not recognized file format in " + f1 + " and " + f2);
-                System.exit(1);
-            }
-
-
-            long startRead;
-            int bufferSize = this.param.getBuffer_size();
-
-            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
-            SequenceFileReaderLocal seqReader2 = new SequenceFileReaderLocal(f1, 0);
-
-            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
-
-            SequenceData data;
-            SequenceData data2;
-
-            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
-                //while((currentRead < startRead+bufferSize) && ) {
-
-                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
-
-
-                // Get corresponding hits for this buffer
-                List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_paired_list(f1, f2,
-                        startRead, bufferSize);
-
-                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                long initTime = System.nanoTime();
-                //LocationBasic current_key;
-
-                for(long i = 0;  i < hits.size() ; i++) {
-
-                    //Theoretically, number on sequences in data is the same as number of hits
-                    data = seqReader.next();
-                    data2 = seqReader2.next();
-
-                    if((i == 0) || (i == hits.size()-1)) {
-                        LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
-                    }
-
-                    if((data == null) || (data2 == null)) {
-                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
-                        break;
-                    }
-
-                    List<MatchCandidate> currentHits = hits.get((int)i);
-
-                    this.process_database_answer_basic_list(data.getHeader(), data.getData(),
-                            data2.getData(), currentHits, d, stats);
-
-                }
-
-                long endTime = System.nanoTime();
-
-                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
-            }
-
-            seqReader.close();
-
-            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            LOG.error("General error in classify_pairs: "+e.getMessage());
-            System.exit(1);
-        }
-
-
-    }
-
-    public void classify_pairs_best(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
 
         LOG.warn("Entering classify_pairs");
         long initTime = System.nanoTime();
@@ -687,7 +471,7 @@ public class Query implements Serializable {
                 // Get corresponding hits for this buffer
                 //List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
                 //        startRead, bufferSize);
-                Map<Long, List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
+                Map<Long, List<MatchCandidate>> hits = this.db.accumulate_matches_paired(f1, f2,
                                 startRead, bufferSize);
 
                 LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
@@ -701,7 +485,7 @@ public class Query implements Serializable {
                 for(long i = 0;  i < hits.size() ; i++) {
 
                     current_read = startRead + i;
-                    //Theoretically, number on sequences in data is the same as number of hits
+                    //Theoretically, number of sequences in data is the same as number of hits
                     data = seqReader.next();
                     data2 = seqReader2.next();
 
@@ -716,7 +500,7 @@ public class Query implements Serializable {
 
                     List<MatchCandidate> currentHits = hits.get(current_read);
 
-                    this.process_database_answer_basic_list(data.getHeader(), data.getData(),
+                    this.process_database_answer(data.getHeader(), data.getData(),
                             data2.getData(), currentHits, d, stats);
 
                 }
@@ -742,9 +526,32 @@ public class Query implements Serializable {
         }
 
     }
+/*
+    public void classify_pairs_main(String fname1, String fname2, BufferedWriter d, ClassificationStatistics stats) {
+
+        switch (this.param.getDatabase_type()) {
+
+            case HASHMULTIMAP_NATIVE:
+                LOG.info("Classifying per file with native hashmap buffered");
+                this.classify_pairs(fname1, fname2, d, stats);
+
+                break;
+            case HASHMAP:
+
+                break;
+            case HASHMULTIMAP_GUAVA:
+
+                break;
+            default:
+                //this.classify(filename, d, stats);
+                break;
+
+        }
 
 
-
+    }
+*/
+/*
     public void classify_main(String filename, BufferedWriter d, ClassificationStatistics stats){
 
         switch (this.param.getDatabase_type()) {
@@ -752,7 +559,7 @@ public class Query implements Serializable {
             case HASHMULTIMAP_NATIVE:
                 if (this.param.getBuffer_size() > 0) {
                     LOG.info("Classifying per file with native hashmap buffered");
-                    this.classify_native_buffer(filename, d, stats);
+                    this.classify(filename, d, stats);
                 }
                 else if (this.param.getBuffer_size() == 0) {
                     LOG.info("Classifying per file with native hashmap single");
@@ -780,98 +587,19 @@ public class Query implements Serializable {
                 }
                 break;
             default:
-                this.classify(filename, d, stats);
+                //this.classify(filename, d, stats);
                 break;
 
         }
 
     }
+*/
+
 
     public void classify(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
-        try {
-            SequenceFileReader seqReader = new SequenceFileReader(filename, 0);
-
-            ArrayList<Sketch> locations = new ArrayList<Sketch>();
-            TreeMap<LocationBasic, Integer> matches;
-
-            List<SequenceData> inputData = new ArrayList<SequenceData>();
-
-            long totalReads = 0;
-
-            if (FilesysUtility.isFastaFile(filename)) {
-                totalReads = FilesysUtility.readsInFastaFile(filename);
-            }
-            else if (FilesysUtility.isFastqFile(filename)) {
-                totalReads = FilesysUtility.readsInFastqFile(filename);
-            }
-            else {
-                LOG.error("Not recognized file format in " + filename);
-                System.exit(1);
-            }
-
-            long currentRead = 0;
-            long startRead = 0;
-            int bufferSize = this.param.getBuffer_size();
-
-            SequenceData data;
-            data = seqReader.next();
-
-            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
-            //while((currentRead < startRead+bufferSize) && ) {
-                currentRead = startRead;
-
-                LOG.info("Parsing new reads block. Starting in: "+currentRead);
-
-                while((data != null) && (currentRead < startRead + bufferSize)) {
-                    inputData.add(data);
-                    data = seqReader.next();
-                    currentRead++;
-                }
-
-                // Get corresponding hits for this buffer
-                List<TreeMap<LocationBasic, Integer>> hits = this.db.matches_buffered(inputData, currentRead, bufferSize, totalReads,
-                        seqReader.getReadedValues());
-
-                //LOG.warn("Sequences in buffer: "+hits.size());
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                for(long i = 0;  i < hits.size() ; i++) {
-
-                    //SequenceData data = seqReader.next();
-
-                    TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
-                    //LOG.warn("JMAbuin: Current treeMap items: "+currentHits.size());
-                    //if(data == null) {
-                    //	LOG.warn("Data is null!! for hits: "+i+" and read "+currentRead);
-                    //}
-
-                    if(currentHits.size() > 0) {
-                        this.process_database_answer(inputData.get((int) i).getHeader(), inputData.get((int) i).getData(),
-                                "", currentHits, d, stats);
-                    }
-                }
-
-                //currentRead++;
-                inputData.clear();
-            }
-
-            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-            seqReader.close();
-
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            LOG.error("General error in classify: "+e.getMessage());
-            System.exit(1);
-        }
-
-
-    }
-
-
-    public void classify_native_buffer(String filename, BufferedWriter d, ClassificationStatistics stats) {
+        LOG.warn("Entering classify");
+        long initTime = System.nanoTime();
 
         try {
 
@@ -879,12 +607,19 @@ public class Query implements Serializable {
 
             if (FilesysUtility.isFastaFile(filename)) {
                 totalReads = FilesysUtility.readsInFastaFile(filename);
+
+                LOG.warn("Number of reads in " + filename + " is " + totalReads + ".");
+
+
             }
             else if (FilesysUtility.isFastqFile(filename)) {
                 totalReads = FilesysUtility.readsInFastqFile(filename);
+
+                LOG.warn("Number of reads in " + filename + " is " + totalReads + ".");
+
             }
             else {
-                LOG.error("Not recognized file format in " + filename);
+                LOG.error("Not recognized file format in " + filename );
                 System.exit(1);
             }
 
@@ -905,18 +640,23 @@ public class Query implements Serializable {
 
 
                 // Get corresponding hits for this buffer
-                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_native_buffered(filename,
-                        startRead, bufferSize, totalReads, startRead);
+                //List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
+                //        startRead, bufferSize);
+                Map<Long, List<MatchCandidate>> hits = this.db.accumulate_matches_single(filename,
+                        startRead, bufferSize);
 
                 LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
 
                 //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                long initTime = System.nanoTime();
+
                 //LocationBasic current_key;
+
+                long current_read;
 
                 for(long i = 0;  i < hits.size() ; i++) {
 
-                    //Theoretically, number on sequences in data is the same as number of hits
+                    current_read = startRead + i;
+                    //Theoretically, number of sequences in data is the same as number of hits
                     data = seqReader.next();
 
                     if((i == 0) || (i == hits.size()-1)) {
@@ -928,359 +668,27 @@ public class Query implements Serializable {
                         break;
                     }
 
-                    TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
+                    List<MatchCandidate> currentHits = hits.get(current_read);
 
-                    //this.process_database_answer_basic(data.getHeader(), data.getData(),
-                    //        "", currentHits, d, stats);
+                    this.process_database_answer(data.getHeader(), data.getData(),
+                            "", currentHits, d, stats);
 
                 }
 
-                long endTime = System.nanoTime();
 
-                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
             }
 
             seqReader.close();
 
+            long endTime = System.nanoTime();
+
+            LOG.warn("Time in classify_pairs_best is: " + ((endTime - initTime) / 1e9) + " seconds");
             //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
 
         }
         catch (Exception e) {
             e.printStackTrace();
-            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
-            System.exit(1);
-        }
-
-
-    }
-
-
-    public void classify_native_single(String filename, BufferedWriter d, ClassificationStatistics stats) {
-
-        try {
-
-            //long totalReads = FilesysUtility.readsInFastaFile(filename);
-            //long startRead;
-
-            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
-
-            //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
-
-            SequenceData data = seqReader.next();
-
-            long current_read = 0;
-
-            while(data != null) {
-
-                // Get corresponding hits for this read
-                TreeMap<LocationBasic, Integer> hits = this.db.accumulate_matches_native_single(filename,
-                        current_read);
-
-                //LOG.warn("Results in buffer: " + hits.size() + ".");
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                //long initTime = System.nanoTime();
-                //LocationBasic current_key;
-
-                //this.process_database_answer_basic(data.getHeader(), data.getData(),
-                //        "", hits, d, stats);
-
-
-                //long endTime = System.nanoTime();
-
-                current_read++;
-                //currentRead = currentRead + bufferSize;
-                data = seqReader.next();
-                //LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
-            }
-
-            seqReader.close();
-
-            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
-            System.exit(1);
-        }
-
-
-    }
-
-    public void classify_java_hashmap_buffered(String filename, BufferedWriter d, ClassificationStatistics stats) {
-
-        try {
-
-            long totalReads = 0;
-
-            if (FilesysUtility.isFastaFile(filename)) {
-                totalReads = FilesysUtility.readsInFastaFile(filename);
-            }
-            else if (FilesysUtility.isFastqFile(filename)) {
-                totalReads = FilesysUtility.readsInFastqFile(filename);
-            }
-            else {
-                LOG.error("Not recognized file format in " + filename);
-                System.exit(1);
-            }
-
-            long startRead;
-            int bufferSize = this.param.getBuffer_size();
-
-            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
-
-            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
-
-            SequenceData data;
-
-            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
-                //while((currentRead < startRead+bufferSize) && ) {
-
-                LOG.info("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
-
-
-                // Get corresponding hits for this buffer
-                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_hashmap_java_buffered(filename,
-                        startRead, bufferSize, totalReads, startRead);
-
-                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                long initTime = System.nanoTime();
-                //LocationBasic current_key;
-
-                for(long i = 0;  i < hits.size() ; i++) {
-
-                    //Theoretically, number on sequences in data is the same as number of hits
-                    data = seqReader.next();
-
-                    if(seqReader.getReadedValues() == 1) {
-                        LOG.warn("Current read " + data.getHeader() + " :: " + data.getData());
-                    }
-
-                    if(data == null) {
-                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
-                        break;
-                    }
-                    //LOG.warn("Processing: "+inputData.get((int)i).getHeader());
-
-                    //SequenceData data = seqReader.next();
-
-                    TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
-
-                    //this.process_database_answer_basic(data.getHeader(), data.getData(),
-                    //        "", currentHits, d, stats);
-                }
-
-                long endTime = System.nanoTime();
-
-                //currentRead++;
-                //currentRead = currentRead + bufferSize;
-                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
-            }
-
-            seqReader.close();
-
-            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
-            System.exit(1);
-        }
-
-
-    }
-
-
-    public void classify_java_hashmap_single(String filename, BufferedWriter d, ClassificationStatistics stats) {
-
-        try {
-
-            //long totalReads = FilesysUtility.readsInFastaFile(filename);
-            //long startRead;
-
-            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
-
-            //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
-
-            SequenceData data = seqReader.next();
-
-            long current_read = 0;
-
-            while(data != null) {
-
-                // Get corresponding hits for this read
-                TreeMap<LocationBasic, Integer> hits = this.db.accumulate_matches_hashmap_java_single(filename,
-                        current_read);
-
-                //LOG.warn("Results in buffer: " + hits.size() + ".");
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                //long initTime = System.nanoTime();
-                //LocationBasic current_key;
-
-                //this.process_database_answer_basic(data.getHeader(), data.getData(),
-                //        "", hits, d, stats);
-
-
-                //long endTime = System.nanoTime();
-
-                current_read++;
-                //currentRead = currentRead + bufferSize;
-                data = seqReader.next();
-                //LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
-            }
-
-            seqReader.close();
-
-            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
-            System.exit(1);
-        }
-
-
-    }
-
-    public void classify_guava_hashmap_buffered(String filename, BufferedWriter d, ClassificationStatistics stats) {
-
-        try {
-
-            long totalReads = 0;
-
-            if (FilesysUtility.isFastaFile(filename)) {
-                totalReads = FilesysUtility.readsInFastaFile(filename);
-            }
-            else if (FilesysUtility.isFastqFile(filename)) {
-                totalReads = FilesysUtility.readsInFastqFile(filename);
-            }
-            else {
-                LOG.error("Not recognized file format in " + filename);
-                System.exit(1);
-            }
-            long startRead;
-            int bufferSize = this.param.getBuffer_size();
-
-            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
-
-            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
-
-            SequenceData data;
-
-            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
-                //while((currentRead < startRead+bufferSize) && ) {
-
-                LOG.info("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
-
-
-                // Get corresponding hits for this buffer
-                List<TreeMap<LocationBasic, Integer>> hits = this.db.accumulate_matches_hashmap_guava_buffered(filename,
-                        startRead, bufferSize, totalReads, startRead);
-
-                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                long initTime = System.nanoTime();
-                //LocationBasic current_key;
-
-                for(long i = 0;  i < hits.size() ; i++) {
-
-                    //Theoretically, number on sequences in data is the same as number of hits
-                    data = seqReader.next();
-
-                    if(seqReader.getReadedValues() == 1) {
-                        LOG.warn("Current read " + data.getHeader() + " :: " + data.getData());
-                    }
-
-                    if(data == null) {
-                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
-                        break;
-                    }
-                    //LOG.warn("Processing: "+inputData.get((int)i).getHeader());
-
-                    //SequenceData data = seqReader.next();
-
-                    TreeMap<LocationBasic, Integer> currentHits = hits.get((int)i);
-
-                    //this.process_database_answer_basic(data.getHeader(), data.getData(),
-                    //        "", currentHits, d, stats);
-                }
-
-                long endTime = System.nanoTime();
-
-                //currentRead++;
-                //currentRead = currentRead + bufferSize;
-                LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
-            }
-
-            seqReader.close();
-
-            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
-            System.exit(1);
-        }
-
-
-    }
-
-
-    public void classify_guava_hashmap_single(String filename, BufferedWriter d, ClassificationStatistics stats) {
-
-        try {
-
-            //long totalReads = FilesysUtility.readsInFastaFile(filename);
-            //long startRead;
-
-            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(filename, 0);
-
-            //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
-
-            SequenceData data = seqReader.next();
-
-            long current_read = 0;
-
-            while(data != null) {
-
-                // Get corresponding hits for this read
-                TreeMap<LocationBasic, Integer> hits = this.db.accumulate_matches_hashmap_guava_single(filename,
-                        current_read);
-
-                //LOG.warn("Results in buffer: " + hits.size() + ".");
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-                //long initTime = System.nanoTime();
-                //LocationBasic current_key;
-
-                //this.process_database_answer_basic(data.getHeader(), data.getData(),
-                //        "", hits, d, stats);
-
-
-                //long endTime = System.nanoTime();
-
-                current_read++;
-                //currentRead = currentRead + bufferSize;
-                data = seqReader.next();
-                //LOG.warn("Time in process database Answer is is: " + ((endTime - initTime) / 1e9) + " seconds");
-            }
-
-            seqReader.close();
-
-            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
-
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            LOG.error("General error in classify_local_native_basic: "+e.getMessage());
+            LOG.error("General error in classify_pairs: "+e.getMessage());
             System.exit(1);
         }
 
@@ -1674,7 +1082,7 @@ public class Query implements Serializable {
         }
     }
 /*
-    public void process_database_answer_basic_list(String header, String query1, String query2, List<LocationBasic> hits,
+    public void process_database_answer(String header, String query1, String query2, List<LocationBasic> hits,
                                               BufferedWriter d, ClassificationStatistics stats) {
 
         if(header.isEmpty()) return;
@@ -1799,8 +1207,8 @@ public class Query implements Serializable {
         }
     }
 */
-    public void process_database_answer_basic_list(String header, String query1, String query2, List<MatchCandidate> hits,
-                                                   BufferedWriter d, ClassificationStatistics stats) {
+    public void process_database_answer(String header, String query1, String query2, List<MatchCandidate> hits,
+                                        BufferedWriter d, ClassificationStatistics stats) {
         /*
      const database& db, const query_param& param,
      const std::string& header,

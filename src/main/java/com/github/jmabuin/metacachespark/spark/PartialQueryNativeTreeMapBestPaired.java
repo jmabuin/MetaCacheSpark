@@ -50,19 +50,19 @@ public class PartialQueryNativeTreeMapBestPaired implements PairFlatMapFunction<
     private String fileName2;
     private long init;
     private int bufferSize;
-    private List<TargetProperty> targets_;
-    private Taxonomy taxa_;
+    //private List<TargetProperty> targets_;
+    //private Taxonomy taxa_;
     private MetaCacheOptions options;
     private long window_stride;
 
     public PartialQueryNativeTreeMapBestPaired(String file_name, String file_name2, long init, int bufferSize//) {
-            , long window_stride, MetaCacheOptions options, Taxonomy taxa_, List<TargetProperty> targets_) {
+            , long window_stride, MetaCacheOptions options) {
         this.fileName = file_name;
         this.fileName2 = file_name2;
         this.init = init;
         this.bufferSize = bufferSize;
-        this.targets_ = targets_;
-        this.taxa_ = taxa_;
+        //this.targets_ = targets_;
+        //this.taxa_ = taxa_;
         this.options = options;
         this.window_stride = window_stride;
 

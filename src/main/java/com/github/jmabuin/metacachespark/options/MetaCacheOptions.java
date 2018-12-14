@@ -49,7 +49,7 @@ public class MetaCacheOptions implements Serializable {
 	private String taxonomy;
 	private int partitions = 1;
 	private String configuration;
-    private int buffer_size = 0; //51200;
+    private int buffer_size = 51200;
     private int result_size = 0;
 	private MetaCacheProperties properties;
 
