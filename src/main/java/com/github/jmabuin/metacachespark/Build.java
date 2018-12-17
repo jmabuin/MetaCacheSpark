@@ -398,53 +398,12 @@ public class Build implements Serializable {
 		if (!this.param.isMyWholeTextFiles()) {
 			db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
 		}
-
-/*
-
-		if(inputDirs.isEmpty()) {
-
-			if(!input_files.isEmpty()) {
-				db.buildDatabaseInputFormat(input_files, sequ2taxid, infoMode);
-			}
-			else {
-				db.buildDatabase2(this.param.getInfiles(), sequ2taxid, infoMode);
-			}
-		}
-		else {
-
-            db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
-		}
-*/
-
-        if(!input_files.isEmpty()) {
-
- /*       	if (!inputDirs.isEmpty()) {
-				db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
-			}
-        	else {
-        		ArrayList<String> input = new ArrayList<>();
-        		input.add(this.param.getInfiles());
-				db.buildDatabaseMultiPartitions(input, sequ2taxid, infoMode);
-			}
-*/
-            if((input_files.size() > 1000) && (!inputDirs.isEmpty())) {
-                db.buildDatabaseMultiPartitions(inputDirs, sequ2taxid, infoMode);
-            }
-            //else if (input_files.size() == 1) {
-            	//db.buildDatabase2(input_files.get(0), sequ2taxid, infoMode);
-				//ArrayList<String> input = new ArrayList<>();
-				//input.add(this.param.getInfiles());
-			//	db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
-			//}
-            else {
-				db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
-            }
-
+		else if(!input_files.isEmpty()) {
+            db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
         }
-        else {
+		else {
             LOG.error("The directory is empty!!." + this.param.getInfiles());
         }
-
 
 
 	}
