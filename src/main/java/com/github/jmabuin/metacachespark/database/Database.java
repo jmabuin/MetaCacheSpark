@@ -338,58 +338,67 @@ public class Database implements Serializable{
     }
 
 
-    public void buildDatabase2(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
+    public void buildDatabase(String infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
         try {
-            LOG.warn("[buildDatabase2] Starting to build database from " + infiles + " ...");
-            //FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
-            long initTime = System.nanoTime();
-            long endTime;
+            LOG.warn("[buildDatabase] Starting to build database from " + infiles + " ...");
+
+            ArrayList<String> inputDirs = FilesysUtility.directories_in_directory_hdfs(infiles, this.jsc);
+
+            JavaPairRDD<String, String> sequences_files = null;
+
+            if (!inputDirs.isEmpty()) {
+
+                for(String current_dir: inputDirs) {
+                    if (sequences_files == null) {
+                        sequences_files = this.jsc.wholeTextFiles(current_dir);
+                    }
+                    else {
+                        sequences_files = sequences_files.union(this.jsc.wholeTextFiles(current_dir));
+                    }
+                }
 
 
-            //SequenceReader my_reader = new FastaSequenceReader(sequ2taxid, infoMode);
+            }
+            else {
+                sequences_files = this.jsc.wholeTextFiles(infiles);
+            }
+
 
             if(this.numPartitions == 1) {
 
-                this.inputSequences = this.jsc.wholeTextFiles(infiles)
+                this.inputSequences = sequences_files
                         .flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
                         .persist(StorageLevel.MEMORY_AND_DISK_SER());
 
             }
             else {
                 LOG.warn("Using " +this.numPartitions + " partitions ...");
-                this.inputSequences = this.jsc.wholeTextFiles(infiles, this.numPartitions)
+                this.inputSequences = sequences_files
                         .flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
                         .repartition(this.numPartitions)
                         .persist(StorageLevel.MEMORY_AND_DISK_SER());
             }
 
 
-            LOG.info("Adding " + this.inputSequences.count() + " sequences.");
-            //inputData = inputData.coalesce(this.numPartitions);
+            LOG.info("The number of sequences is: " + this.inputSequences.count());
 
-            //List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
 
             this.targetPropertiesJavaRDD = this.inputSequences
-                    .map(new Sequence2TargetProperty());
+                    .map(new Sequence2TargetProperty())
+                    .mapToPair(item -> new Tuple2<Integer, TargetProperty>(item.getOrigin().getIndex(), item))
+                    .sortByKey(true)
+                    .values();
 
             this.targets_= this.targetPropertiesJavaRDD.collect();
 
             int i = 0;
-
             long j = -1;
-
             for (TargetProperty target: this.targets_) {
-                //LOG.info("Target taxa is: " + target.getTax());
-
                 if (target.getTax() == 0) { // Target is unranked. Rank it!
                     target.setTax(j);
-
-                    long parent_id = this.find_taxon_id(target.getIdentifier()).getTaxonId();
-
-                    this.taxa_.getTaxa_().put(j, new Taxon(j, parent_id, target.getIdentifier(), Taxonomy.Rank.Sequence));
+                    this.taxa_.getTaxa_().put(j, new Taxon(j, 0, target.getIdentifier(), Taxonomy.Rank.Sequence));
                     --j;
                 }
-
                 this.name2tax_.put(target.getIdentifier(), i);
                 i++;
             }
@@ -410,74 +419,81 @@ public class Database implements Serializable{
 
             if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
                 LOG.warn("Building database with isBuildModeHashMap");
-                this.locationJavaHashRDD = this.inputSequences
+
+                /*this.locationJavaHashRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
                         .mapPartitionsWithIndex(new Pair2HashMap(), true);
-                //.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
+                        */
+
+                this.locationJavaHashRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .values()
+                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
+
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapG");
+
                 this.locationJavaHashMMRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .values()
                         .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
-                //.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapMC");
 
                 this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .repartition(this.params.getPartitions())
-                        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_), true)
-                        .mapPartitions(new Locations2HashMapNative(), true);
-
-                /*
-                this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
-                        */
-
-                /*
-                this.locationJavaRDDHashMultiMapNative = this.inputSequences.zipWithIndex()
-                        .mapToPair(t1 -> new Tuple2<>(t1._2, t1._1) )
-                        .partitionBy(new MyCustomPartitionerLong(this.params.getPartitions()))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
                         .values()
-                        //.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        //.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        //.repartition(this.params.getPartitions())
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
-                 */
+                        .mapPartitionsWithIndex(new Locations2HashMapNativeIndexed(), true);
+
+
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
                 LOG.warn("Building database with isBuildModeParquetDataframe");
                 this.locationJavaRDD = this.inputSequences
-                        .flatMap(new Sketcher(this.name2tax_));
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .values();
 
                 this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
                 LOG.warn("Building database with isBuildCombineByKey");
-				/*this.locationJavaPairListRDD = this.inputSequences
-						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
-						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-						.combineByKey(new LocationCombiner(),
-								new LocationMergeValues(),
-								new LocationMergeCombiners());
-								*/
-                this.locationJavaPairIterableRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_)).groupByKey();
+
+
+                this.locationJavaPairIterableRDD =this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .values()
+                        .mapPartitionsToPair(new Location2Pair())
+                        .groupByKey();
 
                 this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
                         this.params.getProperties().getMax_locations_per_feature()));
 
             }
-
-
 
         } catch (Exception e) {
             LOG.error("ERROR! "+e.getMessage());
@@ -656,36 +672,37 @@ public class Database implements Serializable{
 
             if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
                 LOG.warn("Building database with isBuildModeHashMap");
-                this.locationJavaHashRDD = this.inputSequences
+
+                /*this.locationJavaHashRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                         .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
                         .mapPartitionsWithIndex(new Pair2HashMap(), true);
-                //.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
+                        */
+
+                this.locationJavaHashRDD = this.inputSequences
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .values()
+                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
+
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapG");
+
                 this.locationJavaHashMMRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .values()
                         .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
-                //.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapMC");
-
-                // This is the correct one so far
-                /*this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
-                        */
-
-                /*this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .flatMap(new Sketcher(this.name2tax_))
-                        .mapToPair(item -> new Tuple2<Integer, Location>(item.getTargetId(), item) )
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
-                        .mapToPair(item -> new Tuple2<Integer, LocationBasic>(item._2.getKey(), new LocationBasic(item._2.getTargetId(), item._2.getWindowId())))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);*/
 
                 this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
@@ -702,197 +719,29 @@ public class Database implements Serializable{
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
                 LOG.warn("Building database with isBuildModeParquetDataframe");
                 this.locationJavaRDD = this.inputSequences
-                        .flatMap(new Sketcher(this.name2tax_));
+                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .values();
 
                 this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
                 LOG.warn("Building database with isBuildCombineByKey");
-				/*this.locationJavaPairListRDD = this.inputSequences
-						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
-						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-						.combineByKey(new LocationCombiner(),
-								new LocationMergeValues(),
-								new LocationMergeCombiners());
-								*/
-                this.locationJavaPairIterableRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_)).groupByKey();
-
-                this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
-                        this.params.getProperties().getMax_locations_per_feature()));
-
-            }
 
 
-
-
-            //endTime = System.nanoTime();
-            //LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
-            //LOG.warn("Database created ...");
-            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaHashRDD.count()));
-            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaPairListRDD.count()));
-
-
-
-        } catch (Exception e) {
-            LOG.error("ERROR! "+e.getMessage());
-            e.printStackTrace();
-            System.exit(1);
-        }
-    }
-
-    public void buildDatabaseInputFormat(ArrayList<String> infiles, HashMap<String, Long> sequ2taxid, Build.build_info infoMode) {
-        try {
-
-            LOG.info("[JMAbuin] buildDatabaseInputFormat");
-            //FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
-            long initTime = System.nanoTime();
-            long endTime;
-
-            JavaPairRDD<String,String> inputData = null;
-
-            this.inputSequences = null;
-            //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
-
-
-            JavaPairRDD<String, Text> reads = null;
-
-            for (String currentFile : infiles) {
-
-                if (reads == null) {
-                    reads = this.jsc.newAPIHadoopFile(currentFile, FastaInputFormat.class, String.class, Text.class, this.jsc.hadoopConfiguration());
-                }
-                else {
-                    reads = reads.union(this.jsc.newAPIHadoopFile(currentFile, FastaInputFormat.class, String.class, Text.class, this.jsc.hadoopConfiguration()));
-                }
-
-            }
-
-            LOG.info("Reads from FastaInputFormat: " + reads.count());
-
-            if(this.numPartitions != 1) {
-                LOG.info("Repartitioning into " + this.numPartitions + " partitions.");
-                this.inputSequences = reads.flatMap(new FastaSequenceReader2(sequ2taxid, infoMode))
-                        .repartition(this.numPartitions)
-                        //.persist(StorageLevel.MEMORY_AND_DISK_SER());
-                        .persist(StorageLevel.DISK_ONLY());
-            }
-            else {
-                LOG.info("No repartitioning");
-                this.inputSequences = reads.flatMap(new FastaSequenceReader2(sequ2taxid, infoMode))
-                        //.persist(StorageLevel.MEMORY_AND_DISK_SER());
-                        .persist(StorageLevel.DISK_ONLY());
-            }
-
-
-            LOG.info("Adding " + this.inputSequences.count() + " sequences.");
-            //inputData = inputData.coalesce(this.numPartitions);
-
-            //List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
-
-            this.targetPropertiesJavaRDD = this.inputSequences
-                    .map(new Sequence2TargetProperty());
-
-            this.targets_= this.targetPropertiesJavaRDD.collect();
-
-            int i = 0;
-
-            long j = -1;
-
-            for (TargetProperty target: this.targets_) {
-                //LOG.info("Target taxa is: " + target.getTax());
-
-                if (target.getTax() == 0) { // Target is unranked. Rank it!
-                    target.setTax(j);
-
-                    long parent_id = this.find_taxon_id(target.getIdentifier()).getTaxonId();
-
-                    this.taxa_.getTaxa_().put(j, new Taxon(j, parent_id, target.getIdentifier(), Taxonomy.Rank.Sequence));
-                    --j;
-                }
-
-                this.name2tax_.put(target.getIdentifier(), i);
-                i++;
-            }
-
-/*
-			for (TargetProperty target: this.targets_) {
-
-				this.name2tax_.put(target.getIdentifier(),(int) target.getTax());
-				this.sid2gid_.put(target.getIdentifier(), i);
-				i++;
-			}
-*/
-
-            LOG.info("Size of name2tax_ is: " + this.name2tax_.size());
-
-            this.nextTargetId_ = this.name2tax_.size();
-
-
-            if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
-                LOG.warn("Building database with isBuildModeHashMap");
-                this.locationJavaHashRDD = this.inputSequences
+                this.locationJavaPairIterableRDD =this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
-                //.mapPartitionsWithIndex(new Sketcher2HashMap(this.name2tax_), true);
-            }
-            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
-                LOG.warn("Building database with isBuildModeHashMultiMapG");
-                this.locationJavaHashMMRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
-                //.mapPartitionsWithIndex(new Sketcher2HashMultiMap(this.name2tax_), true);
-            }
-            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
-                LOG.warn("Building database with isBuildModeHashMultiMapMC");
-
-                this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .repartition(this.params.getPartitions())
-                        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_), true)
-                        .mapPartitions(new Locations2HashMapNative(), true);
-
-                /*
-                this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
-                        */
-
-                /*
-                this.locationJavaRDDHashMultiMapNative = this.inputSequences.zipWithIndex()
-                        .mapToPair(t1 -> new Tuple2<>(t1._2, t1._1) )
-                        .partitionBy(new MyCustomPartitionerLong(this.params.getPartitions()))
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
+                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
+                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
                         .values()
-                        //.mapPartitionsWithIndex(new Sketcher2HashMultiMapNative(this.name2tax_), true);
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        //.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        //.repartition(this.params.getPartitions())
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true);
-                 */
-
-            }
-            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
-                LOG.warn("Building database with isBuildModeParquetDataframe");
-                this.locationJavaRDD = this.inputSequences
-                        .flatMap(new Sketcher(this.name2tax_));
-
-                this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
-
-            }
-            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
-                LOG.warn("Building database with isBuildCombineByKey");
-				/*this.locationJavaPairListRDD = this.inputSequences
-						.flatMapToPair(new Sketcher2Pair(this.name2tax_))
-						.partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-						.combineByKey(new LocationCombiner(),
-								new LocationMergeValues(),
-								new LocationMergeCombiners());
-								*/
-                this.locationJavaPairIterableRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_)).groupByKey();
+                        .mapPartitionsToPair(new Location2Pair())
+                        .groupByKey();
 
                 this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
                         this.params.getProperties().getMax_locations_per_feature()));
@@ -916,7 +765,6 @@ public class Database implements Serializable{
             System.exit(1);
         }
     }
-
 
     public void writeTaxonomy() {
 

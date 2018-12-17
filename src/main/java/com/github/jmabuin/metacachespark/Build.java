@@ -393,6 +393,12 @@ public class Build implements Serializable {
 		for(String current_dir : inputDirs) {
             LOG.info(current_dir);
         }
+
+
+		if (!this.param.isMyWholeTextFiles()) {
+			db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
+		}
+
 /*
 
 		if(inputDirs.isEmpty()) {
