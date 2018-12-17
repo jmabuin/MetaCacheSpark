@@ -510,7 +510,7 @@ public class Database implements Serializable{
             long initTime = System.nanoTime();
             long endTime;
 
-            JavaPairRDD<String,String> inputData = null;
+            //JavaPairRDD<String,String> inputData = null;
 
             this.inputSequences = null;
             //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
@@ -518,6 +518,7 @@ public class Database implements Serializable{
             int current_target = 0;
 
             FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+
             for (String new_file: infiles) {
                 LOG.warn("Adding file " + new_file + " to targets positions...");
                 FSDataInputStream is = fs.open(new Path(new_file));
@@ -542,93 +543,59 @@ public class Database implements Serializable{
             }
 
 
-            if(this.params.isMyWholeTextFiles()) {
+            //if(this.params.isMyWholeTextFiles()) {
 
-                JavaRDD<String> tmpInput = this.jsc.parallelize(infiles);
+            JavaRDD<String> tmpInput = this.jsc.parallelize(infiles);
 
-                int repartition_files = 1;
+            int repartition_files = 1;
 
-                if (this.numPartitions == 1) {
-                    repartition_files = this.jsc.getConf().getInt("spark.executor.instances", 1);
-
-                }
-                else {
-                    repartition_files = this.numPartitions;
-                }
-
-
-                this.inputSequences = tmpInput
-                        .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions));
-
-                LOG.warn("The total number of input sequences is: " + this.inputSequences.count());
-
-                //List<Long> lenghts_array = new ArrayList<>();
-
-                List<Tuple2<Integer, String>> lenghts_array = this.inputSequences.mapToPair(item -> new Tuple2<Integer, String>(
-                            item.getData().length(), item.getHeader()))
-                        .sortByKey(false)
-                        .collect();
-
-
-                HashMap<String, Integer> all_lengths = new HashMap<>();
-
-                int i = 0;
-                for (Tuple2<Integer, String> item: lenghts_array) {
-
-                    all_lengths.put(item._2, i);
-                    ++i;
-                    if (i >= this.numPartitions) {
-                        i = 0;
-                    }
-
-
-                }
-
-
-                this.inputSequences = tmpInput
-                        .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions))
-                        //.repartition(repartition_files)
-                        .mapToPair(item -> new Tuple2<String, Sequence>(item.getHeader(), item))
-                        .partitionBy(new MyCustomPartitionerStr(this.numPartitions, all_lengths))
-                        .values()
-                        .persist(StorageLevel.MEMORY_AND_DISK());
-
-                LOG.warn("The total number of input sorted sequences is: " + this.inputSequences.count());
-
-                //.flatMap(new Fasta2Sequence(sequ2taxid))
-                //.persist(StorageLevel.DISK_ONLY());
-
+            if (this.numPartitions == 1) {
+                repartition_files = this.jsc.getConf().getInt("spark.executor.instances", 1);
 
             }
             else {
+                repartition_files = this.numPartitions;
+            }
 
-                for (String currentDir : infiles) {
-                    LOG.warn("Starting to build database from " + currentDir + " ...");
 
-                    if (inputData == null) {
-                        inputData = this.jsc.wholeTextFiles(currentDir);
-                    } else {
-                        inputData = this.jsc.wholeTextFiles(currentDir)
-                                .union(inputData);
-                    }
-                }
+            this.inputSequences = tmpInput
+                    .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions));
 
-                if(this.numPartitions != 1) {
-                    LOG.info("Repartitioning into " + this.numPartitions + " partitions.");
-                    this.inputSequences = inputData.flatMap(new FastaSequenceReader(sequ2taxid, infoMode))
-                            .repartition(this.numPartitions)
-                            //.persist(StorageLevel.MEMORY_AND_DISK_SER());
-                            .persist(StorageLevel.DISK_ONLY());
-                }
-                else {
-                    LOG.info("No repartitioning");
-                    this.inputSequences = inputData.flatMap(new FastaSequenceReader(sequ2taxid, infoMode));
-                            //.persist(StorageLevel.MEMORY_AND_DISK_SER());
-                            //.persist(StorageLevel.DISK_ONLY());
+            LOG.warn("The total number of input sequences is: " + this.inputSequences.count());
+
+            //List<Long> lenghts_array = new ArrayList<>();
+
+            List<Tuple2<Integer, String>> lenghts_array = this.inputSequences.mapToPair(item -> new Tuple2<Integer, String>(
+                    item.getData().length(), item.getHeader()))
+                    .sortByKey(false)
+                    .collect();
+
+
+            HashMap<String, Integer> all_lengths = new HashMap<>();
+
+            int i = 0;
+            for (Tuple2<Integer, String> item: lenghts_array) {
+
+                all_lengths.put(item._2, i);
+                ++i;
+                if (i >= this.numPartitions) {
+                    i = 0;
                 }
 
 
             }
+
+
+            this.inputSequences = tmpInput
+                    .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions))
+                    //.repartition(repartition_files)
+                    .mapToPair(item -> new Tuple2<String, Sequence>(item.getHeader(), item))
+                    .partitionBy(new MyCustomPartitionerStr(repartition_files, all_lengths))
+                    .values()
+                    .persist(StorageLevel.MEMORY_AND_DISK());
+
+            LOG.warn("The total number of input sorted sequences is: " + this.inputSequences.count());
+
             //inputData = inputData.coalesce(this.numPartitions);
 
             //List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
@@ -644,7 +611,7 @@ public class Database implements Serializable{
 
             this.targets_= this.targetPropertiesJavaRDD.collect();
 
-            int i = 0;
+            i = 0;
             long j = -1;
             for (TargetProperty target: this.targets_) {
                 if (target.getTax() == 0) { // Target is unranked. Rank it!
@@ -681,10 +648,10 @@ public class Database implements Serializable{
 
                 this.locationJavaHashRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
                         .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .values()
                         .mapPartitionsWithIndex(new Pair2HashMap(), true);
 
@@ -694,10 +661,10 @@ public class Database implements Serializable{
 
                 this.locationJavaHashMMRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
                         .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .values()
                         .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
             }
@@ -706,10 +673,10 @@ public class Database implements Serializable{
 
                 this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
                         .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .values()
                         .mapPartitionsWithIndex(new Locations2HashMapNativeIndexed(), true);
 
@@ -720,10 +687,10 @@ public class Database implements Serializable{
                 LOG.warn("Building database with isBuildModeParquetDataframe");
                 this.locationJavaRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
                         .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .values();
 
                 this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
@@ -735,10 +702,10 @@ public class Database implements Serializable{
 
                 this.locationJavaPairIterableRDD =this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
                         .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                        .partitionBy(new MyCustomPartitioner(repartition_files))
                         .values()
                         .mapPartitionsToPair(new Location2Pair())
                         .groupByKey();
@@ -747,8 +714,6 @@ public class Database implements Serializable{
                         this.params.getProperties().getMax_locations_per_feature()));
 
             }
-
-
 
 
             //endTime = System.nanoTime();
