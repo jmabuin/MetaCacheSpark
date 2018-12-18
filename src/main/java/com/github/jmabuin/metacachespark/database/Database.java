@@ -680,8 +680,6 @@ public class Database implements Serializable{
                         .values()
                         .mapPartitionsWithIndex(new Locations2HashMapNativeIndexed(), true);
 
-
-
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
                 LOG.warn("Building database with isBuildModeParquetDataframe");
@@ -1569,7 +1567,7 @@ public class Database implements Serializable{
             this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class))
                     .persist(StorageLevel.MEMORY_AND_DISK());
 
-            this.featuresDataframe_.registerTempTable("MetaCacheSpark");
+            this.featuresDataframe_.createOrReplaceTempView("MetaCacheSpark");
             //this.sqlContext.cacheTable("MetaCacheSpark");
 
             LOG.warn("The number of paired persisted entries is: " + this.featuresDataframe_.count());
@@ -1704,6 +1702,8 @@ public class Database implements Serializable{
             case PARQUET:
                 break;
 
+            case COMBINE_BY_KEY:
+                break;
             default:
                 //this.classify(filename, d, stats);
                 break;
