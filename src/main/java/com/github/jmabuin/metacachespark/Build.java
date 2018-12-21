@@ -398,12 +398,17 @@ public class Build implements Serializable {
 		if (!this.param.isMyWholeTextFiles()) {
 			db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
 		}
-		else if(!input_files.isEmpty()) {
-            db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
-        }
 		else {
-            LOG.error("The directory is empty!!." + this.param.getInfiles());
-        }
+			if(inputDirs.isEmpty()) {
+				db.buildDatabaseMultiPartitions(this.param.getInfiles(), sequ2taxid, infoMode);
+			}
+			else if (!input_files.isEmpty()) {
+				db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
+			}
+			else {
+				LOG.error("The directory is empty!!." + this.param.getInfiles());
+			}
+		}
 
 
 	}

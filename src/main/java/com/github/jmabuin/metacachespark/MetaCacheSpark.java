@@ -61,6 +61,7 @@ public class MetaCacheSpark implements Serializable {
 
 			// Kryo serializer
 			sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
+			sparkConf.set("spark.kryoserializer.buffer.max","1024m");
 
 			Class[] serializedClasses = {Location.class, Sketch.class, TreeMap.class, LocationBasic.class, MatchCandidate.class, List.class};
 			sparkConf.registerKryoClasses(serializedClasses);

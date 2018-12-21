@@ -26,39 +26,39 @@ public class MyCustomPartitioner extends Partitioner {
 
 
 
-		private int numParts;
+    private int numParts;
 
-		public MyCustomPartitioner(int i) {
-			this.numParts=i;
-		}
+    public MyCustomPartitioner(int i) {
+        this.numParts=i;
+    }
 
-		@Override
-		public int numPartitions()
-		{
-			return this.numParts;
-		}
+    @Override
+    public int numPartitions()
+    {
+        return this.numParts;
+    }
 
-		@Override
-		public int getPartition(Object key){
+    @Override
+    public int getPartition(Object key){
 
-			//partition based on the first character of the key...you can have your logic here !!
-			//return (Math.abs((Integer)key))%this.numParts;
-			long long_key =Integer.toUnsignedLong((Integer)key);
+        //partition based on the first character of the key...you can have your logic here !!
+        //return (Math.abs((Integer)key))%this.numParts;
+        long long_key =Integer.toUnsignedLong((Integer)key)+1; // Plus 1, as it can be zero
 
-			return (int)(Math.abs(long_key)%this.numParts);
+        return (int)(Math.abs(long_key)%this.numParts);
 
-		}
+    }
 
-		@Override
-		public boolean equals(Object obj){
-			if(obj instanceof MyCustomPartitionerStr)
-			{
-				MyCustomPartitioner partitionerObject = (MyCustomPartitioner)obj;
-				if(partitionerObject.numPartitions() == this.numParts)
-					return true;
-			}
+    @Override
+    public boolean equals(Object obj){
+        if(obj instanceof MyCustomPartitionerStr)
+        {
+            MyCustomPartitioner partitionerObject = (MyCustomPartitioner)obj;
+            if(partitionerObject.numPartitions() == this.numParts)
+                return true;
+        }
 
-			return false;
-		}
+        return false;
+    }
 
 }

@@ -18,6 +18,7 @@
 package com.github.jmabuin.metacachespark.spark;
 
 import com.github.jmabuin.metacachespark.*;
+import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -30,26 +31,11 @@ import java.util.*;
  * Created by chema on 1/16/17.
  */
 //public class Sketcher2Pair implements FlatMapFunction<Iterator<Sequence>,HashMap<Integer, ArrayList<LocationBasic>>> {
-public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequence>, List<Location>> {
+public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequence>, HashMultiMapNative> {
 
-	private static final Log LOG = LogFactory.getLog(Sketcher2Pair.class);
-	private short k_;
-	private int sketchSize_;
-
-	public int hash_(int x) {
-		return HashFunctions.thomas_mueller_hash(x);
-	}
-
-	public byte max_kmer_size(byte bitsPerSymbol) {
-		return (byte)((8 * 8) / bitsPerSymbol);
-	}
-
-	int max_sketch_size() {
-		return Integer.MAX_VALUE;
-	}
+	private static final Log LOG = LogFactory.getLog(Sketcher2PairPartitions.class);
 
 	private TreeMap<String, Integer> sequencesIndexes;
-	private HashMap<Integer, Integer> lookup;
 	private int firstEmptyPosition;
 
 
@@ -61,34 +47,34 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 	}
 
 	@Override
-	public Iterator<List<Location>> call(Iterator<Sequence> inputSequences){
+	public Iterator<HashMultiMapNative> call(Iterator<Sequence> inputSequences){
 
-		ArrayList<List<Location>> returnedValues = new ArrayList<List<Location>>();
 
-		long initTime = System.nanoTime();
-		long endTime;
+		ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
+		HashMultiMapNative map = new HashMultiMapNative();
 
-		//while(inputSequences.hasNext()){
-		//for(Sequence inputSequence: inputSequences) {
+		int currentStart;
+		int currentEnd;
 
-		//Sequence inputSequence = inputSequences.next();
+		//String currentWindow;
+		int numWindows;
+		int current_sketch_size;
 
-		int currentStart = 0;
-		int currentEnd = MCSConfiguration.windowSize;
-
-		String currentWindow = "";
-		int numWindows = 0;
-		int current_sketch_size = MCSConfiguration.sketchSize;
+		ArrayList<Tuple2<Integer, LocationBasic>> returnedValues_local = new ArrayList<Tuple2<Integer, LocationBasic>>();
 
 		while(inputSequences.hasNext()) {
 			Sequence inputSequence = inputSequences.next();
-			ArrayList<Location> seq_returnedValues = new ArrayList<Location>();
+
 
 			currentStart = 0;
 			currentEnd = MCSConfiguration.windowSize;
 
-			currentWindow = "";
+			//String currentWindow = "";
+			//StringBuffer currentWindow = new StringBuffer();
 			numWindows = 0;
+
+			//LOG.warn("Processing sequence: " + inputSequence.getHeader());
+			// We iterate over windows (with overlap)
 
 			while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
 				//Sketch resultSketch = new Sketch();
@@ -105,10 +91,8 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 						current_sketch_size = currentEnd - currentStart - MCSConfiguration.kmerSize + 1;
 					}
 
-
-					//LOG.warn("[JMAbuin] Current window is: " + currentWindow);
 					// We compute the k-mers. In C
-					int[] sketchValues = HashFunctions.window2sketch32(inputSequence.getData().substring(currentStart, currentEnd)
+					int sketchValues[] = HashFunctions.window2sketch32(inputSequence.getData().substring(currentStart, currentEnd)
 							, current_sketch_size, MCSConfiguration.kmerSize);
 
 					if (sketchValues != null) {
@@ -117,8 +101,8 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 						for (int newValue : sketchValues) {
 
 							//LOG.warn("Calculated value: " + newValue);
-							seq_returnedValues.add(
-									new Location(newValue, this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows));
+							returnedValues_local.add(new Tuple2<Integer, LocationBasic>(newValue,
+									new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows)));
 
 
 						}
@@ -132,13 +116,23 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 
 			}
 
-			returnedValues.add(seq_returnedValues);
-			//LOG.warn("[JMAbuin] Total windows: "+numWindows);
+
+			for(Tuple2<Integer, LocationBasic> current_loc: returnedValues_local) {
+
+				map.add(current_loc._1(), current_loc._2().getTargetId(), current_loc._2().getWindowId());
+
+			}
+
+			returnedValues_local.clear();
+
 
 		}
 
-		endTime = System.nanoTime();
-		LOG.warn("Time for this partition is: " + ((endTime - initTime)/1e9));
+		int total_deleted = map.post_process(false, false);
+
+		LOG.warn("Number of deleted features: " + total_deleted);
+
+		returnedValues.add(map);
 
 
 		return returnedValues.iterator();

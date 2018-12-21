@@ -35,20 +35,6 @@ import java.util.TreeMap;
 //public class Sketcher2Pair implements FlatMapFunction<Iterator<Sequence>,HashMap<Integer, ArrayList<LocationBasic>>> {
 public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, LocationBasic> {
     private static final Log LOG = LogFactory.getLog(Sketcher2Pair.class);
-    private short k_;
-    private int sketchSize_;
-
-    public int hash_(int x) {
-        return HashFunctions.thomas_mueller_hash(x);
-    }
-
-    public byte max_kmer_size(byte bitsPerSymbol) {
-        return (byte)((8 * 8) / bitsPerSymbol);
-    }
-
-    int max_sketch_size() {
-        return Integer.MAX_VALUE;
-    }
 
     private TreeMap<String, Integer> sequencesIndexes;
 
