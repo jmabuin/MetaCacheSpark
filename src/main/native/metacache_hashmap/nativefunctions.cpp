@@ -39,11 +39,8 @@ size_t add_to_map(unsigned key, location loc) {
         if (sid != map->end()) {
             //if(std::find(v.begin(), v.end(), x) != v.end()) {
             if ((sid->second.size() < 254) && (std::find(sid->second.begin(), sid->second.end(), loc) == sid->second.end())) {
-            //if (std::find(sid->second.begin(), sid->second.end(), newLocation) == sid->second.end()) {
-                //sid->second.push_back(newLocation);
-                sid->second.insert(std::upper_bound( sid->second.begin(), sid->second.end(), loc ),
-                            loc
-                        );
+                sid->second.insert(std::upper_bound( sid->second.begin(), sid->second.end(), loc ), loc);
+                //sid->second.push_back(loc);
             }
             else if ((sid->second.size() >= 254) && (std::find(sid->second.begin(), sid->second.end(), loc) == sid->second.end())) {
 
@@ -249,7 +246,7 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     }
 
     ofs.close();
-    */
+*/
 
     std::ofstream os{newFileName, std::ios::out | std::ios::binary};
 
