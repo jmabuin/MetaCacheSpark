@@ -810,15 +810,6 @@ public class Database implements Serializable{
                     .values()
                     .persist(StorageLevel.MEMORY_AND_DISK_SER());
 
-/*
-            this.inputSequences = tmpInput
-                    .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions), true)
-                    .repartition(repartition_files)
-                    .persist(StorageLevel.MEMORY_AND_DISK_SER());
-*/
-            //List<SequenceHeaderFilename> data = this.inputSequences.map(new Sequence2HeaderFilename()).collect();
-
-            //LOG.info("The number of input sequences is: " + this.inputSequences.count());
 
 
             this.targetPropertiesJavaRDD = this.inputSequences
@@ -827,7 +818,7 @@ public class Database implements Serializable{
                     .sortByKey(true)
                     .values();
 
-            this.targets_= this.targetPropertiesJavaRDD.collect();
+                    this.targets_= this.targetPropertiesJavaRDD.collect();
 
             int i = 0;
             long j = -1;
@@ -841,6 +832,38 @@ public class Database implements Serializable{
                 i++;
             }
 
+
+
+/*
+            Map<Integer, TargetProperty> props = this.inputSequences
+                    .map(new Sequence2TargetProperty())
+                    .mapToPair(item -> new Tuple2<Integer, TargetProperty>(item.getOrigin().getIndex(), item))
+                    .collectAsMap();
+
+            this.targets_ = new ArrayList<>();
+            TargetProperty[] array_target_properties = new TargetProperty[props.size()];
+
+
+            int i = 0;
+            long j = -1;
+
+            for(Integer key: props.keySet()) {
+
+                array_target_properties[key] = props.get(key);
+
+                if (array_target_properties[key].getTax() == 0) { // Target is unranked. Rank it!
+                    array_target_properties[key].setTax(j);
+                    this.taxa_.getTaxa_().put(j, new Taxon(j, 0, array_target_properties[key].getIdentifier(), Taxonomy.Rank.Sequence));
+                    --j;
+                }
+                this.name2tax_.put(array_target_properties[key].getIdentifier(), i);
+                i++;
+
+            }
+
+
+            this.targets_ = new ArrayList<TargetProperty>(Arrays.asList(array_target_properties));
+*/
             LOG.info("Size of name2tax_ is: " + this.name2tax_.size());
 
             this.nextTargetId_ = this.name2tax_.size();

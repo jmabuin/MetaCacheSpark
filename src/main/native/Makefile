@@ -1,8 +1,8 @@
 include ./Makefile.common
 
-.PHONY: libmetacache.so metacache libfunctions.so functions libmymap.so libsequencereader.so libsequencereader2.so mymap clean
+.PHONY: libmetacache.so metacache libfunctions.so functions libmymap.so libsequencereader.so libsequencereader2.so libextraction.so mymap clean
 
-all: libmetacache.so libfunctions.so libmymap.so libsequencereader.so libsequencereader2.so
+all: libmetacache.so libfunctions.so libmymap.so libsequencereader.so libsequencereader2.so libextraction.so
 	@echo "================================================================================"
 	@echo "Native libraries have been built."
 	@echo "Location    = $(LOCATION)/"
@@ -24,10 +24,14 @@ libsequencereader.so:
 libsequencereader2.so:
 	make -C second_sequence_reader
 
+libextraction.so:
+	make -C str_extraction_functions
+
 clean:
 	make -C metacache_hashmap clean
 	make -C hash_functions clean
 	make -C my_map clean
 	make -C sequence_reader clean
 	make -C second_sequence_reader clean
+	make -C str_extraction_functions clean
 

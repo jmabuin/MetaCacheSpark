@@ -67,6 +67,8 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
             FileSystem fs = FileSystem.get(conf);
             //long sequence_number = 0;
 
+            ExtractionFunctions extraction = new ExtractionFunctions();
+
             while(fileNames.hasNext()) {
 
 
@@ -129,8 +131,8 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
                         //LOG.info("Processing file: "+ currentFile);
 
 
-                        String seqId = SequenceReader.extract_sequence_id(currentSequence.getHeader());
-                        String fileIdentifier = SequenceReader.extract_sequence_id(fileName);
+                        String seqId = extraction.extract_sequence_id(currentSequence.getHeader());//SequenceReader.extract_sequence_id(currentSequence.getHeader());
+                        String fileIdentifier = extraction.extract_sequence_id(fileName);//SequenceReader.extract_sequence_id(fileName);
 
                         //make sure sequence id is not empty,
                         //use entire header if neccessary
