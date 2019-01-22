@@ -71,13 +71,9 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
 
             while(fileNames.hasNext()) {
 
-
-
                 content.delete(0, content.toString().length());
 
                 String fileName = fileNames.next();
-
-
 
                 if(!fileName.contains("assembly_summary")) {
 
@@ -94,7 +90,7 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
                             if(!header.toString().isEmpty()) {
                                 //returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1,
                                 //		header.toString(), -1));
-                                LOG.warn("Adding sequence : " + header.toString());
+                                //LOG.warn("Adding sequence : " + header.toString());
                                 returnValues.add(new Sequence(this.targets_positions.get(header.toString()), header.toString(), data.toString(), ""));
                                 //sequence_number++;
                             }
