@@ -33,90 +33,90 @@ import java.util.*;
 //public class Sketcher2Pair implements FlatMapFunction<Iterator<Sequence>,HashMap<Integer, ArrayList<LocationBasic>>> {
 public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequence>, HashMultiMapNative> {
 
-	private static final Log LOG = LogFactory.getLog(Sketcher2PairPartitions.class);
+    private static final Log LOG = LogFactory.getLog(Sketcher2PairPartitions.class);
 
-	private TreeMap<String, Integer> sequencesIndexes;
-	private int firstEmptyPosition;
-
-
-	public Sketcher2PairPartitions(TreeMap<String, Integer> sequencesIndexes) {
-
-		this.sequencesIndexes = sequencesIndexes;
-		//this.firstEmptyPosition = 0;
-		//this.lookup = new HashMap<Integer, Integer>();
-	}
-
-	@Override
-	public Iterator<HashMultiMapNative> call(Iterator<Sequence> inputSequences){
+    private TreeMap<String, Integer> sequencesIndexes;
+    private int firstEmptyPosition;
 
 
-		ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
-		HashMultiMapNative map = new HashMultiMapNative();
+    public Sketcher2PairPartitions(TreeMap<String, Integer> sequencesIndexes) {
 
-		int currentStart;
-		int currentEnd;
+        this.sequencesIndexes = sequencesIndexes;
+        //this.firstEmptyPosition = 0;
+        //this.lookup = new HashMap<Integer, Integer>();
+    }
 
-		//String currentWindow;
-		int numWindows;
-		int current_sketch_size;
-
-		ArrayList<Tuple2<Integer, LocationBasic>> returnedValues_local = new ArrayList<Tuple2<Integer, LocationBasic>>();
-
-		while(inputSequences.hasNext()) {
-			Sequence inputSequence = inputSequences.next();
+    @Override
+    public Iterator<HashMultiMapNative> call(Iterator<Sequence> inputSequences){
 
 
-			currentStart = 0;
-			currentEnd = MCSConfiguration.windowSize;
+        ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
+        HashMultiMapNative map = new HashMultiMapNative();
 
-			//String currentWindow = "";
-			//StringBuffer currentWindow = new StringBuffer();
-			numWindows = 0;
+        int currentStart;
+        int currentEnd;
 
-			//LOG.warn("Processing sequence: " + inputSequence.getHeader());
-			// We iterate over windows (with overlap)
+        //String currentWindow;
+        int numWindows;
+        int current_sketch_size;
 
-			while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
-				//Sketch resultSketch = new Sketch();
+        //ArrayList<Tuple2<Integer, LocationBasic>> returnedValues_local = new ArrayList<Tuple2<Integer, LocationBasic>>();
 
-				if (currentEnd > inputSequence.getData().length()) {
-					currentEnd = inputSequence.getData().length();
-				}
+        while(inputSequences.hasNext()) {
+            Sequence inputSequence = inputSequences.next();
 
-				current_sketch_size = MCSConfiguration.sketchSize;
 
-				if ((currentEnd - currentStart) >= MCSConfiguration.kmerSize) {
+            currentStart = 0;
+            currentEnd = MCSConfiguration.windowSize;
 
-					if (currentEnd - currentStart < MCSConfiguration.kmerSize * 2){
-						current_sketch_size = currentEnd - currentStart - MCSConfiguration.kmerSize + 1;
-					}
+            //String currentWindow = "";
+            //StringBuffer currentWindow = new StringBuffer();
+            numWindows = 0;
 
-					// We compute the k-mers. In C
-					int sketchValues[] = HashFunctions.window2sketch32(inputSequence.getData().substring(currentStart, currentEnd)
-							, current_sketch_size, MCSConfiguration.kmerSize);
+            //LOG.warn("Processing sequence: " + inputSequence.getHeader());
+            // We iterate over windows (with overlap)
 
-					if (sketchValues != null) {
-						//LOG.warn("[JMAbuin] CurrentWindow sketch size: " + sketchValues.length);
+            while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
+                //Sketch resultSketch = new Sketch();
 
-						for (int newValue : sketchValues) {
+                if (currentEnd > inputSequence.getData().length()) {
+                    currentEnd = inputSequence.getData().length();
+                }
 
-							//LOG.warn("Calculated value: " + newValue);
+                current_sketch_size = MCSConfiguration.sketchSize;
+
+                if ((currentEnd - currentStart) >= MCSConfiguration.kmerSize) {
+
+                    if (currentEnd - currentStart < MCSConfiguration.kmerSize * 2){
+                        current_sketch_size = currentEnd - currentStart - MCSConfiguration.kmerSize + 1;
+                    }
+
+                    // We compute the k-mers. In C
+                    int sketchValues[] = HashFunctions.window2sketch32(inputSequence.getData().substring(currentStart, currentEnd)
+                            , current_sketch_size, MCSConfiguration.kmerSize);
+
+                    if (sketchValues != null) {
+                        //LOG.warn("[JMAbuin] CurrentWindow sketch size: " + sketchValues.length);
+
+                        for (int newValue : sketchValues) {
+							/*
 							returnedValues_local.add(new Tuple2<Integer, LocationBasic>(newValue,
 									new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows)));
+							*/
+                            map.add(newValue, this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows);
+
+                        }
+                    }
 
 
-						}
-					}
+                }
+                numWindows++;
+                currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
+                currentEnd = currentStart + MCSConfiguration.windowSize;
 
+            }
 
-				}
-				numWindows++;
-				currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
-				currentEnd = currentStart + MCSConfiguration.windowSize;
-
-			}
-
-
+/*
 			for(Tuple2<Integer, LocationBasic> current_loc: returnedValues_local) {
 
 				map.add(current_loc._1(), current_loc._2().getTargetId(), current_loc._2().getWindowId());
@@ -124,79 +124,79 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 			}
 
 			returnedValues_local.clear();
+*/
+
+        }
+
+        int total_deleted = map.post_process(false, false);
+        LOG.warn("Number of items in this partial map is: " + map.size());
+        LOG.warn("Number of deleted features: " + total_deleted);
+
+        returnedValues.add(map);
 
 
-		}
-
-		int total_deleted = map.post_process(false, false);
-
-		LOG.warn("Number of deleted features: " + total_deleted);
-
-		returnedValues.add(map);
+        return returnedValues.iterator();
+    }
 
 
-		return returnedValues.iterator();
-	}
+    public void insert(ArrayList<Tuple2<Integer, List<LocationBasic>>> returnedValues, int key, int id, int window) {
+
+        int currentMapSize = returnedValues.size();
+        int pos = Math.abs(key) % currentMapSize; // H2 function
+
+        if(returnedValues.get(pos) == null) { // Empty position. Add current key and value
+            List<LocationBasic> newList = new ArrayList<LocationBasic>();
+            newList.add(new LocationBasic(id, window));
+
+            returnedValues.set(pos, new Tuple2<Integer, List<LocationBasic>>(key, newList));
+            //LOG.warn("Found empty at " + this.firstEmptyPosition + " with pos "+pos);
+
+            if(this.firstEmptyPosition == pos) {
+                this.firstEmptyPosition++;
+            }
 
 
-	public void insert(ArrayList<Tuple2<Integer, List<LocationBasic>>> returnedValues, int key, int id, int window) {
+            //while((this.firstEmptyPosition < returnedValues.size()) && (returnedValues.get(this.firstEmptyPosition) != null)) {
+            //	this.firstEmptyPosition++;
+            //}
 
-		int currentMapSize = returnedValues.size();
-		int pos = Math.abs(key) % currentMapSize; // H2 function
+        }
+        else if(returnedValues.get(pos)._1() == key) { // Busy position with same key. Append value if possible ( vals < 256)
+            if(returnedValues.get(pos)._2().size() < 256) {
+                returnedValues.get(pos)._2().add(new LocationBasic(id, window));
+            }
 
-		if(returnedValues.get(pos) == null) { // Empty position. Add current key and value
-			List<LocationBasic> newList = new ArrayList<LocationBasic>();
-			newList.add(new LocationBasic(id, window));
+        }
+        else { // Our position is occupied with another key. Insert into first empty position
 
-			returnedValues.set(pos, new Tuple2<Integer, List<LocationBasic>>(key, newList));
-			//LOG.warn("Found empty at " + this.firstEmptyPosition + " with pos "+pos);
+            int previousSize = returnedValues.size();
 
-			if(this.firstEmptyPosition == pos) {
-				this.firstEmptyPosition++;
-			}
-
-
-			//while((this.firstEmptyPosition < returnedValues.size()) && (returnedValues.get(this.firstEmptyPosition) != null)) {
-			//	this.firstEmptyPosition++;
-			//}
-
-		}
-		else if(returnedValues.get(pos)._1() == key) { // Busy position with same key. Append value if possible ( vals < 256)
-			if(returnedValues.get(pos)._2().size() < 256) {
-				returnedValues.get(pos)._2().add(new LocationBasic(id, window));
-			}
-
-		}
-		else { // Our position is occupied with another key. Insert into first empty position
-
-			int previousSize = returnedValues.size();
-
-			if(this.firstEmptyPosition >= previousSize) { // Reached end, increase size * 1.5
+            if(this.firstEmptyPosition >= previousSize) { // Reached end, increase size * 1.5
 
 
-				int newSize = (int)(previousSize * 1.5);
+                int newSize = (int)(previousSize * 1.5);
 
-				//LOG.warn("Increasing from " +previousSize+" to " + newSize +"and empty is "+this.firstEmptyPosition);
+                //LOG.warn("Increasing from " +previousSize+" to " + newSize +"and empty is "+this.firstEmptyPosition);
 
-				//returnedValues.ensureCapacity(newSize);
+                //returnedValues.ensureCapacity(newSize);
 
-				for(int j = previousSize; j <= newSize; j++) {
-					//returnedValues.add(new Tuple2<Integer, List<LocationBasic>>(-1, null));
-					returnedValues.add(null);
-				}
+                for(int j = previousSize; j <= newSize; j++) {
+                    //returnedValues.add(new Tuple2<Integer, List<LocationBasic>>(-1, null));
+                    returnedValues.add(null);
+                }
 
 
-			}
+            }
 
-			List<LocationBasic> newList = new ArrayList<LocationBasic>();
-			newList.add(new LocationBasic(id, window));
+            List<LocationBasic> newList = new ArrayList<LocationBasic>();
+            newList.add(new LocationBasic(id, window));
 
-			returnedValues.set(this.firstEmptyPosition, new Tuple2<Integer, List<LocationBasic>>(key, newList));
-			//this.firstEmptyPosition++;
+            returnedValues.set(this.firstEmptyPosition, new Tuple2<Integer, List<LocationBasic>>(key, newList));
+            //this.firstEmptyPosition++;
 
-			while((this.firstEmptyPosition < returnedValues.size()) && (returnedValues.get(this.firstEmptyPosition) != null)) {
-				this.firstEmptyPosition++;
-			}
+            while((this.firstEmptyPosition < returnedValues.size()) && (returnedValues.get(this.firstEmptyPosition) != null)) {
+                this.firstEmptyPosition++;
+            }
 
 /*
 			int i;
@@ -238,9 +238,9 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 
 			}
 */
-		}
+        }
 
-	}
+    }
 
 
 
