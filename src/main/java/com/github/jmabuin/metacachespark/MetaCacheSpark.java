@@ -100,6 +100,9 @@ public class MetaCacheSpark implements Serializable {
 			sparkConf.set("spark.io.compression.codec", "snappy");
 			sparkConf.set("spark.sql.parquet.compression.codec", "snappy");
 
+			if (newOptions.getNumThreads() != 1) {
+				sparkConf.set("spark.executor.cores", String.valueOf(newOptions.getNumThreads()));
+			}
 
 /*
 			TreeMap<LocationBasic, Integer> proba = new TreeMap<LocationBasic, Integer>(new LocationBasicComparator());

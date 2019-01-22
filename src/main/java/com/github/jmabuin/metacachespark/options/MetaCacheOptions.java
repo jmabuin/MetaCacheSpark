@@ -189,6 +189,10 @@ public class MetaCacheOptions implements Serializable {
                     this.paired_reads = true;
                 }
 
+                if (cmd.hasOption('n') || cmd.hasOption("num_threads")) {
+                    this.numThreads = Integer.parseInt(cmd.getOptionValue("num_threads"));
+                }
+
             }
 
 			// Get and parse the rest of the arguments
@@ -296,6 +300,9 @@ public class MetaCacheOptions implements Serializable {
 
         Option paired_reads = new Option("r", "paired_reads", false, "Use paired reads or not");
         privateOptions.addOption(paired_reads);
+
+        Option num_threads = new Option("n", "num_threads", true, "Number of threads per executor to use in the classification phase");
+        privateOptions.addOption(num_threads);
 
 		return privateOptions;
 	}

@@ -739,7 +739,6 @@ public class Database implements Serializable{
                 repartition_files = this.numPartitions;
             }
 
-
             int current_target = 0;
 
             List<String> sequences = this.jsc.textFile(inputdir, repartition_files)
@@ -809,8 +808,9 @@ public class Database implements Serializable{
                     .partitionBy(new MyCustomPartitioner(repartition_files))
                     .values()
                     .persist(StorageLevel.MEMORY_AND_DISK_SER());
+            //.persist(StorageLevel.DISK_ONLY());
 
-
+            LOG.warn("Number of input sequences: " + this.inputSequences.count());
 
             this.targetPropertiesJavaRDD = this.inputSequences
                     .map(new Sequence2TargetProperty())
@@ -818,7 +818,7 @@ public class Database implements Serializable{
                     .sortByKey(true)
                     .values();
 
-                    this.targets_= this.targetPropertiesJavaRDD.collect();
+            this.targets_= this.targetPropertiesJavaRDD.collect();
 
             int i = 0;
             long j = -1;
@@ -914,6 +914,7 @@ public class Database implements Serializable{
 
                 this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .mapPartitions(new Sketcher2PairPartitions(this.name2tax_), true);
+                //.persist(StorageLevel.MEMORY_AND_DISK_SER());
 
 
 
@@ -1881,32 +1882,63 @@ public class Database implements Serializable{
 
         Map<Long, List<MatchCandidate>> results = null;
 
-        switch (this.params.getDatabase_type()) {
+        if (this.params.getNumThreads() == 1) {
+            switch (this.params.getDatabase_type()) {
 
-            case HASHMULTIMAP_NATIVE:
-                results = this.locationJavaRDDHashMultiMapNative
-                        .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                        .reduceByKey(new QueryReducerListNative(this.params))
-                        .collectAsMap();
+                case HASHMULTIMAP_NATIVE:
+                    results = this.locationJavaRDDHashMultiMapNative
+                            .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
 
-                break;
-            case HASHMAP:
-                results = this.locationJavaHashRDD
-                        .mapPartitionsToPair(new PartialQueryJavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                        .reduceByKey(new QueryReducerListNative(this.params))
-                        .collectAsMap();
-                break;
-            case HASHMULTIMAP_GUAVA:
-                results = this.locationJavaHashMMRDD
-                        .mapPartitionsToPair(new PartialQueryGuavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                        .reduceByKey(new QueryReducerListNative(this.params))
-                        .collectAsMap();
-                break;
-            default:
-                //this.classify(filename, d, stats);
-                break;
+                    break;
+                case HASHMAP:
+                    results = this.locationJavaHashRDD
+                            .mapPartitionsToPair(new PartialQueryJavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                case HASHMULTIMAP_GUAVA:
+                    results = this.locationJavaHashMMRDD
+                            .mapPartitionsToPair(new PartialQueryGuavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                default:
+                    //this.classify(filename, d, stats);
+                    break;
 
 
+            }
+        }
+        else {
+            switch (this.params.getDatabase_type()) {
+
+                case HASHMULTIMAP_NATIVE:
+                    results = this.locationJavaRDDHashMultiMapNative
+                            .mapPartitionsToPair(new PartialQueryNativeMultiThreadPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+
+                    break;
+                case HASHMAP:
+                    results = this.locationJavaHashRDD
+                            .mapPartitionsToPair(new PartialQueryJavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                case HASHMULTIMAP_GUAVA:
+                    results = this.locationJavaHashMMRDD
+                            .mapPartitionsToPair(new PartialQueryGuavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                default:
+                    //this.classify(filename, d, stats);
+                    break;
+
+
+            }
         }
         return results;
     }
@@ -1916,39 +1948,78 @@ public class Database implements Serializable{
 
         Map<Long, List<MatchCandidate>> results = null;
 
-        switch (this.params.getDatabase_type()) {
+        if (this.params.getNumThreads() == 1) {
+            switch (this.params.getDatabase_type()) {
 
-            case HASHMULTIMAP_NATIVE:
-                results = this.locationJavaRDDHashMultiMapNative
-                        .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                        .reduceByKey(new QueryReducerListNative(this.params))
-                        .collectAsMap();
+                case HASHMULTIMAP_NATIVE:
+                    results = this.locationJavaRDDHashMultiMapNative
+                            .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
 
-                break;
-            case HASHMAP:
-                results = this.locationJavaHashRDD
-                        .mapPartitionsToPair(new PartialQueryJava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                        .reduceByKey(new QueryReducerListNative(this.params))
-                        .collectAsMap();
-                break;
+                    break;
+                case HASHMAP:
+                    results = this.locationJavaHashRDD
+                            .mapPartitionsToPair(new PartialQueryJava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
 
-            case HASHMULTIMAP_GUAVA:
-                results = this.locationJavaHashMMRDD
-                        .mapPartitionsToPair(new PartialQueryGuava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                        .reduceByKey(new QueryReducerListNative(this.params))
-                        .collectAsMap();
-                break;
-            case PARQUET:
-                break;
+                case HASHMULTIMAP_GUAVA:
+                    results = this.locationJavaHashMMRDD
+                            .mapPartitionsToPair(new PartialQueryGuava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                case PARQUET:
+                    break;
 
-            case COMBINE_BY_KEY:
-                break;
-            default:
-                //this.classify(filename, d, stats);
-                break;
+                case COMBINE_BY_KEY:
+                    break;
+                default:
+                    //this.classify(filename, d, stats);
+                    break;
 
 
+            }
         }
+        else {
+            switch (this.params.getDatabase_type()) {
+
+                case HASHMULTIMAP_NATIVE:
+                    results = this.locationJavaRDDHashMultiMapNative
+                            .mapPartitionsToPair(new PartialQueryNativeMultiThread(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+
+                    break;
+                case HASHMAP:
+                    results = this.locationJavaHashRDD
+                            .mapPartitionsToPair(new PartialQueryJava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+
+                case HASHMULTIMAP_GUAVA:
+                    results = this.locationJavaHashMMRDD
+                            .mapPartitionsToPair(new PartialQueryGuava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                case PARQUET:
+                    break;
+
+                case COMBINE_BY_KEY:
+                    break;
+                default:
+                    //this.classify(filename, d, stats);
+                    break;
+
+
+            }
+        }
+
+
 
         return results;
     }
