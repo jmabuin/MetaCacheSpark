@@ -25,7 +25,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.function.Function2;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.*;
 
 /**
@@ -57,6 +60,23 @@ public class WriteHashMapNative implements Function2<Integer, Iterator<HashMulti
 				LOG.info("Starting to write file " + filename + "_" + i + " to local disk");
 				currentMap.write(filename + "_" + i);
 				LOG.info("Finished writing file " + filename + "_" + i + " to local disk. Copying to HDFS ...");
+/*
+				Process process = new ProcessBuilder("ls","-la").start();
+				InputStream is = process.getInputStream();
+				InputStreamReader isr = new InputStreamReader(is);
+				BufferedReader br = new BufferedReader(isr);
+				String line;
+
+				System.out.println("Output of running ls -la is:");
+
+				while ((line = br.readLine()) != null) {
+					System.out.println(line);
+				}
+
+				br.close();
+				isr.close();
+				is.close();
+*/
 				fs.copyFromLocalFile(true, true, new Path(filename + "_" + i), new Path(this.path + "/"+filename + "_" + i));
 
 				i++;
