@@ -50,7 +50,7 @@ public class MetaCacheOptions implements Serializable {
 	private int partitions = 1;
 	private String configuration;
     private int buffer_size = 51200;
-    private int result_size = 0;
+    //private int result_size = 0;
 	private MetaCacheProperties properties;
 
     private String dbfile			= "";
@@ -61,6 +61,7 @@ public class MetaCacheOptions implements Serializable {
     private int numThreads = 1;
     private boolean myWholeTextFiles = false;
     private boolean paired_reads = false;
+    private boolean metacache_like = false;
 
 	private String correctUse =
 			"spark-submit --class com.github.metachachespark.MetaCacheSpark MetaCacheSpark-0.3.0.jar";// [SparkBWA Options] Input.fastq [Input2.fastq] Output\n";
@@ -181,8 +182,8 @@ public class MetaCacheOptions implements Serializable {
                     this.myWholeTextFiles = true;
                 }
 
-                if (cmd.hasOption('s') || cmd.hasOption("result_size")) {
-                    this.result_size = Integer.parseInt(cmd.getOptionValue("result_size"));
+                if (cmd.hasOption('l') || cmd.hasOption("metacache_like")) {
+                    this.metacache_like = true;
                 }
 
                 if (cmd.hasOption('r') || cmd.hasOption("paired_reads")) {
@@ -295,8 +296,8 @@ public class MetaCacheOptions implements Serializable {
         Option myWholeTextFiles = new Option("w", "myWholeTextFiles", false, "Use customize wholetextfiles or not");
         privateOptions.addOption(myWholeTextFiles);
 
-        Option result_size = new Option("s", "result_size", true, "Number of possible target number per location when performing query phase");
-        privateOptions.addOption(result_size);
+        Option metacache_like = new Option("l", "metacache_like", false, "Create the database in the most similar way to metacache");
+        privateOptions.addOption(metacache_like);
 
         Option paired_reads = new Option("r", "paired_reads", false, "Use paired reads or not");
         privateOptions.addOption(paired_reads);
@@ -425,11 +426,11 @@ public class MetaCacheOptions implements Serializable {
         return myWholeTextFiles;
     }
 
-    public int getResult_size() {
-        return result_size;
-    }
-
     public boolean isPaired_reads() {
         return paired_reads;
+    }
+
+    public boolean isMetacache_like() {
+        return metacache_like;
     }
 }
