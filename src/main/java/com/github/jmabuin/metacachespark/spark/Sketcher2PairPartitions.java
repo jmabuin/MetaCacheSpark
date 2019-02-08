@@ -129,119 +129,14 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
         }
 
         int total_deleted = map.post_process(false, false);
-        LOG.warn("Number of items in this partial map is: " + map.size());
-        LOG.warn("Number of deleted features: " + total_deleted);
+        //LOG.warn("Number of items in this partial map is: " + map.size());
+        //LOG.warn("Number of deleted features: " + total_deleted);
 
         returnedValues.add(map);
 
 
         return returnedValues.iterator();
     }
-
-
-    public void insert(ArrayList<Tuple2<Integer, List<LocationBasic>>> returnedValues, int key, int id, int window) {
-
-        int currentMapSize = returnedValues.size();
-        int pos = Math.abs(key) % currentMapSize; // H2 function
-
-        if(returnedValues.get(pos) == null) { // Empty position. Add current key and value
-            List<LocationBasic> newList = new ArrayList<LocationBasic>();
-            newList.add(new LocationBasic(id, window));
-
-            returnedValues.set(pos, new Tuple2<Integer, List<LocationBasic>>(key, newList));
-            //LOG.warn("Found empty at " + this.firstEmptyPosition + " with pos "+pos);
-
-            if(this.firstEmptyPosition == pos) {
-                this.firstEmptyPosition++;
-            }
-
-
-            //while((this.firstEmptyPosition < returnedValues.size()) && (returnedValues.get(this.firstEmptyPosition) != null)) {
-            //	this.firstEmptyPosition++;
-            //}
-
-        }
-        else if(returnedValues.get(pos)._1() == key) { // Busy position with same key. Append value if possible ( vals < 256)
-            if(returnedValues.get(pos)._2().size() < 256) {
-                returnedValues.get(pos)._2().add(new LocationBasic(id, window));
-            }
-
-        }
-        else { // Our position is occupied with another key. Insert into first empty position
-
-            int previousSize = returnedValues.size();
-
-            if(this.firstEmptyPosition >= previousSize) { // Reached end, increase size * 1.5
-
-
-                int newSize = (int)(previousSize * 1.5);
-
-                //LOG.warn("Increasing from " +previousSize+" to " + newSize +"and empty is "+this.firstEmptyPosition);
-
-                //returnedValues.ensureCapacity(newSize);
-
-                for(int j = previousSize; j <= newSize; j++) {
-                    //returnedValues.add(new Tuple2<Integer, List<LocationBasic>>(-1, null));
-                    returnedValues.add(null);
-                }
-
-
-            }
-
-            List<LocationBasic> newList = new ArrayList<LocationBasic>();
-            newList.add(new LocationBasic(id, window));
-
-            returnedValues.set(this.firstEmptyPosition, new Tuple2<Integer, List<LocationBasic>>(key, newList));
-            //this.firstEmptyPosition++;
-
-            while((this.firstEmptyPosition < returnedValues.size()) && (returnedValues.get(this.firstEmptyPosition) != null)) {
-                this.firstEmptyPosition++;
-            }
-
-/*
-			int i;
-
-			for(i = pos; i< returnedValues.size(); i++) {
-				if(returnedValues.get(i) == null) { // Found new empty bucket. Insert there
-					List<LocationBasic> newList = new ArrayList<LocationBasic>();
-					newList.add(new LocationBasic(id, window));
-
-					returnedValues.set(i, new Tuple2<Integer, List<LocationBasic>>(key, newList));
-
-					break;
-				}
-				//else if (returnedValues.get(i)._1() == key) { // Maybe we find our key in another position from  a previous insert
-				//	if(returnedValues.get(pos)._2().size() < 256) {
-				//		returnedValues.get(pos)._2().add(new LocationBasic(id, window));
-				//	}
-				//	break;
-				//}
-			}
-
-			if(i == returnedValues.size()) { // Reached end of ArrayList. Increase its size and insert element in first empty position
-
-				int previousSize = returnedValues.size();
-				int newSize = (int)(previousSize * 1.5);
-
-				//returnedValues.ensureCapacity(newSize);
-
-				for(int j = previousSize; j < newSize; j++) {
-					//returnedValues.add(new Tuple2<Integer, List<LocationBasic>>(-1, null));
-					returnedValues.add(null);
-				}
-
-				List<LocationBasic> newList = new ArrayList<LocationBasic>();
-				newList.add(new LocationBasic(id, window));
-
-				returnedValues.set(previousSize, new Tuple2<Integer, List<LocationBasic>>(key, newList));
-
-
-			}
-*/
-        }
-
-    }
-
 
 
 }
