@@ -57,8 +57,29 @@ public class Sequence implements Serializable {
         this.sequenceOrigin = new SequenceOrigin();
     }
 
-    public Sequence(){
+    public Sequence(long index, String header, String data, String qualities, String filename) {
+        this.index = index;
+        this.header = header;
+        this.data = data;
+        this.qualities = qualities;
 
+        this.sequenceOrigin = new SequenceOrigin();
+        this.sequenceOrigin.setFilename(filename);
+    }
+
+    public Sequence(long index, String header, String qualities) {
+        this.index = index;
+        this.header = header;
+        this.data = "";
+        this.qualities = qualities;
+
+        this.sequenceOrigin = new SequenceOrigin();
+    }
+
+    public Sequence(){
+        this.data = "";
+
+        this.sequenceOrigin = new SequenceOrigin();
     }
 
     public long getIndex() {
@@ -78,12 +99,16 @@ public class Sequence implements Serializable {
     }
 
     public String getData() {
-        return data;
+        return data.toString();
     }
 
     public void setData(String data) {
         this.data = data;
     }
+
+    //public void appendData(String new_data) {
+    //    this.data.append(new_data);
+    //}
 
     public String getQualities() {
         return qualities;
@@ -115,5 +140,17 @@ public class Sequence implements Serializable {
 
     public void setSequenceOrigin(SequenceOrigin sequenceOrigin) {
         this.sequenceOrigin = sequenceOrigin;
+    }
+
+    //public void reset_data(){
+    //    this.data.delete(0, this.data.length());
+    //}
+
+    public void setOriginFilename(String filename) {
+        this.sequenceOrigin.setFilename(filename);
+    }
+
+    public String getOriginFilename() {
+        return this.sequenceOrigin.getFilename();
     }
 }

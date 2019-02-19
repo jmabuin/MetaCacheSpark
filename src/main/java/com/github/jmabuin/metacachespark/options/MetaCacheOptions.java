@@ -62,6 +62,7 @@ public class MetaCacheOptions implements Serializable {
     private boolean myWholeTextFiles = false;
     private boolean paired_reads = false;
     private boolean metacache_like = false;
+    private boolean metacache_like_input = false;
 
 	private String correctUse =
 			"spark-submit --class com.github.metachachespark.MetaCacheSpark MetaCacheSpark-0.3.0.jar";// [SparkBWA Options] Input.fastq [Input2.fastq] Output\n";
@@ -186,6 +187,10 @@ public class MetaCacheOptions implements Serializable {
                     this.metacache_like = true;
                 }
 
+                if (cmd.hasOption('i') || cmd.hasOption("metacache_like_input")) {
+                    this.metacache_like_input = true;
+                }
+
                 if (cmd.hasOption('r') || cmd.hasOption("paired_reads")) {
                     this.paired_reads = true;
                 }
@@ -298,6 +303,9 @@ public class MetaCacheOptions implements Serializable {
 
         Option metacache_like = new Option("l", "metacache_like", false, "Create the database in the most similar way to metacache");
         privateOptions.addOption(metacache_like);
+
+        Option metacache_like_input = new Option("i", "metacache_like_input", false, "Reads the input sequences in alpabetic order, just like metacache (only for building)");
+        privateOptions.addOption(metacache_like_input);
 
         Option paired_reads = new Option("r", "paired_reads", false, "Use paired reads or not");
         privateOptions.addOption(paired_reads);
@@ -432,5 +440,9 @@ public class MetaCacheOptions implements Serializable {
 
     public boolean isMetacache_like() {
         return metacache_like;
+    }
+
+    public boolean isMetacache_like_input() {
+        return metacache_like_input;
     }
 }

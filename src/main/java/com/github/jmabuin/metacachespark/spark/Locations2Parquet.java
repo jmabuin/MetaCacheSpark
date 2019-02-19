@@ -17,47 +17,42 @@
 
 package com.github.jmabuin.metacachespark.spark;
 
+import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import scala.Tuple2;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
-/**
- * Created by chema on 4/4/17.
- */
-public class Pair2HashMapNative implements Function2<Integer, Iterator<Tuple2<Integer, LocationBasic>>, Iterator<HashMultiMapNative>> {
+public class Locations2Parquet implements FlatMapFunction<Iterator<Tuple2<Integer, LocationBasic>>, Location> {
 
-    private static final Log LOG = LogFactory.getLog(Pair2HashMapNative.class);
+    private static final Log LOG = LogFactory.getLog(Locations2Parquet.class);
 
     @Override
-    public Iterator<HashMultiMapNative> call(Integer partitionId, Iterator<Tuple2<Integer, LocationBasic>> tuple2Iterator) throws Exception {
+    public Iterator<Location> call(Iterator<Tuple2<Integer, LocationBasic>> inputLocations){
 
-        LOG.warn("Starting to process partition: "+partitionId);
+        ArrayList<Location> returnedValues = new ArrayList<Location>();
 
-        int initialSize = 5;
+        while(inputLocations.hasNext()) {
+            Tuple2<Integer, LocationBasic> current = inputLocations.next();
+            int tgtid = current._1();
 
-        ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
+            //for (LocationBasic current_location: current._2) {
+            returnedValues.add(new Location(current._2().getTargetId(), tgtid, current._2().getWindowId()));
+            // }
 
-        HashMultiMapNative map = new HashMultiMapNative();
-
-        while(tuple2Iterator.hasNext()) {
-            Tuple2<Integer, LocationBasic> currentItem = tuple2Iterator.next();
-
-            map.add(currentItem._1(), currentItem._2().getTargetId(), currentItem._2().getWindowId());
 
         }
 
-        int total_deleted = map.post_process(false, false);
-
-        LOG.warn("Number of deleted features: " + total_deleted);
-
-        returnedValues.add(map);
 
         return returnedValues.iterator();
+
+
     }
+
 }

@@ -33,6 +33,10 @@ public class HashMapNative2Locations implements PairFlatMapFunction<Iterator<Has
 
             }
 
+            hm.clear();
+
+
+
         }
 
         return return_values.iterator();

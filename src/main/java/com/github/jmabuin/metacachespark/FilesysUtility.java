@@ -18,6 +18,7 @@
 package com.github.jmabuin.metacachespark;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
@@ -73,6 +74,73 @@ public class FilesysUtility implements Serializable {
 
 					if(newValues != null) {
 						returnedItems.addAll(newValues);
+					}
+
+
+				}
+
+			}
+
+			//fs.close();
+
+			return returnedItems;
+
+		}
+		catch (IOException e) {
+			LOG.error("I/O Error accessing HDFS: "+e.getMessage());
+			System.exit(1);
+		}
+		catch (Exception e) {
+			LOG.error("General error accessing HDFS: "+e.getMessage());
+			System.exit(1);
+		}
+
+
+		return null;
+
+
+	}
+
+
+	public static HashMap<String, Long> files_in_directory_with_size(String directory, int recursion_level, JavaSparkContext jsc) {
+
+		try {
+
+			Configuration conf;
+
+			if (jsc == null) {
+				conf = new Configuration();
+			}
+			else {
+				conf = jsc.hadoopConfiguration();
+			}
+
+			FileSystem fs = FileSystem.get(conf);
+
+			HashMap<String, Long> returnedItems = new HashMap<String, Long>();
+
+			if(directory == ""){
+				directory = fs.getHomeDirectory().toString();
+
+			}
+			//System.err.println("[JMAbuin] the current path is: " + path);
+			RemoteIterator<LocatedFileStatus> filesInPath = fs.listFiles(new Path(directory), true);
+
+			while(filesInPath.hasNext()) {
+				LocatedFileStatus newFile = filesInPath.next();
+
+				//System.err.println("[JMAbuin] found file: " + newFile.getPath().toString());
+
+				if(fs.isFile(newFile.getPath())) {
+					//System.err.println("[JMAbuin] Added file: " + newFile.getPath().toString());
+					returnedItems.put(newFile.getPath().toString(), newFile.getLen());
+				}
+				else if(fs.isDirectory(newFile.getPath()) && (recursion_level < 10)) {
+					HashMap<String, Long>newValues = FilesysUtility.files_in_directory_with_size(directory + "/" + newFile.getPath().toString(),
+							recursion_level + 1, jsc);
+
+					if(newValues != null) {
+						returnedItems.putAll(newValues);
 					}
 
 

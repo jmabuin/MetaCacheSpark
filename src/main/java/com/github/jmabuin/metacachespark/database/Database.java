@@ -29,7 +29,9 @@ import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
@@ -753,76 +755,113 @@ public class Database implements Serializable{
 
             int current_target = 0;
 
-            List<String> sequences = this.jsc.textFile(inputdir, repartition_files) 
-                    .filter(item -> item.startsWith(">"))
-                    .map(item -> item.substring(1))
-                    .collect();
-
-            for(String current_header: sequences) {
-                this.targets_positions.put(current_header, current_target);
-                ++current_target;
-            }
-
-
-            //if(this.params.isMyWholeTextFiles()) {
 
             ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
 
-            JavaRDD<String> tmpInput = this.jsc.parallelize(infiles, repartition_files);
+            if (this.params.isMetacache_like_input()) {
+
+                FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+
+                for (String new_file: infiles) {
+                    //LOG.warn("Adding file " + new_file + " to targets positions...");
+                    FSDataInputStream is = fs.open(new Path(new_file));
+
+                    BufferedReader br = new BufferedReader(new InputStreamReader(is));
+
+                    String currentLine;
+
+                    while((currentLine = br.readLine()) != null) {
+
+                        if(currentLine.startsWith(">")) {
+                            this.targets_positions.put(currentLine.substring(1), current_target);
+                            ++current_target;
+                        }
+
+                    }
+
+                    br.close();
+                    is.close();
 
 
-            //this.inputSequences = tmpInput
-/*
-            JavaRDD<Sequence> tmp_sequences = tmpInput
-                    .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions))
-                    //.repartition(repartition_files)
-                    .persist(StorageLevel.MEMORY_ONLY());
-
-            List<Tuple2<Integer, String>> lenghts_array = tmp_sequences.mapToPair(item -> new Tuple2<Integer, String>(
-                    item.getData().length(), item.getHeader()))
-                    .sortByKey(false)
-                    .collect();
-
-
-            HashMap<String, Integer> all_lengths = new HashMap<>();
-
-            int i = 0;
-            for (Tuple2<Integer, String> item: lenghts_array) {
-
-                all_lengths.put(item._2, i);
-                ++i;
-                if (i >= this.numPartitions) {
-                    i = 0;
                 }
-
 
             }
 
+            else {
 
-            this.inputSequences = tmp_sequences
-                    .mapToPair(item -> new Tuple2<String, Sequence>(item.getHeader(), item))
-                    .partitionBy(new MyCustomPartitionerStr(repartition_files, all_lengths))
-                    .values()
-                    .persist(StorageLevel.MEMORY_AND_DISK_SER());
+                List<String> sequences = this.jsc.textFile(inputdir+"/*", repartition_files)
+                        .filter(item -> item.startsWith(">"))
+                        .map(item -> item.substring(1))
+                        .collect();
 
-            //LOG.warn("The total number of input sorted sequences is: " + this.inputSequences.count());
 
-            tmp_sequences.unpersist();
-            tmp_sequences = null;
-*/
+                for(String current_header: sequences) {
+                    this.targets_positions.put(current_header, current_target);
+                    ++current_target;
+                }
+            }
+
+
+            //ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
+            Map<String, Long> infiles_lengths = Database.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
+                    0, this.jsc), false);
+
+            HashMap<String, Integer> partitions_map = new HashMap<String, Integer>();
+
+            int current_partition = 0;
+
+            for (String current_key: infiles_lengths.keySet()) {
+
+                partitions_map.put(current_key, current_partition);
+
+                current_partition++;
+
+                if (current_partition >= this.numPartitions) {
+                    current_partition = 0;
+                }
+
+            }
+
+            infiles_lengths.clear();
+            infiles_lengths = null;
+
+            JavaPairRDD<String, Long> tmpInput = this.jsc.parallelize(infiles, repartition_files)
+                    .zipWithIndex()
+                    .partitionBy(new MyCustomPartitionerStr(this.numPartitions, partitions_map))
+                    .persist(StorageLevel.MEMORY_ONLY_SER());
+
+
+
+            JavaPairRDD<String, Long> sequences_lengths_rdd = tmpInput.keys().mapPartitionsToPair(new Fasta2SequenceProperties());
+
+            Map<String, Long> sequences_lengths = Database.sortByComparator(sequences_lengths_rdd
+                    .collectAsMap(), false);
+
+            HashMap<Long, Integer> sequences_distribution = new HashMap<>();
+
+            current_partition = 0;
+            for (String current_key: sequences_lengths.keySet()) {
+
+                sequences_distribution.put((long)this.targets_positions.get(current_key), current_partition);
+                current_partition++;
+
+                if (current_partition >= numPartitions) {
+                    current_partition = 0;
+                }
+
+            }
 
 
             // This implementation works in 800 seconds
             this.inputSequences = tmpInput
-                    .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions), true)
-                    //.mapToPair(item -> new Tuple2<Integer, Sequence>(item.getData().length(), item))
-                    .mapToPair(item -> new Tuple2<Integer, Sequence>(item.getSequenceOrigin().getIndex(), item))
-                    .partitionBy(new MyCustomPartitioner(repartition_files))
+                    .keys()
+                    .mapPartitionsToPair(new Fasta2SequencePair(sequ2taxid, this.targets_positions), true)
+                    .partitionBy(new MyCustomPartitionerSequenceID(this.numPartitions, sequences_distribution))
                     .values()
-                    .persist(StorageLevel.MEMORY_AND_DISK_SER());
-            //.persist(StorageLevel.DISK_ONLY());
+                    .persist(StorageLevel.MEMORY_ONLY_SER());
 
             LOG.warn("Number of input sequences: " + this.inputSequences.count());
+            tmpInput.unpersist();
 
             this.targetPropertiesJavaRDD = this.inputSequences
                     .map(new Sequence2TargetProperty())
@@ -844,38 +883,6 @@ public class Database implements Serializable{
                 i++;
             }
 
-
-
-/*
-            Map<Integer, TargetProperty> props = this.inputSequences
-                    .map(new Sequence2TargetProperty())
-                    .mapToPair(item -> new Tuple2<Integer, TargetProperty>(item.getOrigin().getIndex(), item))
-                    .collectAsMap();
-
-            this.targets_ = new ArrayList<>();
-            TargetProperty[] array_target_properties = new TargetProperty[props.size()];
-
-
-            int i = 0;
-            long j = -1;
-
-            for(Integer key: props.keySet()) {
-
-                array_target_properties[key] = props.get(key);
-
-                if (array_target_properties[key].getTax() == 0) { // Target is unranked. Rank it!
-                    array_target_properties[key].setTax(j);
-                    this.taxa_.getTaxa_().put(j, new Taxon(j, 0, array_target_properties[key].getIdentifier(), Taxonomy.Rank.Sequence));
-                    --j;
-                }
-                this.name2tax_.put(array_target_properties[key].getIdentifier(), i);
-                i++;
-
-            }
-
-
-            this.targets_ = new ArrayList<TargetProperty>(Arrays.asList(array_target_properties));
-*/
             LOG.info("Size of name2tax_ is: " + this.name2tax_.size());
 
             this.nextTargetId_ = this.name2tax_.size();
@@ -884,20 +891,9 @@ public class Database implements Serializable{
             if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
                 LOG.warn("Building database with isBuildModeHashMap");
 
-                /*this.locationJavaHashRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
-                        */
-
                 this.locationJavaHashRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .values()
-                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
+                        .mapPartitions(new Locations2HashMap2(), true);
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
@@ -905,72 +901,38 @@ public class Database implements Serializable{
 
                 this.locationJavaHashMMRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .values()
-                        .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
+                        .mapPartitions(new Locations2HashMultiMapGuava2(), true);
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapMC");
 
-                /*this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .values()
-                        .mapPartitionsWithIndex(new Locations2HashMapNativeIndexed(), true);*/
-
                 this.locationJavaRDDHashMultiMapNative = this.inputSequences
                         .mapPartitions(new Sketcher2PairPartitions(this.name2tax_), true);
-                //.persist(StorageLevel.MEMORY_AND_DISK_SER());
-
-
-
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
                 LOG.warn("Building database with isBuildModeParquetDataframe");
+
                 this.locationJavaRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .values();
+                        .mapPartitions(new Locations2Parquet(), true);
 
                 this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
+
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
                 LOG.warn("Building database with isBuildCombineByKey");
 
-
-                this.locationJavaPairIterableRDD =this.inputSequences
+                this.locationJavaPairIterableRDD = this.inputSequences
                         .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .values()
-                        .mapPartitionsToPair(new Location2Pair())
+                        .mapPartitionsToPair(new Pair2Locations(), true)
                         .groupByKey();
 
                 this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
                         this.params.getProperties().getMax_locations_per_feature()));
 
             }
-
-
-            //endTime = System.nanoTime();
-            //LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
-            //LOG.warn("Database created ...");
-            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaHashRDD.count()));
-            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaPairListRDD.count()));
-
 
 
         } catch (Exception e) {
@@ -1000,76 +962,121 @@ public class Database implements Serializable{
 
             int current_target = 0;
 
-            List<String> sequences = this.jsc.textFile(inputdir, repartition_files)
-                    .filter(item -> item.startsWith(">"))
-                    .map(item -> item.substring(1))
-                    .collect();
-
-            for(String current_header: sequences) {
-                this.targets_positions.put(current_header, current_target);
-                ++current_target;
-            }
-
-
-            //if(this.params.isMyWholeTextFiles()) {
-
             ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
 
-            JavaRDD<String> tmpInput = this.jsc.parallelize(infiles, repartition_files);
+            if (this.params.isMetacache_like_input()) {
+
+                FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
+
+                for (String new_file: infiles) {
+                    //LOG.warn("Adding file " + new_file + " to targets positions...");
+                    FSDataInputStream is = fs.open(new Path(new_file));
+
+                    BufferedReader br = new BufferedReader(new InputStreamReader(is));
+
+                    String currentLine;
+
+                    while((currentLine = br.readLine()) != null) {
+
+                        if(currentLine.startsWith(">")) {
+                            this.targets_positions.put(currentLine.substring(1), current_target);
+                            ++current_target;
+                        }
+
+                    }
+
+                    br.close();
+                    is.close();
 
 
-            //this.inputSequences = tmpInput
-/*
-            JavaRDD<Sequence> tmp_sequences = tmpInput
-                    .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions))
-                    //.repartition(repartition_files)
-                    .persist(StorageLevel.MEMORY_ONLY());
-
-            List<Tuple2<Integer, String>> lenghts_array = tmp_sequences.mapToPair(item -> new Tuple2<Integer, String>(
-                    item.getData().length(), item.getHeader()))
-                    .sortByKey(false)
-                    .collect();
-
-
-            HashMap<String, Integer> all_lengths = new HashMap<>();
-
-            int i = 0;
-            for (Tuple2<Integer, String> item: lenghts_array) {
-
-                all_lengths.put(item._2, i);
-                ++i;
-                if (i >= this.numPartitions) {
-                    i = 0;
                 }
-
 
             }
 
+            else {
 
-            this.inputSequences = tmp_sequences
-                    .mapToPair(item -> new Tuple2<String, Sequence>(item.getHeader(), item))
-                    .partitionBy(new MyCustomPartitionerStr(repartition_files, all_lengths))
-                    .values()
-                    .persist(StorageLevel.MEMORY_AND_DISK_SER());
+                List<String> sequences = this.jsc.textFile(inputdir+"/*", repartition_files)
+                        .filter(item -> item.startsWith(">"))
+                        .map(item -> item.substring(1))
+                        .collect();
 
-            //LOG.warn("The total number of input sorted sequences is: " + this.inputSequences.count());
 
-            tmp_sequences.unpersist();
-            tmp_sequences = null;
-*/
+                for(String current_header: sequences) {
+                    this.targets_positions.put(current_header, current_target);
+                    ++current_target;
+                }
+            }
+
+
+            //ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
+            Map<String, Long> infiles_lengths = Database.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
+                    0, this.jsc), false);
+
+            HashMap<String, Integer> partitions_map = new HashMap<String, Integer>();
+
+            int current_partition = 0;
+            int partition_pos = 0;
+            for (String current_key: infiles_lengths.keySet()) {
+
+                partitions_map.put(current_key, current_partition);
+
+                /*if (partition_pos < 65) {
+                    LOG.info("Current file: " + current_key + " into partition " + current_partition);
+                    partition_pos++;
+                }*/
+
+                current_partition++;
+
+                if (current_partition >= this.numPartitions) {
+                    current_partition = 0;
+                }
+
+            }
+
+            infiles_lengths.clear();
+            infiles_lengths = null;
+
+            JavaPairRDD<String, Long> tmpInput = this.jsc.parallelize(infiles, repartition_files)
+                    .zipWithIndex()
+                    .partitionBy(new MyCustomPartitionerStr(this.numPartitions, partitions_map))
+                    //.keys()
+                    .persist(StorageLevel.MEMORY_ONLY_SER());
+
+
+            //LOG.info("Number of partitioned files: " + tmpInput.count());
+
+            JavaPairRDD<String, Long> sequences_lengths_rdd = tmpInput.keys().mapPartitionsToPair(new Fasta2SequenceProperties());
+
+            Map<String, Long> sequences_lengths = Database.sortByComparator(sequences_lengths_rdd
+                        .collectAsMap(), false);
+
+            HashMap<Long, Integer> sequences_distribution = new HashMap<>();
+
+            current_partition = 0;
+            for (String current_key: sequences_lengths.keySet()) {
+
+                sequences_distribution.put((long)this.targets_positions.get(current_key), current_partition);
+                current_partition++;
+
+                if (current_partition >= numPartitions) {
+                    current_partition = 0;
+                }
+
+            }
 
 
             // This implementation works in 800 seconds
             this.inputSequences = tmpInput
-                    .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions), true)
-                    //.mapToPair(item -> new Tuple2<Integer, Sequence>(item.getData().length(), item))
-                    .mapToPair(item -> new Tuple2<Integer, Sequence>(item.getSequenceOrigin().getIndex(), item))
-                    .partitionBy(new MyCustomPartitioner(repartition_files))
+                    .keys()
+                    .mapPartitionsToPair(new Fasta2SequencePair(sequ2taxid, this.targets_positions), true)
+                    .partitionBy(new MyCustomPartitionerSequenceID(this.numPartitions, sequences_distribution))
                     .values()
-                    .persist(StorageLevel.MEMORY_AND_DISK_SER());
-            //.persist(StorageLevel.DISK_ONLY());
+                    .persist(StorageLevel.MEMORY_ONLY_SER());
 
             LOG.warn("Number of input sequences: " + this.inputSequences.count());
+            tmpInput.unpersist();
+
+
 
             this.targetPropertiesJavaRDD = this.inputSequences
                     .map(new Sequence2TargetProperty())
@@ -1093,95 +1100,46 @@ public class Database implements Serializable{
 
 
 
-/*
-            Map<Integer, TargetProperty> props = this.inputSequences
-                    .map(new Sequence2TargetProperty())
-                    .mapToPair(item -> new Tuple2<Integer, TargetProperty>(item.getOrigin().getIndex(), item))
-                    .collectAsMap();
-
-            this.targets_ = new ArrayList<>();
-            TargetProperty[] array_target_properties = new TargetProperty[props.size()];
-
-
-            int i = 0;
-            long j = -1;
-
-            for(Integer key: props.keySet()) {
-
-                array_target_properties[key] = props.get(key);
-
-                if (array_target_properties[key].getTax() == 0) { // Target is unranked. Rank it!
-                    array_target_properties[key].setTax(j);
-                    this.taxa_.getTaxa_().put(j, new Taxon(j, 0, array_target_properties[key].getIdentifier(), Taxonomy.Rank.Sequence));
-                    --j;
-                }
-                this.name2tax_.put(array_target_properties[key].getIdentifier(), i);
-                i++;
-
-            }
-
-
-            this.targets_ = new ArrayList<TargetProperty>(Arrays.asList(array_target_properties));
-*/
             LOG.info("Size of name2tax_ is: " + this.name2tax_.size());
 
             this.nextTargetId_ = this.name2tax_.size();
 
 
+            JavaPairRDD<Integer, LocationBasic> tmp_rdd = this.inputSequences
+                    .flatMapToPair(new Sketcher2Pair(this.name2tax_))
+                    .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                    .mapPartitionsToPair(new Pair2Locations(), true)
+                    .partitionBy(new MyCustomPartitioner(this.numPartitions))
+                    .persist(StorageLevel.MEMORY_ONLY_SER());
+
+            LOG.warn("Number of items in HashMap: " + tmp_rdd.count());
+
+
             if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
                 LOG.warn("Building database with isBuildModeHashMap");
 
-                /*this.locationJavaHashRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.params.getPartitions()))
-                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
-                        */
-
-                this.locationJavaHashRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .values()
-                        .mapPartitionsWithIndex(new Pair2HashMap(), true);
+                this.locationJavaHashRDD = tmp_rdd
+                        .mapPartitions(new Locations2HashMap(), true);
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapG");
 
-                this.locationJavaHashMMRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .values()
-                        .mapPartitionsWithIndex(new Pair2HashMultiMapGuava(), true);
+                this.locationJavaHashMMRDD = tmp_rdd
+                        .mapPartitions(new Locations2HashMultiMapGuava(), true);
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapMC");
 
-                this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(this.numPartitions))
-                        .values()
-                        .mapPartitionsWithIndex(new Locations2HashMapNativeIndexed(), true);
-
+                this.locationJavaRDDHashMultiMapNative = tmp_rdd
+                        .mapPartitions(new Locations2HashMapNative(), true);
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
                 LOG.warn("Building database with isBuildModeParquetDataframe");
-                this.locationJavaRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .values();
+
+                this.locationJavaRDD = tmp_rdd
+                        .mapPartitions(new Locations2Parquet(), true);
 
                 this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
 
@@ -1189,29 +1147,13 @@ public class Database implements Serializable{
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
                 LOG.warn("Building database with isBuildCombineByKey");
 
-
-                this.locationJavaPairIterableRDD =this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .mapPartitionsWithIndex(new Pair2HashMapNative(), true)
-                        .mapPartitionsToPair(new HashMapNative2Locations(), true)
-                        .partitionBy(new MyCustomPartitioner(repartition_files))
-                        .values()
-                        .mapPartitionsToPair(new Location2Pair())
+                this.locationJavaPairIterableRDD = tmp_rdd
                         .groupByKey();
 
                 this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
                         this.params.getProperties().getMax_locations_per_feature()));
 
             }
-
-
-            //endTime = System.nanoTime();
-            //LOG.warn("Time in create database: "+ ((endTime - initTime)/1e9));
-            //LOG.warn("Database created ...");
-            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaHashRDD.count()));
-            //LOG.warn("Number of items into database: " + String.valueOf(this.locationJavaPairListRDD.count()));
-
 
 
         } catch (Exception e) {
@@ -2486,6 +2428,40 @@ public class Database implements Serializable{
 
         return this.taxa_.getNoTaxon_();
 
+    }
+
+    private static Map<String, Long> sortByComparator(Map<String, Long> unsortMap, final boolean order)
+    {
+
+        List<Map.Entry<String, Long>> list = new LinkedList<Map.Entry<String, Long>>(unsortMap.entrySet());
+
+        // Sorting the list based on values
+        Collections.sort(list, new Comparator<Map.Entry<String, Long>>()
+        {
+            public int compare(Map.Entry<String, Long> o1,
+                               Map.Entry<String, Long> o2)
+            {
+                if (order)
+                {
+                    return o1.getValue().compareTo(o2.getValue());
+                }
+                else
+                {
+                    return o2.getValue().compareTo(o1.getValue());
+
+                }
+            }
+        });
+
+        // Maintaining insertion order with the help of LinkedList
+        Map<String, Long> sortedMap = new LinkedHashMap<String, Long>();
+
+        for (Map.Entry<String, Long> entry : list)
+        {
+            sortedMap.put(entry.getKey(), entry.getValue());
+        }
+
+        return sortedMap;
     }
 
 }

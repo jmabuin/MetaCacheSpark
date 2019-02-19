@@ -399,15 +399,7 @@ public class Build implements Serializable {
                 db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
             }
             else {
-                if(inputDirs.isEmpty()) {
-                    db.buildDatabaseMultiPartitionsMetacacheLike(this.param.getInfiles(), sequ2taxid, infoMode);
-                }
-                else if (!input_files.isEmpty()) {
-                    db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
-                }
-                else {
-                    LOG.error("The directory is empty!!." + this.param.getInfiles());
-                }
+                db.buildDatabaseMultiPartitionsMetacacheLike(this.param.getInfiles(), sequ2taxid, infoMode);
             }
         }
 
@@ -416,15 +408,15 @@ public class Build implements Serializable {
                 db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
             }
             else {
-                if(inputDirs.isEmpty()) {
+                //if(inputDirs.isEmpty()) {
                     db.buildDatabaseMultiPartitions(this.param.getInfiles(), sequ2taxid, infoMode);
-                }
+                /*}
                 else if (!input_files.isEmpty()) {
                     db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
                 }
                 else {
                     LOG.error("The directory is empty!!." + this.param.getInfiles());
-                }
+                }*/
             }
         }
 

@@ -9,7 +9,10 @@ import org.apache.spark.api.java.function.Function2;
 import scala.Tuple2;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class Locations2HashMapNativeIndexed implements Function2<Integer, Iterator<Location>, Iterator<HashMultiMapNative>> {
 
@@ -26,10 +29,19 @@ public class Locations2HashMapNativeIndexed implements Function2<Integer, Iterat
 
         HashMultiMapNative map = new HashMultiMapNative();
 
+        /*tuple2Iterator.forEachRemaining(new Consumer<Location>() {
+            @Override
+            public void accept(Location location) {
+                map.add(location.getKey(), location.getTargetId(), location.getWindowId());
+            }
+        });
+        */
         while (tuple2Iterator.hasNext()) {
             Location currentItem = tuple2Iterator.next();
 
             map.add(currentItem.getKey(), currentItem.getTargetId(), currentItem.getWindowId());
+
+            tuple2Iterator.remove();
 
         }
 

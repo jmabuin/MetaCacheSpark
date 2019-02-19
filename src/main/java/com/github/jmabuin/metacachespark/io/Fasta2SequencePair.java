@@ -40,25 +40,26 @@ import java.util.List;
 /**
  * Created by chema on 3/28/17.
  */
-public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequence> {
+public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<String>, Long, Sequence> {
+    //public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<Tuple2<String, Long>>, Long, Sequence> {
 
 
-    private static final Log LOG = LogFactory.getLog(Fasta2Sequence.class);
+    private static final Log LOG = LogFactory.getLog(Fasta2SequencePair.class);
     private HashMap<String, Long> sequ2taxid;
     private HashMap<String, Integer> targets_positions;
 
-    public Fasta2Sequence(HashMap<String, Long> sequ2taxid, HashMap<String, Integer> targets_positions) {
+    public Fasta2SequencePair(HashMap<String, Long> sequ2taxid, HashMap<String, Integer> targets_positions) {
         this.sequ2taxid = sequ2taxid;
         this.targets_positions = targets_positions;
     }
 
     @Override
-    public Iterator<Sequence> call(Iterator<String> fileNames) {
+    public Iterator<Tuple2<Long, Sequence>> call(Iterator<String> fileNames) {
 
-        List<Sequence> returnValues = new ArrayList<Sequence>();
+        List<Tuple2<Long, Sequence>> returnValues = new ArrayList<Tuple2<Long, Sequence>>();
 
-        StringBuffer header = new StringBuffer();
-        StringBuffer data = new StringBuffer();
+        StringBuilder header = new StringBuilder();
+        //StringBuffer data = new StringBuffer();
         StringBuilder content = new StringBuilder();
 
         try {
@@ -69,40 +70,65 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
 
             ExtractionFunctions extraction = new ExtractionFunctions();
 
+            int current_filename = 0;
+            int current_sequence_number = 0;
+
             while(fileNames.hasNext()) {
+
 
                 content.delete(0, content.toString().length());
 
                 String fileName = fileNames.next();
 
-                if (!fileName.contains("assembly_summary")) {
+
+                //if(!fileName.contains("assembly_summary")) {
+                if (this.isSequenceFilename(fileName)) {
 
                     String key = fileName;
+
+                    current_filename++;
+                    //LOG.warn("Start of Reading file: "+fileName);
                     FSDataInputStream inputStream = fs.open(new Path(fileName));
 
                     BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
 
                     String currentLine;
 
+                    Sequence current_sequence = null;
+
                     while ((currentLine = br.readLine()) != null) {
 
                         if (currentLine.startsWith(">")) {
+
+
                             if (!header.toString().isEmpty()) {
                                 //returnedValues.add(new Sequence(data.toString(), "", currentFile.toString(), -1,
                                 //		header.toString(), -1));
                                 //LOG.warn("Adding sequence : " + header.toString());
-                                returnValues.add(new Sequence(this.targets_positions.get(header.toString()), header.toString(), data.toString(), "", fileName));
+                                long index = this.targets_positions.get(header.toString());
+
+                                //if (current_sequence != null) {
+                                returnValues.add(new Tuple2<Long, Sequence>(index, new Sequence(index, header.toString(), content.toString(), "", fileName)));
+                                current_sequence_number++;
+
+                                //}
+
+
                                 //sequence_number++;
                             }
 
                             header.delete(0, header.length());
                             header.append(currentLine.substring(1));
                             //data = "";
-                            data.delete(0, data.length());
+                            //data.delete(0,data.length());
+                            content.delete(0, content.length());
+
+
                         } else {
 
-                            //data = data + newLine;
-                            data.append(currentLine);
+                            //data.append(currentLine);
+                            //current_sequence.appendData(currentLine);
+                            content.append(currentLine);
 
                         }
 
@@ -111,21 +137,28 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
                     br.close();
                     inputStream.close();
 
-                    //LOG.warn("Reading file: "+fileName+" - " + content.length());
 
-                    if ((!data.toString().isEmpty()) && (!header.toString().isEmpty())) {
-                        LOG.warn("Adding last sequence : " + header.toString());
-                        returnValues.add(new Sequence(this.targets_positions.get(header.toString()), header.toString(), data.toString(), "", fileName));
+                    //LOG.warn("End of reading file: "+fileName);
+
+                    //if ((!current_sequence.getData().isEmpty()) && (!header.toString().isEmpty())) {
+                    if ((!header.toString().isEmpty()) && (!content.toString().isEmpty())) {
+                        //LOG.warn("Adding last sequence : " + header.toString() + " from file " + fileName);
+                        long index = this.targets_positions.get(header.toString());
+                        returnValues.add(new Tuple2<Long, Sequence>(index, new Sequence(index, header.toString(), content.toString(), "", fileName)));
+                        current_sequence_number++;
 
                     }
+                    header.delete(0, header.length());
+                    content.delete(0, content.length());
+
                 }
             }
-
                     //int currentIndexNumber = 0;
 
-                    for (Sequence currentSequence : returnValues) {
+                    for (Tuple2<Long, Sequence> currentSequence_tuple : returnValues) {
                         //LOG.info("Processing file: "+ currentFile);
 
+                        Sequence currentSequence = currentSequence_tuple._2;
 
                         String seqId = extraction.extract_sequence_id(currentSequence.getHeader());//SequenceReader.extract_sequence_id(currentSequence.getHeader());
                         String fileIdentifier = extraction.extract_sequence_id(currentSequence.getOriginFilename());//SequenceReader.extract_sequence_id(fileName);
@@ -173,10 +206,7 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
 
 
 
-
-
-
-
+            LOG.warn("Processed files: " + current_filename + ", processed sequences: " + current_sequence_number);
 
             return returnValues.iterator();
         }
@@ -187,6 +217,18 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
 
 
         return returnValues.iterator();
+
+    }
+
+
+
+    private boolean isSequenceFilename(String filename) {
+
+        if (filename.endsWith(".fna") || filename.endsWith(".fa") || filename.endsWith(".fq") || filename.endsWith(".fastq") || filename.endsWith(".fasta")){
+            return true;
+        }
+        return false;
+
 
     }
 

@@ -17,20 +17,132 @@
 
 package com.github.jmabuin.metacachespark.spark;
 
+import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
-import com.github.jmabuin.metacachespark.Locations;
-import org.apache.spark.api.java.function.Function;
+import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
-import java.util.List;
+import java.util.*;
 
-public class Pair2Locations implements Function<Tuple2<Integer, List<LocationBasic>>, Locations> {
+/**
+ * Created by chema on 4/4/17.
+ */
+public class Pair2Locations implements PairFlatMapFunction<Iterator<Tuple2<Integer, LocationBasic>>, Integer, LocationBasic> {
+
+    private static final Log LOG = LogFactory.getLog(Pair2Locations.class);
+
     @Override
-    public Locations call(Tuple2<Integer, List<LocationBasic>> integerListTuple2) throws Exception {
+    public Iterator<Tuple2<Integer, LocationBasic>> call(Iterator<Tuple2<Integer,LocationBasic>> tuple2Iterator) throws Exception {
+/*
+        List<Tuple2<Integer, LocationBasic>> returnedValues = new ArrayList<Tuple2<Integer, LocationBasic>>();
 
-        Locations newLocs = new Locations(integerListTuple2._1, integerListTuple2._2);
+        HashMultiMapNative map = new HashMultiMapNative();
 
-        return newLocs;
+        while(tuple2Iterator.hasNext()) {
+            Tuple2<Integer, LocationBasic> currentItem = tuple2Iterator.next();
 
+            //for(LocationBasic location: currentItem._2()) {
+                map.add(currentItem._1(), currentItem._2().getTargetId(), currentItem._2().getWindowId());
+            //}
+
+
+
+        }
+
+        //int total_deleted = map.post_process(false, false);
+
+        //LOG.warn("Number of deleted features: " + total_deleted);
+
+
+        int[] keyset = map.keys();
+
+        for(int key: keyset) {
+
+            int[] values = map.get(key);
+
+            for(int i = 0; i< values.length; i+=2){
+                returnedValues.add(new Tuple2<Integer, LocationBasic>(values[i], new LocationBasic(key, values[i+1])));
+            }
+
+            map.clear_key(key);
+
+        }
+
+        LOG.warn("Clearing map");
+        map.clear();
+        LOG.warn("Map totally cleared");
+
+        return returnedValues.iterator();
+        */
+
+        List<Tuple2<Integer, LocationBasic>> returnedValues = new ArrayList<Tuple2<Integer, LocationBasic>>();
+
+        HashMap<Integer, List<LocationBasic>> map = new HashMap<>();
+
+        while(tuple2Iterator.hasNext()) {
+            Tuple2<Integer, LocationBasic> currentItem = tuple2Iterator.next();
+
+            if (!map.containsKey(currentItem._1())) {
+                map.put(currentItem._1(), new ArrayList<LocationBasic>());
+            }
+
+            map.get(currentItem._1()).add(currentItem._2());
+
+        }
+
+
+        for(int key: map.keySet()) {
+
+            List<LocationBasic> current_list = map.get(key);
+
+            current_list.sort(new Comparator<LocationBasic>() {
+                public int compare(LocationBasic o1,
+                                   LocationBasic o2)
+                {
+
+                    if (o1.getTargetId() > o2.getTargetId()) {
+                        return 1;
+                    }
+
+                    if (o1.getTargetId() < o2.getTargetId()) {
+                        return -1;
+                    }
+
+                    if (o1.getTargetId() == o2.getTargetId()) {
+                        if (o1.getWindowId() > o2.getWindowId()) {
+                            return 1;
+                        }
+
+                        if (o1.getWindowId() < o2.getWindowId()) {
+                            return -1;
+                        }
+
+                        return 0;
+
+                    }
+                    return 0;
+
+                }
+            });
+
+
+            int i;
+
+            for(i = 0; i< current_list.size() && i < 254; ++i) {
+                returnedValues.add(new Tuple2<Integer, LocationBasic>(current_list.get(i).getTargetId(), new LocationBasic(key, current_list.get(i).getWindowId())));
+            }
+
+
+        }
+
+        LOG.warn("Clearing map");
+        map.clear();
+        LOG.warn("Map totally cleared");
+
+        return returnedValues.iterator();
     }
 }

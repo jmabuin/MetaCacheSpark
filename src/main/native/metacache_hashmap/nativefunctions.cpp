@@ -435,4 +435,31 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
 }
 
+JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_clear (JNIEnv *env, jobject jobj) {
 
+    for(auto bucket = map->begin(); bucket!=map->end(); ++bucket) {
+
+        bucket->second.clear();
+
+
+    }
+
+    map->clear();
+
+    //delete map;
+
+  }
+
+JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_clear_1key (JNIEnv *env, jobject jobj, jint javaKey) {
+
+    unsigned int key = (unsigned int) javaKey;
+
+    auto sit = map->find(key);
+
+    if(sit != map->end()) {
+
+        sit->second.clear();
+
+    }
+
+}

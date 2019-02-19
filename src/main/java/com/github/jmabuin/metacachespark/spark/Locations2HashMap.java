@@ -26,27 +26,31 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import scala.Tuple2;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-public class Locations2HashMapNative implements FlatMapFunction<Iterator<Tuple2<Integer, LocationBasic>>, HashMultiMapNative> {
+public class Locations2HashMap implements FlatMapFunction<Iterator<Tuple2<Integer, LocationBasic>>, HashMap<Integer, List<LocationBasic>>> {
 
-    private static final Log LOG = LogFactory.getLog(Locations2HashMapNative.class);
+    private static final Log LOG = LogFactory.getLog(Locations2HashMap.class);
 
     @Override
-    public Iterator<HashMultiMapNative> call(Iterator<Tuple2<Integer, LocationBasic>> inputLocations){
+    public Iterator<HashMap<Integer, List<LocationBasic>>> call(Iterator<Tuple2<Integer, LocationBasic>> inputLocations){
 
-        ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
+        ArrayList<HashMap<Integer, List<LocationBasic>>> returnedValues = new ArrayList<HashMap<Integer, List<LocationBasic>>>();
 
-        HashMultiMapNative map = new HashMultiMapNative();
+        HashMap<Integer, List<LocationBasic>> map = new HashMap<Integer, List<LocationBasic>>();
 
         while(inputLocations.hasNext()) {
             Tuple2<Integer, LocationBasic> current = inputLocations.next();
             int tgtid = current._1();
 
-            //for (LocationBasic current_location: current._2) {
-                map.add(current._2().getTargetId(), tgtid, current._2().getWindowId());
-           // }
+            if (!map.containsKey(current._2().getTargetId())) {
+                map.put(current._2().getTargetId(), new ArrayList<LocationBasic>());
+            }
+
+            map.get(current._2().getTargetId()).add(new LocationBasic(tgtid, current._2().getWindowId()));
+
 
 
         }

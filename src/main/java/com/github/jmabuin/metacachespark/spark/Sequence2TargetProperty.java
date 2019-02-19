@@ -28,6 +28,8 @@ import java.util.HashMap;
  */
 public class Sequence2TargetProperty implements Function<Sequence, TargetProperty> {
 
+
+
 	@Override
 	public TargetProperty call(Sequence arg0) {
 

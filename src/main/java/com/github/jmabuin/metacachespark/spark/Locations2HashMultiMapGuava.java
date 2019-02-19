@@ -20,33 +20,41 @@ package com.github.jmabuin.metacachespark.spark;
 import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
+import com.google.common.collect.HashMultimap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import scala.Tuple2;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-public class Locations2HashMapNative implements FlatMapFunction<Iterator<Tuple2<Integer, LocationBasic>>, HashMultiMapNative> {
+public class Locations2HashMultiMapGuava implements FlatMapFunction<Iterator<Tuple2<Integer, LocationBasic>>, HashMultimap<Integer, LocationBasic>> {
 
     private static final Log LOG = LogFactory.getLog(Locations2HashMapNative.class);
 
     @Override
-    public Iterator<HashMultiMapNative> call(Iterator<Tuple2<Integer, LocationBasic>> inputLocations){
+    public Iterator<HashMultimap<Integer, LocationBasic>> call(Iterator<Tuple2<Integer, LocationBasic>> inputLocations){
 
-        ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
+        ArrayList<HashMultimap<Integer, LocationBasic>> returnedValues = new ArrayList<HashMultimap<Integer, LocationBasic>>();
 
-        HashMultiMapNative map = new HashMultiMapNative();
+        HashMultimap<Integer, LocationBasic> map = HashMultimap.create();
 
         while(inputLocations.hasNext()) {
             Tuple2<Integer, LocationBasic> current = inputLocations.next();
             int tgtid = current._1();
 
-            //for (LocationBasic current_location: current._2) {
-                map.add(current._2().getTargetId(), tgtid, current._2().getWindowId());
-           // }
+            if (!map.containsKey(current._2().getTargetId())) {
+                map.put(current._2().getTargetId(), new LocationBasic(tgtid, current._2().getWindowId()));
+            }
+            else if (map.get(current._2().getTargetId()).size() < 254) {
+                map.put(current._2().getTargetId(), new LocationBasic(tgtid, current._2().getWindowId()));
+            }
+
+            //map.get(current._2().getTargetId()).add(new LocationBasic(tgtid, current._2().getWindowId()));
+
 
 
         }

@@ -17,8 +17,6 @@
 
 package com.github.jmabuin.metacachespark.spark;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.spark.Partitioner;
 
 import java.util.HashMap;
@@ -26,14 +24,14 @@ import java.util.HashMap;
 /**
  * Created by chema on 3/3/17.
  */
-public class MyCustomPartitionerStr extends Partitioner {
+public class MyCustomPartitionerSequenceID extends Partitioner {
 
-    private static final Log LOG = LogFactory.getLog(MyCustomPartitionerStr.class);
+
 
     private int numParts;
-    private HashMap<String, Integer> values;
+    private HashMap<Long, Integer> values;
 
-    public MyCustomPartitionerStr(int i, HashMap<String, Integer> values) {
+    public MyCustomPartitionerSequenceID(int i, HashMap<Long, Integer> values) {
         this.numParts=i;
         this.values = values;
     }
@@ -49,18 +47,9 @@ public class MyCustomPartitionerStr extends Partitioner {
 
         //partition based on the first character of the key...you can have your logic here !!
         //return (Math.abs((Integer)key))%this.numParts;
-        String str_key = (String) key;
+        Long long_key = (Long) key;
 
-        if (!this.values.containsKey(str_key)) {
-
-            LOG.warn("Can not find key: " + str_key);
-        }
-
-        int partition_number = this.values.get(str_key);
-
-        if (str_key.contains("/AFS/")) {
-            LOG.info("Assigning partition " + partition_number +" to file: " + str_key);
-        }
+        int partition_number = this.values.get(long_key);
 
         return partition_number;
 
@@ -68,9 +57,9 @@ public class MyCustomPartitionerStr extends Partitioner {
 
     @Override
     public boolean equals(Object obj){
-        if(obj instanceof MyCustomPartitioner)
+        if(obj instanceof MyCustomPartitionerSequenceID)
         {
-            MyCustomPartitionerStr partitionerObject = (MyCustomPartitionerStr)obj;
+            MyCustomPartitionerSequenceID partitionerObject = (MyCustomPartitionerSequenceID)obj;
             if(partitionerObject.numPartitions() == this.numParts)
                 return true;
         }

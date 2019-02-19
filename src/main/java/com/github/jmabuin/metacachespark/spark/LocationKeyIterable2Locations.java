@@ -30,7 +30,7 @@ import java.util.List;
 
 public class LocationKeyIterable2Locations implements Function<Tuple2<Integer, Iterable<LocationBasic>>, Locations> {
 
-    private int max_locations = 256;
+    private int max_locations = 254;
 
     public LocationKeyIterable2Locations(int max_locations) {
         this.max_locations = max_locations;
