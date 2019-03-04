@@ -31,6 +31,14 @@ JNIEXPORT jstring JNICALL Java_com_github_jmabuin_metacachespark_io_ExtractionFu
 JNIEXPORT jstring JNICALL Java_com_github_jmabuin_metacachespark_io_ExtractionFunctions_extract_1ncbi_1accession_1number
   (JNIEnv *, jobject, jstring);
 
+/*
+ * Class:     com_github_jmabuin_metacachespark_io_ExtractionFunctions
+ * Method:    extract_taxon_id
+ * Signature: (Ljava/lang/String;)J
+ */
+JNIEXPORT jlong JNICALL Java_com_github_jmabuin_metacachespark_io_ExtractionFunctions_extract_1taxon_1id
+  (JNIEnv *, jobject, jstring);
+
 #ifdef __cplusplus
 }
 #endif

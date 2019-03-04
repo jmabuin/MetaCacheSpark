@@ -124,6 +124,31 @@ std::string extract_ncbi_accession_number(const std::string& text) {
     return "";
 }
 
+std::int_least64_t extract_taxon_id(const std::string& text)
+{
+    if(text.empty()) return 0;
+
+    auto i = text.find("taxid");
+    if(i != std::string::npos) {
+        //skip "taxid" + separator char
+        i += 6;
+        //find end of number
+        auto j = text.find('|', i);
+        if(j == std::string::npos) {
+            j = text.find(' ', i);
+            if(j == std::string::npos) j = text.size();
+        }
+
+        try {
+            return std::stoull(text.substr(i, j-i));
+        }
+        catch(std::exception&) {
+            return 0;
+        }
+    }
+    return 0;
+}
+
 JNIEXPORT jstring JNICALL Java_com_github_jmabuin_metacachespark_io_ExtractionFunctions_extract_1ncbi_1accession_1version_1number (JNIEnv *env, jobject jobj, jstring text) {
 
     const char *nativeString = env->GetStringUTFChars(text, 0);
@@ -172,3 +197,16 @@ JNIEXPORT jstring JNICALL Java_com_github_jmabuin_metacachespark_io_ExtractionFu
     return return_value;
 }
 
+JNIEXPORT jlong JNICALL Java_com_github_jmabuin_metacachespark_io_ExtractionFunctions_extract_1taxon_1id (JNIEnv *env, jobject jobj, jstring text) {
+    const char *nativeString = env->GetStringUTFChars(text, 0);
+
+    std::string new_text(nativeString);
+
+    unsigned long value = extract_taxon_id(new_text);
+
+    jlong return_value = (long)value;
+
+    env->ReleaseStringUTFChars(text, nativeString);
+
+    return return_value;
+}

@@ -32,7 +32,7 @@ import java.util.*;
  */
 public class FastaSequenceReader extends SequenceReader implements FlatMapFunction<Tuple2<String, String>, Sequence> {
 
-	private HashMap<String, Long> sequ2taxid;
+	private TreeMap<String, Long> sequ2taxid;
 	private Build.build_info infoMode;
 
 	private static final Log LOG = LogFactory.getLog(FastaSequenceReader.class);
@@ -41,7 +41,7 @@ public class FastaSequenceReader extends SequenceReader implements FlatMapFuncti
 	//private HashMap<String, Integer> sequenceIndex;
 
 	//public FastaSequenceReader(HashMap<String, Long> sequ2taxid, Build.build_info infoMode, HashMap<String, Integer> sequenceIndex){
-	public FastaSequenceReader(HashMap<String, Long> sequ2taxid, Build.build_info infoMode){
+	public FastaSequenceReader(TreeMap<String, Long> sequ2taxid, Build.build_info infoMode){
 		//LOG.warn("[JMAbuin] Creating FastaSequenceReader object ");
 		super();
 		this.sequ2taxid = sequ2taxid;

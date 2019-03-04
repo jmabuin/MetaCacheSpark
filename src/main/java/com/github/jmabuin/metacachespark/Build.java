@@ -346,7 +346,7 @@ public class Build implements Serializable {
 				System.err.println("[JMAbuin] "+currentFile);
 			}*/
 
-            HashMap<String, Long> seqid2tax = this.db.make_sequence_to_taxon_id_map(this.taxonomy_param.getMappingPreFiles(),
+            TreeMap<String, Long> seqid2tax = this.db.make_sequence_to_taxon_id_map(this.taxonomy_param.getMappingPreFiles(),
                     inFilesTaxonIdMap);
 
             this.add_targets_to_database(db, seqid2tax,
@@ -380,7 +380,7 @@ public class Build implements Serializable {
     }
 
     // add to database with spark
-    public void add_targets_to_database(Database db, HashMap<String, Long> sequ2taxid, build_info infoMode) {
+    public void add_targets_to_database(Database db, TreeMap<String, Long> sequ2taxid, build_info infoMode) {
 
         ArrayList<String> inputDirs = FilesysUtility.directories_in_directory_hdfs(this.param.getInfiles(), this.jsc);
 
@@ -410,6 +410,7 @@ public class Build implements Serializable {
             else {
                 //if(inputDirs.isEmpty()) {
                     db.buildDatabaseMultiPartitions(this.param.getInfiles(), sequ2taxid, infoMode);
+                //db.buildDatabaseSimple(this.param.getInfiles(), sequ2taxid, infoMode);
                 /*}
                 else if (!input_files.isEmpty()) {
                     db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);

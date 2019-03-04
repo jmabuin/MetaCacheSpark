@@ -18,7 +18,6 @@
 package com.github.jmabuin.metacachespark.io;
 
 import com.github.jmabuin.metacachespark.Sequence;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -38,15 +37,15 @@ import java.util.*;
 /**
  * Created by chema on 3/28/17.
  */
-public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<String>, Long, Sequence> {
+public class Fasta2SequencePairNaive implements PairFlatMapFunction<Iterator<String>, Long, Sequence> {
     //public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<Tuple2<String, Long>>, Long, Sequence> {
 
 
-    private static final Log LOG = LogFactory.getLog(Fasta2SequencePair.class);
+    private static final Log LOG = LogFactory.getLog(Fasta2SequencePairNaive.class);
     private TreeMap<String, Long> sequ2taxid;
     private HashMap<String, Integer> targets_positions;
 
-    public Fasta2SequencePair(TreeMap<String, Long> sequ2taxid, HashMap<String, Integer> targets_positions) {
+    public Fasta2SequencePairNaive(TreeMap<String, Long> sequ2taxid, HashMap<String, Integer> targets_positions) {
         this.sequ2taxid = sequ2taxid;
         this.targets_positions = targets_positions;
     }
@@ -58,7 +57,7 @@ public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<String>,
 
         StringBuilder header = new StringBuilder();
         //StringBuffer data = new StringBuffer();
-        StringBuilder content = new StringBuilder();
+        //StringBuilder content = new StringBuilder();
 
         try {
 
@@ -74,7 +73,7 @@ public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<String>,
             while(fileNames.hasNext()) {
 
 
-                content.delete(0, content.toString().length());
+                //content.delete(0, content.toString().length());
 
                 String fileName = fileNames.next();
 
@@ -92,7 +91,7 @@ public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<String>,
 
                     String currentLine;
 
-                    Sequence current_sequence = null;
+                    //Sequence current_sequence = null;
 
                     while ((currentLine = br.readLine()) != null) {
 
@@ -106,7 +105,7 @@ public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<String>,
                                 long index = this.targets_positions.get(header.toString());
 
                                 //if (current_sequence != null) {
-                                returnValues.add(new Tuple2<Long, Sequence>(index, new Sequence(index, header.toString(), content.toString(), "", fileName)));
+                                returnValues.add(new Tuple2<Long, Sequence>(index, new Sequence(index, header.toString(), "", "", fileName)));
                                 current_sequence_number++;
 
                                 //}
@@ -119,14 +118,8 @@ public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<String>,
                             header.append(currentLine.substring(1));
                             //data = "";
                             //data.delete(0,data.length());
-                            content.delete(0, content.length());
+                            //content.delete(0, content.length());
 
-
-                        } else {
-
-                            //data.append(currentLine);
-                            //current_sequence.appendData(currentLine);
-                            content.append(currentLine);
 
                         }
 
@@ -139,67 +132,67 @@ public class Fasta2SequencePair implements PairFlatMapFunction<Iterator<String>,
                     //LOG.warn("End of reading file: "+fileName);
 
                     //if ((!current_sequence.getData().isEmpty()) && (!header.toString().isEmpty())) {
-                    if ((!header.toString().isEmpty()) && (!content.toString().isEmpty())) {
+                    if (!header.toString().isEmpty()) {
                         //LOG.warn("Adding last sequence : " + header.toString() + " from file " + fileName);
                         long index = this.targets_positions.get(header.toString());
-                        returnValues.add(new Tuple2<Long, Sequence>(index, new Sequence(index, header.toString(), content.toString(), "", fileName)));
+                        returnValues.add(new Tuple2<Long, Sequence>(index, new Sequence(index, header.toString(), "", "", fileName)));
                         current_sequence_number++;
 
                     }
                     header.delete(0, header.length());
-                    content.delete(0, content.length());
+                    //content.delete(0, content.length());
 
                 }
             }
-                    //int currentIndexNumber = 0;
+            //int currentIndexNumber = 0;
 
-                    for (Tuple2<Long, Sequence> currentSequence_tuple : returnValues) {
-                        //LOG.info("Processing file: "+ currentFile);
+            for (Tuple2<Long, Sequence> currentSequence_tuple : returnValues) {
+                //LOG.info("Processing file: "+ currentFile);
 
-                        Sequence currentSequence = currentSequence_tuple._2;
+                Sequence currentSequence = currentSequence_tuple._2;
 
-                        String seqId = extraction.extract_sequence_id(currentSequence.getHeader());//SequenceReader.extract_sequence_id(currentSequence.getHeader());
-                        String fileIdentifier = extraction.extract_sequence_id(FilenameUtils.getName(currentSequence.getOriginFilename()));//SequenceReader.extract_sequence_id(fileName);
+                String seqId = extraction.extract_sequence_id(currentSequence.getHeader());//SequenceReader.extract_sequence_id(currentSequence.getHeader());
+                String fileIdentifier = extraction.extract_sequence_id(currentSequence.getOriginFilename());//SequenceReader.extract_sequence_id(fileName);
 
-                        //make sure sequence id is not empty,
-                        //use entire header if neccessary
-                        if (seqId.isEmpty()) {
-                            if (!fileIdentifier.isEmpty()) {
-                                seqId = fileIdentifier;
-                            } else {
-                                seqId = currentSequence.getHeader();
-                            }
-                        }
-
-                        //targets need to have a sequence id
-                        //look up taxon id
-                        /*int taxid = 0;
-
-                        if (!sequ2taxid.isEmpty()) {
-                            Long it = sequ2taxid.get(seqId);
-                            if (it != null) {
-                                taxid = it.intValue();
-                            } else {
-                                it = sequ2taxid.get(fileIdentifier);
-                                if (it != null) {
-                                    taxid = it.intValue();
-                                }
-                            }
-                        }
-                        //no valid taxid assigned -> try to find one in annotation
-
-                        if (taxid <= 0) {
-                            taxid = SequenceReader.extract_taxon_id(currentSequence.getHeader()).intValue();
-
-                        }
-
-                        currentSequence.setTaxid(taxid);*/
-                        currentSequence.getSequenceOrigin().setIndex(this.targets_positions.get(currentSequence.getHeader()));
-                        //currentSequence.getSequenceOrigin().setFilename(fileName);
-                        currentSequence.setSeqId(seqId);
-
-                        //currentIndexNumber++;
+                //make sure sequence id is not empty,
+                //use entire header if neccessary
+                if (seqId.isEmpty()) {
+                    if (!fileIdentifier.isEmpty()) {
+                        seqId = fileIdentifier;
+                    } else {
+                        seqId = currentSequence.getHeader();
                     }
+                }
+
+                //targets need to have a sequence id
+                //look up taxon id
+                int taxid = 0;
+
+                if (!sequ2taxid.isEmpty()) {
+                    Long it = sequ2taxid.get(seqId);
+                    if (it != null) {
+                        taxid = it.intValue();
+                    } else {
+                        it = sequ2taxid.get(fileIdentifier);
+                        if (it != null) {
+                            taxid = it.intValue();
+                        }
+                    }
+                }
+                //no valid taxid assigned -> try to find one in annotation
+
+                if (taxid <= 0) {
+                    taxid = SequenceReader.extract_taxon_id(currentSequence.getHeader()).intValue();
+
+                }
+
+                currentSequence.setTaxid(taxid);
+                currentSequence.getSequenceOrigin().setIndex(this.targets_positions.get(currentSequence.getHeader()));
+                //currentSequence.getSequenceOrigin().setFilename(fileName);
+                currentSequence.setSeqId(seqId);
+
+                //currentIndexNumber++;
+            }
 
 
 

@@ -59,9 +59,31 @@ public class ExtractionFunctions implements Serializable {
         return this.extract_ncbi_accession_number(text);
     }
 
+    public String extract_accession_string(String text)
+    {
+        if(text.isEmpty()) {
+            return "";
+        }
+
+        String s = this.extract_ncbi_accession_version_number(text);
+        if(!s.isEmpty()) {
+            return s;
+        }
+
+        s = this.extract_ncbi_accession_number(text);
+        if(!s.isEmpty()) {
+            return s;
+        }
+
+        s = this.extract_genbank_identifier(text);
+
+        return s;
+    }
+
     //Native methods
     public native String extract_ncbi_accession_version_number(String text);
     public native String extract_genbank_identifier(String text);
     public native String extract_ncbi_accession_number(String text);
+    public native long extract_taxon_id(String text);
 
 }

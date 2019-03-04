@@ -1889,7 +1889,7 @@ public class Query implements Serializable {
 
         for (int i = 1; i < cand.getTop_list().size(); ++i) {
             //LOG.warn("Other taxon is: " + db.taxon_of_target((long)cand.getTop_list().get(i).getTgt()).getTaxonName() +
-            //        ", hits: " + cand.getTop_list().get(i).getHits());
+            //       ", hits: " + cand.getTop_list().get(i).getHits());
             lca = this.db.ranked_lca(lca, cand.getTop_list().get(i).getTax());
             //LOG.warn("Obtained LCA: " + lca.getTaxonName());
             if (lca == null || lca == this.db.getTaxa_().getNoTaxon_() || lca.getRank().ordinal() > this.param.getProperties().getHighestRank().ordinal()) {

@@ -35,11 +35,11 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 
     private static final Log LOG = LogFactory.getLog(Sketcher2PairPartitions.class);
 
-    private TreeMap<String, Integer> sequencesIndexes;
+    private TreeMap<String, Long> sequencesIndexes;
     private int firstEmptyPosition;
 
 
-    public Sketcher2PairPartitions(TreeMap<String, Integer> sequencesIndexes) {
+    public Sketcher2PairPartitions(TreeMap<String, Long> sequencesIndexes) {
 
         this.sequencesIndexes = sequencesIndexes;
         //this.firstEmptyPosition = 0;
@@ -103,7 +103,7 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 							returnedValues_local.add(new Tuple2<Integer, LocationBasic>(newValue,
 									new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows)));
 							*/
-                            map.add(newValue, this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows);
+                            map.add(newValue, this.sequencesIndexes.get(inputSequence.getSeqId()).intValue(), numWindows);
 
                         }
                     }

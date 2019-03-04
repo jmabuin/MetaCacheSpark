@@ -36,9 +36,9 @@ import java.util.TreeMap;
 public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, LocationBasic> {
     private static final Log LOG = LogFactory.getLog(Sketcher2Pair.class);
 
-    private TreeMap<String, Integer> sequencesIndexes;
+    private TreeMap<String, Long> sequencesIndexes;
 
-    public Sketcher2Pair(TreeMap<String, Integer> sequencesIndexes) {
+    public Sketcher2Pair(TreeMap<String, Long> sequencesIndexes) {
         //super();
         this.sequencesIndexes = sequencesIndexes;
     }
@@ -96,7 +96,7 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
 
                         //LOG.warn("Calculated value: " + newValue);
                         returnedValues.add(new Tuple2<Integer, LocationBasic>(newValue,
-                                new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows)));
+                                new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()).intValue(), numWindows)));
 
 
                     }

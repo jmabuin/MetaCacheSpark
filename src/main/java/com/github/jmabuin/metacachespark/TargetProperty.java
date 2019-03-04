@@ -25,73 +25,90 @@ import java.util.ArrayList;
  */
 public class TargetProperty implements Serializable {
 
-	private String identifier;
-	private long tax;
-	private SequenceOrigin origin;
-	private ArrayList<Long> full_lineage;
-	private Long ranked_lineage[];
+    private String identifier;
+    private String header;
+    private long tax;
+    private SequenceOrigin origin;
+    private ArrayList<Long> full_lineage;
+    private Long ranked_lineage[];
 
 
-	public TargetProperty (String identifier, long tax, SequenceOrigin origin) {
-		this.identifier = identifier;
-		this.tax = tax;
-		this.origin = origin;
-		this.full_lineage = new ArrayList<Long>();
-		this.ranked_lineage = new Long[0];
-	}
+    public TargetProperty (String identifier, long tax, SequenceOrigin origin) {
+        this.identifier = identifier;
+        this.tax = tax;
+        this.origin = origin;
+        this.full_lineage = new ArrayList<Long>();
+        this.ranked_lineage = new Long[0];
+        this.header = "";
+    }
 
-	public TargetProperty(String identifier, long tax, SequenceOrigin origin, ArrayList<Long> full_lineage, Long[] ranked_lineage) {
-		this.identifier = identifier;
-		this.tax = tax;
-		this.origin = origin;
-		this.full_lineage = full_lineage;
-		this.ranked_lineage = ranked_lineage;
-	}
+    public TargetProperty (String identifier, long tax, SequenceOrigin origin, String header) {
+        this.identifier = identifier;
+        this.tax = tax;
+        this.origin = origin;
+        this.full_lineage = new ArrayList<Long>();
+        this.ranked_lineage = new Long[0];
+        this.header = header;
+    }
 
-	public TargetProperty() {
+    public TargetProperty(String identifier, long tax, SequenceOrigin origin, ArrayList<Long> full_lineage, Long[] ranked_lineage) {
+        this.identifier = identifier;
+        this.tax = tax;
+        this.origin = origin;
+        this.full_lineage = full_lineage;
+        this.ranked_lineage = ranked_lineage;
+    }
 
-	}
+    public TargetProperty() {
 
-	public String getIdentifier() {
-		return identifier;
-	}
+    }
 
-	public void setIdentifier(String identifier) {
-		this.identifier = identifier;
-	}
+    public String getIdentifier() {
+        return identifier;
+    }
 
-	public long getTax() {
-		return tax;
-	}
+    public void setIdentifier(String identifier) {
+        this.identifier = identifier;
+    }
 
-	public void setTax(long tax) {
-		this.tax = tax;
-	}
+    public long getTax() {
+        return tax;
+    }
 
-	public SequenceOrigin getOrigin() {
-		return origin;
-	}
+    public void setTax(long tax) {
+        this.tax = tax;
+    }
 
-	public void setOrigin(SequenceOrigin origin) {
-		this.origin = origin;
-	}
+    public SequenceOrigin getOrigin() {
+        return origin;
+    }
 
-	public ArrayList<Long> getFull_lineage() {
-		return full_lineage;
-	}
+    public void setOrigin(SequenceOrigin origin) {
+        this.origin = origin;
+    }
 
-	public void setFull_lineage(ArrayList<Long> full_lineage) {
-		this.full_lineage = full_lineage;
-	}
+    public ArrayList<Long> getFull_lineage() {
+        return full_lineage;
+    }
 
-	public Long[] getRanked_lineage() {
-		return ranked_lineage;
-	}
+    public void setFull_lineage(ArrayList<Long> full_lineage) {
+        this.full_lineage = full_lineage;
+    }
 
-	public void setRanked_lineage(Long[] ranked_lineage) {
-		this.ranked_lineage = ranked_lineage;
-	}
+    public Long[] getRanked_lineage() {
+        return ranked_lineage;
+    }
+
+    public void setRanked_lineage(Long[] ranked_lineage) {
+        this.ranked_lineage = ranked_lineage;
+    }
 
 
+    public String getHeader() {
+        return header;
+    }
 
+    public void setHeader(String header) {
+        this.header = header;
+    }
 }

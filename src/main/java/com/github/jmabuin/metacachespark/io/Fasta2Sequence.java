@@ -32,10 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by chema on 3/28/17.
@@ -44,10 +41,10 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
 
 
     private static final Log LOG = LogFactory.getLog(Fasta2Sequence.class);
-    private HashMap<String, Long> sequ2taxid;
+    private TreeMap<String, Long> sequ2taxid;
     private HashMap<String, Integer> targets_positions;
 
-    public Fasta2Sequence(HashMap<String, Long> sequ2taxid, HashMap<String, Integer> targets_positions) {
+    public Fasta2Sequence(TreeMap<String, Long> sequ2taxid, HashMap<String, Integer> targets_positions) {
         this.sequ2taxid = sequ2taxid;
         this.targets_positions = targets_positions;
     }

@@ -44,9 +44,9 @@ import java.util.*;
  * Main class for the Database construction and storage in HDFS (Build mode), and also to load it from HDFS (Query mode)
  * @author Jose M. Abuin
  */
-public class Database implements Serializable{
+public class DatabaseOld implements Serializable{
 
-    private static final Log LOG = LogFactory.getLog(Database.class);
+    private static final Log LOG = LogFactory.getLog(DatabaseOld.class);
 
     //private Random urbg_;
     //private Sketcher targetSketcher_;
@@ -89,7 +89,7 @@ public class Database implements Serializable{
     private SQLContext sqlContext;
 
 
-    public Database(JavaSparkContext jsc, TaxonomyParam taxonomyParam, MetaCacheOptions params, int numPartitions, String dbfile) {
+    public DatabaseOld(JavaSparkContext jsc, TaxonomyParam taxonomyParam, MetaCacheOptions params, int numPartitions, String dbfile) {
         this.jsc = jsc;
         this.taxonomyParam = taxonomyParam;
         this.numPartitions = numPartitions;
@@ -112,7 +112,7 @@ public class Database implements Serializable{
      * @param dbFile
      * @param params
      */
-    public Database(JavaSparkContext jsc, String dbFile, MetaCacheOptions params) {
+    public DatabaseOld(JavaSparkContext jsc, String dbFile, MetaCacheOptions params) {
 
         LOG.info("Loading database from HDFS...");
         this.jsc = jsc;
@@ -830,9 +830,9 @@ public class Database implements Serializable{
                 }
             }
 
-/*
+
             //ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
-            Map<String, Long> infiles_lengths = Database.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
+            Map<String, Long> infiles_lengths = DatabaseOld.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
                     0, this.jsc), false);
 
             HashMap<String, Integer> partitions_map = new HashMap<String, Integer>();
@@ -863,7 +863,7 @@ public class Database implements Serializable{
 
             JavaPairRDD<String, Long> sequences_lengths_rdd = tmpInput.keys().mapPartitionsToPair(new Fasta2SequenceProperties());
 
-            Map<String, Long> sequences_lengths = Database.sortByComparator(sequences_lengths_rdd
+            Map<String, Long> sequences_lengths = DatabaseOld.sortByComparator(sequences_lengths_rdd
                     .collectAsMap(), false);
 
             HashMap<Long, Integer> sequences_distribution = new HashMap<>();
@@ -888,15 +888,9 @@ public class Database implements Serializable{
                     .partitionBy(new MyCustomPartitionerSequenceID(this.numPartitions, sequences_distribution))
                     .values()
                     .persist(StorageLevel.MEMORY_ONLY_SER());
-*/
-
-            this.inputSequences = this.jsc.parallelize(infiles, repartition_files)
-                    .mapPartitionsToPair(new Fasta2SequencePair(sequ2taxid, this.targets_positions), true)
-                    .repartition(this.numPartitions)
-                    .values()
-                    .persist(StorageLevel.MEMORY_ONLY_SER());
 
             LOG.warn("Number of input sequences: " + this.inputSequences.count());
+            tmpInput.unpersist();
 
             this.targetPropertiesJavaRDD = this.inputSequences
                     .map(new Sequence2TargetProperty())
@@ -914,29 +908,29 @@ public class Database implements Serializable{
 
                 //if (target.getTax() == 0) { // Target is unranked. Rank it!
 
-                    target.setTax(j);
+                target.setTax(j);
 
 
-                    String seqId  = extraction.extract_accession_string(target.getHeader());
-                    String fileId = extraction.extract_accession_string(FilenameUtils.getName(target.getOrigin().getFilename()));
+                String seqId  = extraction.extract_accession_string(target.getHeader());
+                String fileId = extraction.extract_accession_string(FilenameUtils.getName(target.getOrigin().getFilename()));
 
-                    long parentTaxId = this.find_taxon_id(sequ2taxid, seqId);
+                long parentTaxId = this.find_taxon_id(sequ2taxid, seqId);
 
-                    if (parentTaxId == 0) {
-                        parentTaxId = this.find_taxon_id(sequ2taxid, fileId);
-                    }
+                if (parentTaxId == 0) {
+                    parentTaxId = this.find_taxon_id(sequ2taxid, fileId);
+                }
 
-                    if (parentTaxId == 0) {
+                if (parentTaxId == 0) {
 
-                        parentTaxId = extraction.extract_taxon_id(target.getHeader());
-                    }
+                    parentTaxId = extraction.extract_taxon_id(target.getHeader());
+                }
 
 
 
-                    this.taxa_.getTaxa_().put(j, new Taxon(j, parentTaxId, target.getIdentifier(), Taxonomy.Rank.Sequence));
+                this.taxa_.getTaxa_().put(j, new Taxon(j, parentTaxId, target.getIdentifier(), Taxonomy.Rank.Sequence));
 
-                    //this.taxa_.getTaxa_().put(j, new Taxon(j, 0, target.getIdentifier(), Taxonomy.Rank.Sequence));
-                    //--j;
+                //this.taxa_.getTaxa_().put(j, new Taxon(j, 0, target.getIdentifier(), Taxonomy.Rank.Sequence));
+                //--j;
                 //}
                 this.name2tax_.put(target.getIdentifier(), (long)i);
                 i++;
@@ -1088,7 +1082,7 @@ public class Database implements Serializable{
             }
 
             //ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
-            Map<String, Long> infiles_lengths = Database.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
+            Map<String, Long> infiles_lengths = DatabaseOld.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
                     0, this.jsc), false);
 
             HashMap<String, Integer> partitions_map = new HashMap<String, Integer>();
@@ -1097,36 +1091,37 @@ public class Database implements Serializable{
             int partition_pos = 0;
             for (String current_key: infiles_lengths.keySet()) {
 
-                //if(!current_key.equals("assembly_summary.txt")){
-                    partitions_map.put(current_key, current_partition);
+                partitions_map.put(current_key, current_partition);
 
+                /*if (partition_pos < 65) {
+                    LOG.info("Current file: " + current_key + " into partition " + current_partition);
+                    partition_pos++;
+                }*/
 
-                    current_partition++;
+                current_partition++;
 
-                    if (current_partition >= this.numPartitions) {
-                        current_partition = 0;
-                    }
-                //}
-
+                if (current_partition >= this.numPartitions) {
+                    current_partition = 0;
+                }
 
             }
 
             infiles_lengths.clear();
             infiles_lengths = null;
 
-            JavaRDD<String> tmpInput = this.jsc.parallelize(infiles, repartition_files)
+            JavaPairRDD<String, Long> tmpInput = this.jsc.parallelize(infiles, repartition_files)
                     .zipWithIndex()
                     .partitionBy(new MyCustomPartitionerStr(this.numPartitions, partitions_map))
-                    .keys()
+                    //.keys()
                     .persist(StorageLevel.MEMORY_ONLY_SER());
 
 
             //LOG.info("Number of partitioned files: " + tmpInput.count());
 
-            JavaPairRDD<String, Long> sequences_lengths_rdd = tmpInput.mapPartitionsToPair(new Fasta2SequenceProperties());
+            JavaPairRDD<String, Long> sequences_lengths_rdd = tmpInput.keys().mapPartitionsToPair(new Fasta2SequenceProperties());
 
-            Map<String, Long> sequences_lengths = Database.sortByComparator(sequences_lengths_rdd
-                        .collectAsMap(), false);
+            Map<String, Long> sequences_lengths = DatabaseOld.sortByComparator(sequences_lengths_rdd
+                    .collectAsMap(), false);
 
             HashMap<Long, Integer> sequences_distribution = new HashMap<>();
 
@@ -1143,14 +1138,14 @@ public class Database implements Serializable{
             }
 
             this.inputSequences = tmpInput
-                    //.keys()
+                    .keys()
                     .mapPartitionsToPair(new Fasta2SequencePair(sequ2taxid, this.targets_positions), true)
                     .partitionBy(new MyCustomPartitionerSequenceID(this.numPartitions, sequences_distribution))
                     .values()
                     .persist(StorageLevel.MEMORY_ONLY_SER());
 
             LOG.warn("Number of input sequences: " + this.inputSequences.count());
-            //tmpInput.unpersist();
+            tmpInput.unpersist();
 
 
 

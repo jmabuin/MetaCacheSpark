@@ -26,6 +26,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
 import java.util.TreeMap;
 
@@ -59,11 +60,23 @@ public class MetaCacheSpark implements Serializable {
             sparkConf.set("spark.io.compression.codec", "snappy");
             sparkConf.set("spark.sql.parquet.compression.codec", "snappy");
 
+            sparkConf.set("spark.driver.maxResultSize", "2g");
+
             // Kryo serializer
             sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
-            sparkConf.set("spark.kryoserializer.buffer.max","1024m");
+            sparkConf.set("spark.kryoserializer.buffer.max","2047m");
 
-            Class[] serializedClasses = {Location.class, Sketch.class, TreeMap.class, LocationBasic.class, MatchCandidate.class, List.class};
+            Class[] serializedClasses = {Location.class,
+                    Sketch.class,
+                    TreeMap.class,
+                    HashMap.class,
+                    LocationBasic.class,
+                    MatchCandidate.class,
+                    List.class,
+                    Integer.class,
+                    String.class,
+                    Long.class
+            };
             sparkConf.registerKryoClasses(serializedClasses);
 
 
