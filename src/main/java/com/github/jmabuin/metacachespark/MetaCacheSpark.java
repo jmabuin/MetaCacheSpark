@@ -82,7 +82,7 @@ public class MetaCacheSpark implements Serializable {
 
             //The ctx is created from the previous config
             JavaSparkContext ctx = new JavaSparkContext(sparkConf);
-            ctx.setCheckpointDir("checkpointing/");
+            //ctx.setCheckpointDir("checkpointing/");
             //ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
 
             LOG.info("Using Spark :: " + ctx.version());

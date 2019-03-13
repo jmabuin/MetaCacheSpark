@@ -237,6 +237,7 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
         CandidateGenerationRules rules = new CandidateGenerationRules();
         rules.setMaxWindowsInRange((int)num_windows);
 
+        rules.setMaxCandidates(this.options.getProperties().getMaxCandidates());
         //rules.setMaxWindowsInRange(numWindows);
 
         if(all_hits.isEmpty()) {
@@ -378,7 +379,7 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
                 (best.getHits() - this.options.getProperties().getHitsMin()) *
                         this.options.getProperties().getHitsDiffFraction() : 0;
 
-        for (int i = 0; i < best_hits.size(); ++i) {
+        for (int i = 0; i < best_hits.size() && i < rules.getMaxCandidates(); ++i) {
             MatchCandidate current_entry = best_hits.get(i);
 
 

@@ -83,6 +83,8 @@ public class MetaCacheProperties implements Serializable {
 
     private String sequ2taxonPreFile;               // Additional file with query -> ground truth mapping
 
+    private long maxCandidates          = Long.MAX_VALUE;
+
     private String taxpostmapValue 	= "";
 
     private Taxonomy.Rank removeAmbigFeaturesOnRank = Taxonomy.Rank.none;
@@ -127,6 +129,8 @@ public class MetaCacheProperties implements Serializable {
         this.sequ2taxonPreFile = properties.getProperty("sequ2taxonPreFile");
 
         this.taxpostmapValue = properties.getProperty("taxpostmap");
+
+        this.maxCandidates = Long.parseLong(properties.getProperty("maxCandidates"));
 
         this.removeAmbigFeaturesOnRank = Taxonomy.rank_from_name(properties.getProperty("remove_ambig_features"));
 
@@ -289,4 +293,11 @@ public class MetaCacheProperties implements Serializable {
         return hitsDiffFraction;
     }
 
+    public long getMaxCandidates() {
+        return maxCandidates;
+    }
+
+    public void setMaxCandidates(long maxCandidates) {
+        this.maxCandidates = maxCandidates;
+    }
 }
