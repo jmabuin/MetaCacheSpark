@@ -31,15 +31,15 @@ import java.util.*;
  * Created by chema on 1/16/17.
  */
 //public class Sketcher2Pair implements FlatMapFunction<Iterator<Sequence>,HashMap<Integer, ArrayList<LocationBasic>>> {
-public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequence>, HashMultiMapNative> {
-
+//public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequence>, HashMultiMapNative> {
+public class Sketcher2PairPartitions2 implements PairFlatMapFunction<Iterator<Sequence>, Integer, LocationBasic> {
     private static final Log LOG = LogFactory.getLog(Sketcher2PairPartitions.class);
 
     private TreeMap<String, Long> sequencesIndexes;
     private int firstEmptyPosition;
 
 
-    public Sketcher2PairPartitions(TreeMap<String, Long> sequencesIndexes) {
+    public Sketcher2PairPartitions2(TreeMap<String, Long> sequencesIndexes) {
 
         this.sequencesIndexes = sequencesIndexes;
         //this.firstEmptyPosition = 0;
@@ -47,10 +47,10 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
     }
 
     @Override
-    public Iterator<HashMultiMapNative> call(Iterator<Sequence> inputSequences){
+    public Iterator<Tuple2<Integer, LocationBasic>> call(Iterator<Sequence> inputSequences){
 
 
-        ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
+        ArrayList<Tuple2<Integer, LocationBasic>> returnedValues = new ArrayList<Tuple2<Integer, LocationBasic>>();
         HashMultiMapNative map = new HashMultiMapNative(254);
 
         int currentStart;
@@ -132,7 +132,17 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
         //LOG.warn("Number of items in this partial map is: " + map.size());
         //LOG.warn("Number of deleted features: " + total_deleted);
 
-        returnedValues.add(map);
+        for (int key : map.keys()) {
+
+            for(LocationBasic loc: map.get_locations(key)) {
+                returnedValues.add(new Tuple2<Integer, LocationBasic>(key, loc));
+            }
+
+            map.clear_key(key);
+
+        }
+
+        map.clear();
 
 
         return returnedValues.iterator();

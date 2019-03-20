@@ -66,7 +66,7 @@ public class Sketcher2HashMultiMapNative implements Function2<Integer, Iterator<
 
 		ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
 
-		HashMultiMapNative map = new HashMultiMapNative();
+		HashMultiMapNative map = new HashMultiMapNative(254);
 
 		returnedValues.add(map);
 

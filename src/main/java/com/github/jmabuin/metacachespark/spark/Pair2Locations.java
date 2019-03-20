@@ -37,10 +37,20 @@ public class Pair2Locations implements PairFlatMapFunction<Iterator<Tuple2<Integ
 
     @Override
     public Iterator<Tuple2<Integer, LocationBasic>> call(Iterator<Tuple2<Integer,LocationBasic>> tuple2Iterator) throws Exception {
+
+
+/*
+        while(tuple2Iterator.hasNext()) {
+            Tuple2<Integer, LocationBasic> currentItem = tuple2Iterator.next();
+            returnedValues.add(new Tuple2<Integer, LocationBasic>(currentItem._2().getTargetId(), new LocationBasic(currentItem._1(),
+                    currentItem._2().getWindowId())));
+        }
+
+        return returnedValues.iterator();
+*/
 /*
         List<Tuple2<Integer, LocationBasic>> returnedValues = new ArrayList<Tuple2<Integer, LocationBasic>>();
-
-        HashMultiMapNative map = new HashMultiMapNative();
+        HashMultiMapNative map = new HashMultiMapNative(254);
 
         while(tuple2Iterator.hasNext()) {
             Tuple2<Integer, LocationBasic> currentItem = tuple2Iterator.next();
@@ -77,7 +87,7 @@ public class Pair2Locations implements PairFlatMapFunction<Iterator<Tuple2<Integ
         LOG.warn("Map totally cleared");
 
         return returnedValues.iterator();
-        */
+*/
 
         List<Tuple2<Integer, LocationBasic>> returnedValues = new ArrayList<Tuple2<Integer, LocationBasic>>();
 

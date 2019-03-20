@@ -27,7 +27,7 @@ public class Locations2HashMapNativeIndexed implements Function2<Integer, Iterat
 
         ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
 
-        HashMultiMapNative map = new HashMultiMapNative();
+        HashMultiMapNative map = new HashMultiMapNative(254);
 
         /*tuple2Iterator.forEachRemaining(new Consumer<Location>() {
             @Override

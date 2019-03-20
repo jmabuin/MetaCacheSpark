@@ -741,8 +741,6 @@ public class Database implements Serializable{
     public void buildDatabaseMultiPartitions(String inputdir, TreeMap<String, Long> sequ2taxid, Build.build_info infoMode) {
         try {
 
-            //this.name2tax_ = sequ2taxid;
-
             this.inputSequences = null;
             //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
 
@@ -757,7 +755,6 @@ public class Database implements Serializable{
             }
 
             int current_target = 0;
-
 
             ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
 
@@ -794,12 +791,6 @@ public class Database implements Serializable{
             }
 
             else {
-/*
-                List<String> sequences = this.jsc.textFile(inputdir+"/*", repartition_files)
-                        .filter(item -> item.startsWith(">"))
-                        .map(item -> item.substring(1))
-                        .collect();
-*/
 
                 StringBuilder all_files = new StringBuilder();
 
@@ -830,7 +821,6 @@ public class Database implements Serializable{
                 }
             }
 
-/*
             //ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
             Map<String, Long> infiles_lengths = Database.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
                     0, this.jsc), false);
@@ -838,30 +828,36 @@ public class Database implements Serializable{
             HashMap<String, Integer> partitions_map = new HashMap<String, Integer>();
 
             int current_partition = 0;
-
+            int partition_pos = 0;
             for (String current_key: infiles_lengths.keySet()) {
 
+                //if(!current_key.equals("assembly_summary.txt")){
                 partitions_map.put(current_key, current_partition);
+
 
                 current_partition++;
 
                 if (current_partition >= this.numPartitions) {
                     current_partition = 0;
                 }
+                //}
+
 
             }
 
             infiles_lengths.clear();
             infiles_lengths = null;
 
-            JavaPairRDD<String, Long> tmpInput = this.jsc.parallelize(infiles, repartition_files)
+            JavaRDD<String> tmpInput = this.jsc.parallelize(infiles, repartition_files)
                     .zipWithIndex()
                     .partitionBy(new MyCustomPartitionerStr(this.numPartitions, partitions_map))
+                    .keys()
                     .persist(StorageLevel.MEMORY_ONLY_SER());
 
 
+            //LOG.info("Number of partitioned files: " + tmpInput.count());
 
-            JavaPairRDD<String, Long> sequences_lengths_rdd = tmpInput.keys().mapPartitionsToPair(new Fasta2SequenceProperties());
+            JavaPairRDD<String, Long> sequences_lengths_rdd = tmpInput.mapPartitionsToPair(new Fasta2SequenceProperties());
 
             Map<String, Long> sequences_lengths = Database.sortByComparator(sequences_lengths_rdd
                     .collectAsMap(), false);
@@ -880,23 +876,17 @@ public class Database implements Serializable{
 
             }
 
-
-            // This implementation works in 800 seconds
             this.inputSequences = tmpInput
-                    .keys()
+                    //.keys()
                     .mapPartitionsToPair(new Fasta2SequencePair(sequ2taxid, this.targets_positions), true)
                     .partitionBy(new MyCustomPartitionerSequenceID(this.numPartitions, sequences_distribution))
                     .values()
                     .persist(StorageLevel.MEMORY_ONLY_SER());
-*/
-
-            this.inputSequences = this.jsc.parallelize(infiles, repartition_files)
-                    .mapPartitionsToPair(new Fasta2SequencePair(sequ2taxid, this.targets_positions), true)
-                    .repartition(this.numPartitions)
-                    .values()
-                    .persist(StorageLevel.MEMORY_ONLY_SER());
 
             LOG.warn("Number of input sequences: " + this.inputSequences.count());
+            //tmpInput.unpersist();
+
+
 
             this.targetPropertiesJavaRDD = this.inputSequences
                     .map(new Sequence2TargetProperty())
@@ -1206,6 +1196,7 @@ public class Database implements Serializable{
 
 
             JavaPairRDD<Integer, LocationBasic> tmp_rdd = this.inputSequences
+                    //.mapPartitionsToPair(new Sketcher2PairPartitions2(this.name2tax_), true)
                     .flatMapToPair(new Sketcher2Pair(this.name2tax_))
                     .partitionBy(new MyCustomPartitioner(this.numPartitions))
                     .mapPartitionsToPair(new Pair2Locations(), true)

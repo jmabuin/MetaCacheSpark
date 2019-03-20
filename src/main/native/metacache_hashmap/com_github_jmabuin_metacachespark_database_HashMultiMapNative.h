@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     com_github_jmabuin_metacachespark_database_HashMultiMapNative
  * Method:    init
- * Signature: ()I
+ * Signature: (I)I
  */
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_init
-  (JNIEnv *, jobject);
+  (JNIEnv *, jobject, jint);
 
 /*
  * Class:     com_github_jmabuin_metacachespark_database_HashMultiMapNative

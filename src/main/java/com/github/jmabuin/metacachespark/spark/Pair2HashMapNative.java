@@ -43,7 +43,7 @@ public class Pair2HashMapNative implements Function2<Integer, Iterator<Tuple2<In
 
         ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
 
-        HashMultiMapNative map = new HashMultiMapNative();
+        HashMultiMapNative map = new HashMultiMapNative(254);
 
         while(tuple2Iterator.hasNext()) {
             Tuple2<Integer, LocationBasic> currentItem = tuple2Iterator.next();

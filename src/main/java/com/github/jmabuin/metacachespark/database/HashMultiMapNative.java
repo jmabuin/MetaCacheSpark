@@ -32,7 +32,7 @@ public class HashMultiMapNative implements Serializable {
 
     private static final Log LOG = LogFactory.getLog(HashMultiMapNative.class);
 
-    public HashMultiMapNative() {
+    public HashMultiMapNative(int max_size) {
 
         try {
             NativeUtils.loadLibraryFromJar("/libmetacache.so");
@@ -46,10 +46,10 @@ public class HashMultiMapNative implements Serializable {
             LOG.warn("Error!! Could not load the native library!! : "+e.getMessage());
         }
 
-        this.init();
+        this.init(max_size);
     }
 
-    private native int init();
+    private native int init(int number);
     public native int add(int key, int value1, int value2);
     public native int[] get(int key);
     public native int[] keys();

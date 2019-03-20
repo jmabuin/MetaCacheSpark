@@ -60,7 +60,7 @@ public class ReadHashMapNative implements Function2<Integer, Iterator<String>, I
 
                 LOG.info("Processing file to insert into native hashmap: " + filename+" <> "+onlyFileName);
 
-                HashMultiMapNative newMap = new HashMultiMapNative();
+                HashMultiMapNative newMap = new HashMultiMapNative(254);
 
                 fs.copyToLocalFile(new Path(filename), new Path(onlyFileName));
 

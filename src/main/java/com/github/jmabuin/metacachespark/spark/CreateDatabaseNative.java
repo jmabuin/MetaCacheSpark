@@ -51,7 +51,7 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
     public Iterator<HashMultiMapNative> call(Iterator<Integer> executor_id){
 
         ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
-        HashMultiMapNative map = new HashMultiMapNative();
+        HashMultiMapNative map = new HashMultiMapNative(254);
 
         //long sequence_number = 0;
 

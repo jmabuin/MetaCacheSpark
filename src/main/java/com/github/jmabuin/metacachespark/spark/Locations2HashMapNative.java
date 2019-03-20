@@ -38,7 +38,7 @@ public class Locations2HashMapNative implements FlatMapFunction<Iterator<Tuple2<
 
         ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
 
-        HashMultiMapNative map = new HashMultiMapNative();
+        HashMultiMapNative map = new HashMultiMapNative(254);
 
         while(inputLocations.hasNext()) {
             Tuple2<Integer, LocationBasic> current = inputLocations.next();

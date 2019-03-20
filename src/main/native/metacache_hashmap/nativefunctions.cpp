@@ -31,6 +31,7 @@
 //HashMultiMap *map;
 std::unordered_map<unsigned, std::vector<location>> *map = nullptr;
 std::set<unsigned> marked_for_deletion;
+int max_locations;
 
 size_t add_to_map(unsigned key, location loc) {
 
@@ -38,11 +39,11 @@ size_t add_to_map(unsigned key, location loc) {
 
         if (sid != map->end()) {
             //if(std::find(v.begin(), v.end(), x) != v.end()) {
-            if ((sid->second.size() < 254) && (std::find(sid->second.begin(), sid->second.end(), loc) == sid->second.end())) {
+            if ((sid->second.size() < max_locations) && (std::find(sid->second.begin(), sid->second.end(), loc) == sid->second.end())) {
                 sid->second.insert(std::upper_bound( sid->second.begin(), sid->second.end(), loc ), loc);
                 //sid->second.push_back(loc);
             }
-            else if ((sid->second.size() >= 254) && (std::find(sid->second.begin(), sid->second.end(), loc) == sid->second.end())) {
+            else if ((sid->second.size() >= max_locations) && (std::find(sid->second.begin(), sid->second.end(), loc) == sid->second.end())) {
 
                 //marked_for_deletion.insert(key);
                 std::vector<location>::iterator pos = std::upper_bound( sid->second.begin(), sid->second.end(), loc );
@@ -50,7 +51,7 @@ size_t add_to_map(unsigned key, location loc) {
                 if (pos != sid->second.end()) {
 
                     sid->second.insert(pos, loc);
-                    sid->second.resize(254);
+                    sid->second.resize(max_locations);
                 }
 
 
@@ -138,14 +139,17 @@ void deserialize(std::istream& is) {
 
 
 
-JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_init (JNIEnv *env, jobject jobj) {
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_init (JNIEnv *env, jobject jobj, jint max_size) {
 
     //map = new HashMultiMap();
     if (map != nullptr) {
         map->clear();
     }
-    map = new std::unordered_map<unsigned, std::vector<location>>();
+    else {
+        map = new std::unordered_map<unsigned, std::vector<location>>();
+    }
 
+    max_locations = (int) max_size;
     return 1;
 }
 
