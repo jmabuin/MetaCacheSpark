@@ -52,7 +52,7 @@ public class MetaCacheSpark implements Serializable {
             SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Build");
 
             //sparkConf.set("spark.sql.parquet.mergeSchema", "false");
-            sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
+            //sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
             sparkConf.set("spark.memory.useLegacyMode","true");
             sparkConf.set("spark.storage.memoryFraction", "0.2");
 
@@ -82,10 +82,11 @@ public class MetaCacheSpark implements Serializable {
 
             //The ctx is created from the previous config
             JavaSparkContext ctx = new JavaSparkContext(sparkConf);
+            ctx.setLogLevel("WARN");
             //ctx.setCheckpointDir("checkpointing/");
             //ctx.hadoopConfiguration().set("parquet.enable.summary-metadata", "false");
 
-            LOG.info("Using Spark :: " + ctx.version());
+            LOG.warn("Using Spark :: " + ctx.version());
 
             Build buildObject = new Build(newOptions, ctx);
 
@@ -93,7 +94,7 @@ public class MetaCacheSpark implements Serializable {
 
             long endTime = System.nanoTime();
 
-            LOG.info("End of program. Total time: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("[BUILD] End of program with " + newOptions.getPartitions() + " DB: " + newOptions.getDbfile() + ". Total time: " + ((endTime - initTime) / 1e9) + " seconds");
 
             ///ctx.close();
         }
@@ -101,7 +102,7 @@ public class MetaCacheSpark implements Serializable {
             SparkConf sparkConf = new SparkConf().setAppName("MetaCacheSpark - Query");
 
             //sparkConf.set("spark.sql.parquet.mergeSchema", "false");
-            sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
+            //sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
             //sparkConf.set("spark.memory.useLegacyMode","true");
             //sparkConf.set("spark.storage.memoryFraction", "0.3");
 
@@ -151,7 +152,7 @@ public class MetaCacheSpark implements Serializable {
 
             long endTime = System.nanoTime();
 
-            LOG.warn("End of program. Total time: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("[QUERY] End of program for " + newOptions.getOutfile() + ". Total time: " + ((endTime - initTime) / 1e9) + " seconds");
         }
         else {
             System.out.println("Not recognized option");

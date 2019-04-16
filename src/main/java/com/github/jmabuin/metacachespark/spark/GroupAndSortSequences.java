@@ -1,73 +1,90 @@
-/**
- * Copyright 2019 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
- *
- * <p>This file is part of MetaCacheSpark.
- *
- * <p>MetaCacheSpark is free software: you can redistribute it and/or modify it under the terms of the GNU
- * General Public License as published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * <p>MetaCacheSpark is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * <p>You should have received a copy of the GNU General Public License along with MetaCacheSpark. If not,
- * see <http://www.gnu.org/licenses/>.
- */
+package com.github.jmabuin.metacachespark.spark;
 
-package com.github.jmabuin.metacachespark.io;
-
+import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.Sequence;
+import com.github.jmabuin.metacachespark.io.ExtractionFunctions;
+import com.github.jmabuin.metacachespark.io.Fasta2Sequence;
+import com.google.common.collect.Lists;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.Text;
-import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
-//import org.bdgenomics.formats.avro.AlignmentRecord;
-import scala.Function1;
 import scala.Tuple2;
 
-import org.apache.hadoop.conf.Configuration;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.*;
+public class GroupAndSortSequences implements Function<Tuple2<String, Iterable<Tuple2<Long, String>>>, Sequence> {
 
-/**
- * Created by chema on 3/28/17.
- */
-public class Fasta2SequenceInputFormat implements Function<PartialSequence, Sequence> {
-
-
-    private static final Log LOG = LogFactory.getLog(Fasta2Sequence.class);
+    private static final Log LOG = LogFactory.getLog(GroupAndSortSequences.class);
     private HashMap<String, Integer> targets_positions;
 
-    public Fasta2SequenceInputFormat(HashMap<String, Integer> targets_positions) {
+
+    public GroupAndSortSequences(HashMap<String, Integer> targets_positions) {
         this.targets_positions = targets_positions;
     }
-
     @Override
-    public Sequence call(PartialSequence r1) {
+    public Sequence call(Tuple2<String, Iterable<Tuple2<Long, String>>> input) {
+
+        String file_name = input._1;
+
+        List<Tuple2<Long, String>> input_list = Lists.newArrayList(input._2);
+
+        input_list.sort(new Comparator<Tuple2<Long, String>>() {
+            public int compare(Tuple2<Long, String> o1,
+                               Tuple2<Long, String> o2)
+            {
+
+                if (o1._1 > o2._1) {
+                    return 1;
+                }
+
+                if (o1._1 < o2._1) {
+                    return -1;
+                }
+
+                return 0;
+
+            }
+        });
+
+
+        if (input_list.size()==0) {
+            LOG.error("List size is zero!!");
+            return null;
+        }
+
+        if (!input_list.get(0)._2.startsWith(">")) {
+            LOG.error("The FASTA sequence does not starts with the correct character > !!");
+            return null;
+        }
 
 
         ExtractionFunctions extraction = new ExtractionFunctions();
 
-        String header = r1.getHeader();//partial_sequence.toString().replace(">", "");
-        String otherheader = r1.getKey();
-        LOG.warn("Header is: " + header + ", and other is: " + otherheader);
+        String[] sequence_items_first = input_list.get(0)._2.split("\n");
 
-        String value = r1.getValue();
+        String header = sequence_items_first[0].replace(">", "");
+
+        StringBuilder str_builder = new StringBuilder();
+
+        for(int i = 1; i< sequence_items_first.length; ++i) {
+            str_builder.append(sequence_items_first[i]);
+
+        }
+
+        for(int i = 1; i< input_list.size(); ++i) {
+
+            str_builder.append(input_list.get(i)._2.replace("\n", ""));
+
+        }
 
         long index = this.targets_positions.get(header);
 
 
-        Sequence currentSequence = new Sequence(index, header, r1.getValue(), "", "");
+        Sequence currentSequence = new Sequence(index, header, str_builder.toString(), "", file_name);
 
 
 
@@ -116,16 +133,8 @@ public class Fasta2SequenceInputFormat implements Function<PartialSequence, Sequ
         return currentSequence;
 
 
-    }
-
-    private boolean isSequenceFilename(String filename) {
-
-        if (filename.endsWith(".fna") || filename.endsWith(".fa") || filename.endsWith(".fq") || filename.endsWith(".fastq") || filename.endsWith(".fasta")){
-            return true;
-        }
-        return false;
-
 
     }
+
 
 }

@@ -23,7 +23,7 @@ import java.io.*;
  * Class that represents a Taxon from a Taxonomy
  * @author Jose M. Abuin
  */
-public class Taxon implements Serializable {
+public class Taxon implements Serializable {//, Comparable<Taxon> {
 
     private long taxonId;
     private long parentId;
@@ -82,7 +82,14 @@ public class Taxon implements Serializable {
 
 		return taxonId == taxon.taxonId;
 	}*/
-
+/*
+    @Override
+    public int compareTo(Taxon other) {
+        if(this.getTaxonId() == other.getTaxonId()) return 0;
+        if(this.getTaxonId() > other.getTaxonId()) return 1;
+        return -1;
+    }
+*/
     /**
      * Function to check if two Taxons are equals. We do it by checking its IDs
      * @param o The other Taxon

@@ -75,6 +75,12 @@ public class MatchesInWindowList implements Serializable {
 
         }
 
+        this.best = null;
+
+        if (this.top_list.size() > 0) {
+            this.best = this.top_list.get(0);
+        }
+
     }
     /*
         public MatchesInWindowList(List<LocationBasic> matches, int numWindows, List<TargetProperty> targets_, Taxonomy taxa_, MetaCacheOptions options) {

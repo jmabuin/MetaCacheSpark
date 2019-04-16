@@ -2,7 +2,7 @@
 #include "string_utils.h"
 
 #include <string>
-
+/*
 constexpr const char* accession_prefix[]
 {
     "GCF_",
@@ -15,6 +15,40 @@ constexpr const char* accession_prefix[]
     "HE",
     "JH"
 };
+
+"GCF_",
+    "AC_",
+    "NC_", "NG_", "NS_", "NT_", "NW_", "NZ_",
+    // "AEMK",
+    // "CCMK",
+    // "FPKY",
+    "MKHE",
+    "AE", "AJ", "AL", "AM", "AP", "AY",
+    "BA", "BK", "BX",
+    "CC", "CM", "CP", "CR", "CT", "CU",
+    "FM", "FN", "FO", "FP", "FQ", "FR",
+    "HE",
+    "JH"
+*/
+
+constexpr const char* accession_prefix[]
+{
+    "GCF_",
+        "AC_",
+        "NC_", "NG_", "NS_", "NT_", "NW_", "NZ_",
+        // "AEMK",
+        // "CCMK",
+        // "FPKY",
+        "MKHE",
+        "AE", "AJ", "AL", "AM", "AP", "AY",
+        "BA", "BK", "BX",
+        "CC", "CM", "CP", "CR", "CT", "CU",
+        "FM", "FN", "FO", "FP", "FQ", "FR",
+        "HE",
+        "JH"
+};
+
+
 
 std::string::size_type end_of_accession_number(const std::string& text, std::string::size_type start = 0) {
 

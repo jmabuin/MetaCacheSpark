@@ -31,6 +31,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 
 public class Query implements Serializable {
@@ -45,6 +46,7 @@ public class Query implements Serializable {
 
     private EnumModes.InputFormat inputFormat;
     private HashMap<Location, Integer> hits;
+    private ConcurrentSkipListMap<Taxon, Float> allTaxCounts;
 
     public Query(MetaCacheOptions param, JavaSparkContext jsc) {
 
@@ -77,6 +79,29 @@ public class Query implements Serializable {
         }
 
         this.hits = new HashMap<Location, Integer>();
+
+
+
+
+        this.allTaxCounts = new ConcurrentSkipListMap<Taxon, Float>(new Comparator<Taxon>() {
+            @Override
+            public int compare(Taxon taxon, Taxon t1) {
+                if(taxon.getRank().ordinal() < t1.getRank().ordinal()) {
+                    return 1;
+                }
+                else if(taxon.getRank().ordinal() > t1.getRank().ordinal()) {
+                    return -1;
+                }
+                else if(taxon.getTaxonId() < t1.getTaxonId()) {
+                    return -1;
+                }
+                else if (taxon.getTaxonId() > t1.getTaxonId()) {
+                    return 1;
+                }
+
+                return 0;
+            }
+        });
 
         this.query();
     }
@@ -249,6 +274,11 @@ public class Query implements Serializable {
 
             double speed = (60.0 * (double)numQueries) / ((double)(endTime - initTime)/1e9);
 
+            if (this.param.getAbundance_per() != Taxonomy.Rank.none) {
+                this.db.estimate_abundance(this.allTaxCounts, this.param.getAbundance_per());
+                this.show_abundance_estimates(d, stats.total());
+            }
+
             comment.append("queries:       " + numQueries + "\n");
             //comment.append("basic queries: " + stats.total()+"\n");
             comment.append("time:          " + (endTime - initTime)/1e6 + " ms\n");
@@ -263,6 +293,8 @@ public class Query implements Serializable {
                 d.write(comment.toString());
             }
 
+
+
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -272,6 +304,41 @@ public class Query implements Serializable {
 
 
     }
+
+    //-------------------------------------------------------------------
+    public void show_abundance_estimates(BufferedWriter d, long totalCount) {
+
+        StringBuffer prefix = new StringBuffer();
+
+        prefix.append("Estimated abundance (number of queries) per " + this.param.getAbundance_per().toString() + "\n");
+
+        show_abundance_table(d, prefix, totalCount);
+    }
+
+    public void show_abundance_table(BufferedWriter d, StringBuffer prefix, long totalCount) {
+
+
+        for(Map.Entry<Taxon, Float> tc : this.allTaxCounts.entrySet()) {
+            if(tc.getKey() != this.db.getTaxa_().getNoTaxon_()) {
+                prefix.append(tc.getKey().getRank().toString() + ":" + tc.getKey().getTaxonName() + "\t|\t");
+            } else {
+                prefix.append("none");
+            }
+
+            prefix.append(tc.getValue() + "\t|\t" + ((tc.getValue()/ (double)(totalCount)) * 100.0) + "%\n");
+
+        }
+
+        try {
+            d.write(prefix.toString());
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            LOG.error("IO exception error in show_abundance_table: "+e.getMessage());
+            System.exit(1);
+        }
+    }
+
 
     public void show_classification_statistics(BufferedWriter d, ClassificationStatistics stats, StringBuffer prefix) {
 
@@ -500,6 +567,8 @@ public class Query implements Serializable {
 
                     List<MatchCandidate> currentHits = hits.get(current_read);
 
+
+
                     this.process_database_answer(data.getHeader(), data.getData(),
                             data2.getData(), currentHits, d, stats);
 
@@ -515,7 +584,7 @@ public class Query implements Serializable {
 
             long endTime = System.nanoTime();
 
-            LOG.warn("Time in classify_pairs_best is: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("[QUERY] Time in classify_pairs_best for " + this.param.getOutfile() + " is: " + ((endTime - initTime) / 1e9) + " seconds");
             //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
 
         }
@@ -709,7 +778,7 @@ public class Query implements Serializable {
             this.inputFormat = EnumModes.InputFormat.FASTQ;
         //}
         //else {
-        //    reads = this.jsc.newAPIHadoopFile(pathToFile, FastaInputFormat.class, String.class, String.class, this.jsc.hadoopConfiguration());
+        //    reads = this.jsc.newAPIHadoopFile(pathToFile, FastaInputFormatBAM.class, String.class, String.class, this.jsc.hadoopConfiguration());
         //    this.inputFormat = EnumModes.InputFormat.FASTA;
         //}
 
@@ -1267,6 +1336,22 @@ public class Query implements Serializable {
             stats.assign(cls.rank());
         }
 
+
+        /*if(opt.output.makeTaxCounts && cls.best) {
+                        ++buf.taxCounts[cls.best];
+                    }*/
+        if ((this.param.getAbundance_per() != Taxonomy.Rank.none) && (cls.has_taxon() && (cls.tax() != this.db.getTaxa_().getNoTaxon_()))) {
+            Taxon best = cls.tax();
+
+            if(!this.allTaxCounts.containsKey(best)) {
+                this.allTaxCounts.put(best, 0F);
+            }
+
+            this.allTaxCounts.put(best, this.allTaxCounts.get(best) + 1);
+
+        }
+
+
         boolean showMapping = (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.all) ||
                 (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.mapped_only && !cls.none());
 
@@ -1609,7 +1694,7 @@ public class Query implements Serializable {
         //return new Classification(best, lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
         //        this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
         return new Classification(lowest_common_taxon(MatchesInWindowNative.maxNo, cand, (float) this.param.getProperties().getHitsDiff(),
-                this.param.getProperties().getLowestRank(), this.param.getProperties().getHighestRank()));
+                this.param.getProperties().getMergeBelow(), this.param.getProperties().getHighestRank()));
 
 
 
@@ -1876,7 +1961,7 @@ public class Query implements Serializable {
                                      float trustedMajority, Taxonomy.Rank lowestRank,
                                      Taxonomy.Rank highestRank) {
         if(lowestRank == null) {
-            lowestRank = Taxonomy.Rank.subSpecies;
+            lowestRank = Taxonomy.Rank.Sequence;
         }
 
         if(highestRank == null) {
@@ -1903,6 +1988,11 @@ public class Query implements Serializable {
         }
 
         //LOG.warn("Final LCA is: " + lca.getTaxonName());
+
+        while ((lowestRank.ordinal() > lca.getRank().ordinal()) && (lca.getParentId()!=0)) {
+
+            lca = this.db.getTaxa_().getTaxa_().get(lca.getParentId());
+        }
 
         return lca;
         /*

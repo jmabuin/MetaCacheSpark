@@ -17,6 +17,7 @@
 
 package com.github.jmabuin.metacachespark.spark;
 
+import com.github.jmabuin.metacachespark.database.CandidateGenerationRules;
 import com.github.jmabuin.metacachespark.database.MatchCandidate;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
@@ -41,10 +42,59 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
     @Override
     public List<MatchCandidate> call(List<MatchCandidate> v1, List<MatchCandidate> v2) {
 
-        long initTime = System.nanoTime();
+        //long initTime = System.nanoTime();
 
-        //v1.addAll(v2);
+        CandidateGenerationRules rules = new CandidateGenerationRules();
+        rules.setMaxCandidates(this.options.getProperties().getMaxCandidates());
 
+        v1.addAll(v2);
+
+        List<MatchCandidate> results = new ArrayList<>();
+
+        if (! v1.isEmpty()) {
+
+            // Sort candidates in DESCENDING order according number of hits
+            v1.sort(new Comparator<MatchCandidate>() {
+                public int compare(MatchCandidate o1,
+                                   MatchCandidate o2) {
+
+                    if (o1.getHits() < o2.getHits()) {
+                        return 1;
+                    }
+
+                    if (o1.getHits() > o2.getHits()) {
+                        return -1;
+                    }
+
+                    return 0;
+
+                }
+            });
+
+            double threshold = v1.get(0).getHits() > this.options.getProperties().getHitsMin() ?
+                    (v1.get(0).getHits() - this.options.getProperties().getHitsMin()) *
+                            this.options.getProperties().getHitsDiffFraction() : 0;
+
+
+            //for (MatchCandidate v: v1) {
+            for(int i = 0; i< v1.size() && i < rules.getMaxCandidates(); ++i) {
+
+                MatchCandidate v = v1.get(i);
+                if (v.getHits() > threshold) {
+                    results.add(v);
+                }
+                else {
+                    break;
+                }
+
+            }
+
+
+        }
+
+
+
+/*
         List<MatchCandidate> results = new ArrayList<>();
 
         long best_v1 = 0;
@@ -127,7 +177,7 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
         //long endTime = System.nanoTime();
 
         //LOG.warn("Time spent in reduction phase is: " + ((endTime - initTime) / 1e9) + " seconds");
-
+*/
         return results;
 
 }

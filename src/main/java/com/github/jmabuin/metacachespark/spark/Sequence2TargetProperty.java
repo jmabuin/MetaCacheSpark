@@ -30,11 +30,11 @@ public class Sequence2TargetProperty implements Function<Sequence, TargetPropert
 
 
 
-	@Override
-	public TargetProperty call(Sequence arg0) {
+    @Override
+    public TargetProperty call(Sequence arg0) {
 
-		return new TargetProperty(arg0.getSeqId(), arg0.getTaxid(), arg0.getSequenceOrigin(), arg0.getHeader());
-		//return new TargetProperty(arg0.getIdentifier(), sequencesIndexes.get(arg0.getIdentifier()), arg0.getSequenceOrigin());
+        return new TargetProperty(arg0.getSeqId(), arg0.getTaxid(), arg0.getSequenceOrigin(), arg0.getHeader());
+        //return new TargetProperty(arg0.getIdentifier(), sequencesIndexes.get(arg0.getIdentifier()), arg0.getSequenceOrigin());
 
-	}
+    }
 }

@@ -17,6 +17,8 @@
 
 package com.github.jmabuin.metacachespark.database;
 
+import com.github.jmabuin.metacachespark.options.MetaCacheProperties;
+
 public class CandidateGenerationRules {
 
     /*
@@ -38,6 +40,13 @@ public class CandidateGenerationRules {
         this.maxWindowsInRange = 3;
         this.maxCandidates = Long.MAX_VALUE;
         this.mergeBelow = Taxonomy.rank_from_name("sequence");
+
+    }
+
+    public CandidateGenerationRules(MetaCacheProperties properties) {
+        this.maxWindowsInRange = 3;
+        this.maxCandidates = Long.MAX_VALUE;
+        this.mergeBelow = properties.getMergeBelow();
 
     }
 

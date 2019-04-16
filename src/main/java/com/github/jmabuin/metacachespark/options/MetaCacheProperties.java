@@ -73,7 +73,7 @@ public class MetaCacheProperties implements Serializable {
     private double hitsDiffFraction         = 1.0;
     private int insertSizeMax               = 0;        // Maximum range in sequence that read (pair) is expected to be in
     private boolean weightHitsWithWindows   = false;
-
+    private Taxonomy.Rank mergeBelow        = Taxonomy.rank_from_name("sequence");
     /*
      * Analysis options
      */
@@ -116,9 +116,14 @@ public class MetaCacheProperties implements Serializable {
         this.hitsMin                 = Integer.parseInt(properties.getProperty("hitsMin"));
         this.hitsDiff                = Double.parseDouble(properties.getProperty("hitsDiff"));
         this.hitsDiffFraction        = Double.parseDouble(properties.getProperty("hitsDiffFraction"));
+
+        if(this.hitsDiffFraction > 1.0) {
+            this.hitsDiffFraction *= 0.01;
+        }
+
         this.insertSizeMax           = Integer.parseInt(properties.getProperty("insertSizeMax"));
         this.weightHitsWithWindows   = Boolean.parseBoolean("weightHitsWithWindows");
-
+        this.mergeBelow              = Taxonomy.rank_from_name(properties.getProperty("mergeBelow"));
         /*
          * Analysis options
          */
@@ -299,5 +304,9 @@ public class MetaCacheProperties implements Serializable {
 
     public void setMaxCandidates(long maxCandidates) {
         this.maxCandidates = maxCandidates;
+    }
+
+    public Taxonomy.Rank getMergeBelow() {
+        return mergeBelow;
     }
 }

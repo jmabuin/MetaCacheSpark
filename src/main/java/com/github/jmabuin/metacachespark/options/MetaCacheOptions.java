@@ -18,6 +18,7 @@
 package com.github.jmabuin.metacachespark.options;
 
 import com.github.jmabuin.metacachespark.EnumModes;
+import com.github.jmabuin.metacachespark.database.Taxonomy;
 import org.apache.commons.cli.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -63,6 +64,10 @@ public class MetaCacheOptions implements Serializable {
     private boolean paired_reads = false;
     private boolean metacache_like = false;
     private boolean metacache_like_input = false;
+    private boolean simple = false;
+    private boolean repartition = false;
+
+    private Taxonomy.Rank abundance_per = Taxonomy.Rank.none;
 
 	private String correctUse =
 			"spark-submit --class com.github.metachachespark.MetaCacheSpark MetaCacheSpark-0.3.0.jar";// [SparkBWA Options] Input.fastq [Input2.fastq] Output\n";
@@ -199,6 +204,20 @@ public class MetaCacheOptions implements Serializable {
                     this.numThreads = Integer.parseInt(cmd.getOptionValue("num_threads"));
                 }
 
+                if (cmd.hasOption('s') || cmd.hasOption("simple")) {
+                    this.simple = true;
+                }
+
+                if (cmd.hasOption('e') || cmd.hasOption("repartition")) {
+                    this.repartition = true;
+                }
+
+                //-abundance-per
+                if (cmd.hasOption('a') || cmd.hasOption("abundance_per")) {
+                    this.abundance_per = Taxonomy.rank_from_name(cmd.getOptionValue("abundance_per"));
+                    LOG.warn("Abundance per set to: " + cmd.getOptionValue("abundance_per"));
+                }
+
             }
 
 			// Get and parse the rest of the arguments
@@ -312,6 +331,15 @@ public class MetaCacheOptions implements Serializable {
 
         Option num_threads = new Option("n", "num_threads", true, "Number of threads per executor to use in the classification phase");
         privateOptions.addOption(num_threads);
+
+        Option simple = new Option("s", "simple", false, "Builds database in simple mode (only for building)");
+        privateOptions.addOption(simple);
+
+        Option repartition = new Option("e", "repartition", false, "Uses Spark repartition method to repartition sequences among executors (only for building)");
+        privateOptions.addOption(repartition);
+
+        Option abundance_per = new Option("a", "abundance_per", true, "Indicates if use the abundance estimation feature and at which level");
+        privateOptions.addOption(abundance_per);
 
 		return privateOptions;
 	}
@@ -444,5 +472,21 @@ public class MetaCacheOptions implements Serializable {
 
     public boolean isMetacache_like_input() {
         return metacache_like_input;
+    }
+
+    public boolean isSimple() {
+        return simple;
+    }
+
+    public void setSimple(boolean simple) {
+        this.simple = simple;
+    }
+
+    public boolean isRepartition() {
+        return repartition;
+    }
+
+    public Taxonomy.Rank getAbundance_per() {
+        return abundance_per;
     }
 }

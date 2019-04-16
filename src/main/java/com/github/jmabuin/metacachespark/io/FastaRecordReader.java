@@ -1,211 +1,135 @@
 /**
- * Copyright 2019 José Manuel Abuín Mosquera <josemanuel.abuin@usc.es>
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * <p>This file is part of MetaCacheSpark.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * <p>MetaCacheSpark is free software: you can redistribute it and/or modify it under the terms of the GNU
- * General Public License as published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * <p>MetaCacheSpark is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * <p>You should have received a copy of the GNU General Public License along with MetaCacheSpark. If not,
- * see <http://www.gnu.org/licenses/>.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.github.jmabuin.metacachespark.io;
+
 import java.io.IOException;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
+
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
-import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.lib.input.*;
+
+
 import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.util.LineReader;
-import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 
 /**
- * FastaRecordReader is a custom record reader for FASTA file formats.
- * Treats keys as offset in file and value as line.
+ * This class reads {@literal <key, value>} pairs from an {@code InputSplit}.
+ * The input file is in FASTA format and contains a single long sequence.
+ * A FASTA record has a header line that is the key, and data lines
+ * that are the value.
+ * {@literal >header...}
+ * data
+ * ...
+ *
+ *
+ * Example:
+ * {@literal >Seq1}
+ * TAATCCCAAATGATTATATCCTTCTCCGATCGCTAGCTATACCTTCCAGGCGATGAACTTAGACGGAATCCACTTTGCTA
+ * CAACGCGATGACTCAACCGCCATGGTGGTACTAGTCGCGGAAAAGAAAGAGTAAACGCCAACGGGCTAGACACACTAATC
+ * CTCCGTCCCCAACAGGTATGATACCGTTGGCTTCACTTCTACTACATTCGTAATCTCTTTGTCAGTCCTCCCGTACGTTG
+ * GCAAAGGTTCACTGGAAAAATTGCCGACGCACAGGTGCCGGGCCGTGAATAGGGCCAGATGAACAAGGAAATAATCACCA
+ * CCGAGGTGTGACATGCCCTCTCGGGCAACCACTCTTCCTCATACCCCCTCTGGGCTAACTCGGAGCAAAGAACTTGGTAA
+ * ...
+ *
+ * @author Gianluca Roscigno
+ *
+ * @version 1.0
+ *
+ * @see InputSplit
  */
-public class FastaRecordReader extends RecordReader<String, Text> {
+public class FastaRecordReader extends RecordReader<Text, Text> {
 
-	private CompressionCodecFactory compressionCodecs = null;
-	private long start;
-	private long pos;
-	private long end;
-	private LineReader in;
-	private int maxLineLength;
+	// input data comes from lrr
+	private LineRecordReader lrr = null;
 
-	// identify (K,V) pair
-	private String key = null;
-	private Text value = null;
-	private String file_name;
+	private long startByte;
 
-	FSDataInputStream fileIn;
-	Configuration job;
+	private StringBuilder buffer;
 
-	public void initialize(InputSplit genericSplit,
-						   TaskAttemptContext context) throws IOException {
+	private Text currKey;
+
+	private Text currValue;
+
+
+	@Override
+	public void initialize(InputSplit genericSplit, TaskAttemptContext context)
+			throws IOException, InterruptedException {
+
+		/*
+		 * We open the file corresponding to the input split and
+		 * start processing it
+		 */
 		FileSplit split = (FileSplit) genericSplit;
-		job = context.getConfiguration();
-		this.maxLineLength = job.getInt("mapred.linerecordreader.maxlength",
-				Integer.MAX_VALUE);
-		start = split.getStart();
-		end = start + split.getLength();
-		final Path file = split.getPath();
-		this.file_name = file.getName();
-		compressionCodecs = new CompressionCodecFactory(job);
-		final CompressionCodec codec = compressionCodecs.getCodec(file);
+		Path path = split.getPath();
+		startByte = split.getStart();
 
-		// open the file and seek to the start of the split
-		FileSystem fs = file.getFileSystem(job);
-		fileIn = fs.open(split.getPath());
-		boolean skipFirstLine = false;
-		if (codec != null) {
-			in = new LineReader(codec.createInputStream(fileIn), job);
-			end = Long.MAX_VALUE;
-		} else {
-			if (start != 0) {
-				skipFirstLine = true;
-				--start;
-				fileIn.seek(start);
-			}
-			in = new LineReader(fileIn, job);
-		}
-		if (skipFirstLine) {
-			// skip first line and re-establish "start".
-			start += in.readLine(new Text(), 0,
-					(int)Math.min((long)Integer.MAX_VALUE, end - start));
-		}
-		this.pos = start;
+		this.buffer = new StringBuilder();
+
+		this.lrr = new LineRecordReader();
+		this.lrr.initialize(genericSplit, context);
+
+		currKey = new Text(path.toString() + "::::"+startByte);
+		currValue = new Text("");
+
+
 	}
 
-	public boolean nextKeyValue() throws IOException {
-		if (key == null) {
-			key = this.file_name;
-		}
-		//key.set(pos);
-		if (value == null) {
-			value = new Text();
-		}
-		int newSize;
+	@Override
+	public boolean nextKeyValue() throws IOException, InterruptedException {
 
-		StringBuilder text = new StringBuilder();
-		int recordLength = 0;
-		Text line = new Text();
-		int recordsRead = 0;
-		while (pos < end) {
-			//key.set(pos);
-			newSize = in.readLine(line, maxLineLength,Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),maxLineLength));
-
-			if(line.toString().indexOf(">") >= 0) {// && (!text.toString().isEmpty())){
-				if(recordsRead > 9){//10 fasta records each time
-					value.set(text.toString());
-					fileIn.seek(pos);
-					in = new LineReader(fileIn, job);
-					return true;
-				}
-				recordsRead++;
-			}
-
-			recordLength += newSize;
-			text.append(line.toString());
-			text.append("\n");
-			pos += newSize;
-
-			if (newSize == 0) {
-				break;
-			}
-		}
-		if (recordLength == 0){
+		if (!this.lrr.nextKeyValue()) {
 			return false;
 		}
-		value.set(text.toString());
+
+		final String s = this.lrr.getCurrentValue().toString().trim();
+		//System.out.println("nextKeyValue() s="+s);
+
+		// Prevent empty lines
+		if (s.length() != 0) {
+			this.buffer.append(s);
+		}
+
 		return true;
 
 	}
 
 	@Override
-	public String getCurrentKey() {
-		return key;
+	public void close() throws IOException {// Close the record reader.
+		this.lrr.close();
 	}
 
 	@Override
-	public Text getCurrentValue() {
-		return value;
+	public Text getCurrentKey() throws IOException, InterruptedException {
+		return currKey;
 	}
 
-/*
-	public boolean nextKeyValue() throws IOException {
-		//if (key == null) {
-			key = this.file_name;
-		//}
-		//key.set(pos);
-		//if (value == null) {
-			value = new Text();
-		//}
-		int newSize;
-
-		StringBuilder text = new StringBuilder();
-		int recordLength = 0;
-		Text line = new Text();
-		//int recordsRead = 0;
-		while (pos < end) {
-			//key.set(pos);
-			newSize = in.readLine(line, maxLineLength,Math.max((int)Math.min(Integer.MAX_VALUE, end-pos),maxLineLength));
-
-			if((line.toString().indexOf(">") >= 0) && (!text.toString().isEmpty())){
-				//if(recordsRead > 9){//10 fasta records each time
-				value.set(text.toString());
-				fileIn.seek(pos);
-				in = new LineReader(fileIn, job);
-				return true;
-				//}
-				//recordsRead++;
-			}
-
-			recordLength += newSize;
-			text.append(line.toString());
-			text.append("\n");
-			pos += newSize;
-
-			if (newSize == 0) {
-				break;
-			}
-		}
-		if (recordLength == 0){
-			return false;
-		}
-		value.set(text.toString());
-		return true;
-
-	}
-*/
-
-
-	/**
-	 * Get the progress within the split
-	 */
-	public float getProgress() {
-		if (start == end) {
-			return 0.0f;
-		}
-		else {
-			return Math.min(1.0f, (pos - start) / (float)(end - start));
-		}
+	@Override
+	public Text getCurrentValue() throws IOException, InterruptedException {
+		this.currValue.append(this.buffer.toString().getBytes(), 0, this.buffer.length());
+		return currValue;
 	}
 
-	public synchronized void close() throws IOException {
-		if (in != null) {
-			in.close();
-		}
+	@Override
+	public float getProgress() throws IOException, InterruptedException {
+		return this.lrr.getProgress();
 	}
+
 }

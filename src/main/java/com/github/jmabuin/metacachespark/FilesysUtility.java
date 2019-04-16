@@ -64,7 +64,7 @@ public class FilesysUtility implements Serializable {
 
 				//System.err.println("[JMAbuin] found file: " + newFile.getPath().toString());
 
-				if(fs.isFile(newFile.getPath())) {
+				if(fs.isFile(newFile.getPath()) && !newFile.getPath().toString().endsWith("assembly_summary.txt")) {
 					//System.err.println("[JMAbuin] Added file: " + newFile.getPath().toString());
 					returnedItems.add(newFile.getPath().toString());
 				}
@@ -131,7 +131,7 @@ public class FilesysUtility implements Serializable {
 
 				//System.err.println("[JMAbuin] found file: " + newFile.getPath().toString());
 
-				if(fs.isFile(newFile.getPath())) {
+				if(fs.isFile(newFile.getPath()) && !newFile.getPath().toString().endsWith("assembly_summary.txt")) {
 					//System.err.println("[JMAbuin] Added file: " + newFile.getPath().toString());
 					returnedItems.put(newFile.getPath().toString(), newFile.getLen());
 				}

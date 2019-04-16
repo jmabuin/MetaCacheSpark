@@ -146,6 +146,8 @@ public class Pair2Locations implements PairFlatMapFunction<Iterator<Tuple2<Integ
                 returnedValues.add(new Tuple2<Integer, LocationBasic>(current_list.get(i).getTargetId(), new LocationBasic(key, current_list.get(i).getWindowId())));
             }
 
+            current_list.clear();
+            map.get(key).clear();
 
         }
 

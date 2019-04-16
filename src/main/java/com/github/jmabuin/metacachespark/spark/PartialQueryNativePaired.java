@@ -235,7 +235,7 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
         List<MatchCandidate> top_list = new ArrayList<>();
 
         CandidateGenerationRules rules = new CandidateGenerationRules();
-        rules.setMaxWindowsInRange((int)num_windows);
+        //rules.setMaxWindowsInRange((int)num_windows);
 
         rules.setMaxCandidates(this.options.getProperties().getMaxCandidates());
         //rules.setMaxWindowsInRange(numWindows);
@@ -324,9 +324,9 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
             }
             else {
                 //end of current target
-                //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
+                if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
                     best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
-                //}
+                }
                 //reset to new target
                 entryFST = entryLST;
                 //fst = all_hits.get_location(entryFST);
@@ -341,9 +341,9 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
 
 
         }
-        //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
+        if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
             best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
-        //}
+        }
 
         if (best_hits.isEmpty()) {
             return new ArrayList<MatchCandidate>();

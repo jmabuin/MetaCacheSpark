@@ -6,7 +6,7 @@ EXECUTOR_MEM="30G"
 TMP_DATASET="S4"
 THREADS_NUM=1
 OUTPUT_DIR="Genomica/Output_${TMP_DATASET}_${THREADS_NUM}Thread_${PARTITION_NUMBER}Ex"
-DATABASE_NAME=DatabaseNativeAFSBig_$PARTITION_NUMBER
+DATABASE_NAME=DatabaseNativeAFS20_$PARTITION_NUMBER
 BUFFER_SIZE=500000
 
 TMP_DATASET="S4"
@@ -35,6 +35,17 @@ elif [ "$#" -eq 3 ]; then
     PARTITION_NUMBER=$1
     TMP_DATASET=$2
     THREADS_NUM=$3
+
+elif [ "$#" -eq 4 ]; then
+    echo "Number of INPUT executors is: $1"
+    echo "Number of INPUT threads is: $3"
+    echo "Input data set is: $2"
+    echo "Database is: $4"
+
+    PARTITION_NUMBER=$1
+    TMP_DATASET=$2
+    THREADS_NUM=$3
+    DATABASE_NAME="DatabaseNative${4}_${PARTITION_NUMBER}"
 
 fi
 
@@ -99,11 +110,11 @@ esac
 
 case "$PARTITION_NUMBER" in
         32)
-            EXECUTOR_MEM="30G"
+            EXECUTOR_MEM="40G"
             ;;
 
         64)
-            EXECUTOR_MEM="25G"
+            EXECUTOR_MEM="30G"
             ;;
 
         100)
@@ -123,17 +134,17 @@ case "$PARTITION_NUMBER" in
 
 esac
 
-OUTPUT_DIR="Genomica/Output_${TMP_DATASET}_${THREADS_NUM}Thread_${PARTITION_NUMBER}Ex"
-DATABASE_NAME=DatabaseNativeAFSBig_$PARTITION_NUMBER
+OUTPUT_DIR="Genomica/Output_${DATABASE_NAME}_${TMP_DATASET}_${THREADS_NUM}Thread_${PARTITION_NUMBER}Ex"
+#DATABASE_NAME=DatabaseNativeAFSBig_$PARTITION_NUMBER
 
 
 if [ "$THREADS_NUM" -eq 1 ]; then
     echo "spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors $PARTITION_NUMBER --master yarn --deploy-mode cluster --executor-memory $EXECUTOR_MEM --driver-memory 20G MetaCacheSpark-0.3.0.jar -m query -d hashmultimap_native -p $PARTITION_NUMBER -b $BUFFER_SIZE -r $DATABASE_NAME $OUTPUT_DIR $INPUT_SEQUENCES"
-    spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors $PARTITION_NUMBER --master yarn --deploy-mode cluster --executor-memory $EXECUTOR_MEM --driver-memory 20G MetaCacheSpark-0.3.0.jar -m query -d hashmultimap_native -p $PARTITION_NUMBER -b $BUFFER_SIZE -r $DATABASE_NAME $OUTPUT_DIR $INPUT_SEQUENCES
+    spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors $PARTITION_NUMBER --master yarn --executor-memory $EXECUTOR_MEM --driver-memory 30G MetaCacheSpark-0.3.0.jar -m query -d hashmultimap_native -p $PARTITION_NUMBER -a species -b $BUFFER_SIZE -r $DATABASE_NAME $OUTPUT_DIR $INPUT_SEQUENCES
 
 else
     echo "spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors $PARTITION_NUMBER --executor-cores $THREADS_NUM --master yarn --deploy-mode cluster --executor-memory $EXECUTOR_MEM --driver-memory 20G MetaCacheSpark-0.3.0.jar -m query -d hashmultimap_native -p $PARTITION_NUMBER -b $BUFFER_SIZE -n $THREADS_NUM -r $DATABASE_NAME $OUTPUT_DIR $INPUT_SEQUENCES"
-    spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors $PARTITION_NUMBER --executor-cores $THREADS_NUM --master yarn --deploy-mode cluster --executor-memory $EXECUTOR_MEM --driver-memory 20G MetaCacheSpark-0.3.0.jar -m query -d hashmultimap_native -p $PARTITION_NUMBER -b $BUFFER_SIZE -n $THREADS_NUM -r $DATABASE_NAME $OUTPUT_DIR $INPUT_SEQUENCES
+    spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors $PARTITION_NUMBER --executor-cores $THREADS_NUM --master yarn --executor-memory $EXECUTOR_MEM --driver-memory 30G MetaCacheSpark-0.3.0.jar -m query -d hashmultimap_native -p $PARTITION_NUMBER -a species -b $BUFFER_SIZE -n $THREADS_NUM -r $DATABASE_NAME $OUTPUT_DIR $INPUT_SEQUENCES
 
 fi
 

@@ -6,6 +6,7 @@ import com.github.jmabuin.metacachespark.Sequence;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
 import com.github.jmabuin.metacachespark.io.ExtractionFunctions;
 import com.github.jmabuin.metacachespark.io.SequenceReader;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -29,6 +30,7 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
     private ExtractionFunctions extraction;
     private TreeMap<String, Long> sequ2taxid;
     private TreeMap<String, Long> name2tax_;
+    private HashMap<String,Integer> targets_positions;
     private int total_executors;
 
     public CreateDatabaseNative(//HashMap<String, Integer> sequences_distribution,
@@ -36,6 +38,7 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
                                 //HashMap<String, Integer> targets_positions,
                                 TreeMap<String, Long> sequ2taxid,
                                 TreeMap<String, Long> name2tax_,
+                                HashMap<String,Integer> targets_positions,
                                 int total_executors) {
 
         //this.sequences_distribution = sequences_distribution;
@@ -44,6 +47,7 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
         this.extraction = new ExtractionFunctions();
         this.sequ2taxid = sequ2taxid;
         this.name2tax_ = name2tax_;
+        this.targets_positions = targets_positions;
         this.total_executors = total_executors;
     }
 
@@ -70,7 +74,7 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
         StringBuilder content = new StringBuilder();
 
         int current_filename = 0;
-        int current_sequence_number = 0;
+        int current_sequence_number = -1;
 
         try {
 
@@ -115,9 +119,6 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
                                 }
 
 
-                                current_sequence_number++;
-
-
                             }
 
                             header.delete(0, header.length());
@@ -126,8 +127,9 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
                             //data.delete(0,data.length());
                             content.delete(0, content.length());
 
+                            current_sequence_number++;
 
-                        } else {
+                        } else if (current_sequence_number % this.total_executors == this_executor) {
 
                             //data.append(currentLine);
                             //current_sequence.appendData(currentLine);
@@ -165,6 +167,8 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
 
 
             }
+
+            LOG.warn("Total sequence number for virtual executor " + this_executor + " is " + current_sequence_number);
         }
         catch(IOException e) {
             LOG.error("Could not acces to HDFS");
@@ -191,8 +195,9 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
 
 
     private void rank_sequence(Sequence current_Sequence) {
-        String seqId = this.extraction.extract_sequence_id(current_Sequence.getHeader());//SequenceReader.extract_sequence_id(currentSequence.getHeader());
-        String fileIdentifier = this.extraction.extract_sequence_id(current_Sequence.getOriginFilename());//SequenceReader.extract_sequence_id(fileName);
+
+        String seqId = extraction.extract_sequence_id(current_Sequence.getHeader());//SequenceReader.extract_sequence_id(currentSequence.getHeader());
+        String fileIdentifier = extraction.extract_sequence_id(FilenameUtils.getName(current_Sequence.getOriginFilename()));//SequenceReader.extract_sequence_id(fileName);
 
         //make sure sequence id is not empty,
         //use entire header if neccessary
@@ -204,32 +209,12 @@ public class CreateDatabaseNative implements FlatMapFunction<Iterator<Integer>, 
             }
         }
 
-        //targets need to have a sequence id
-        //look up taxon id
-        int taxid = 0;
 
-        if (!this.sequ2taxid.isEmpty()) {
-            Long it = this.sequ2taxid.get(seqId);
-            if (it != null) {
-                taxid = it.intValue();
-            } else {
-                it = this.sequ2taxid.get(fileIdentifier);
-                if (it != null) {
-                    taxid = it.intValue();
-                }
-            }
-        }
-        //no valid taxid assigned -> try to find one in annotation
-
-        if (taxid <= 0) {
-            taxid = SequenceReader.extract_taxon_id(current_Sequence.getHeader()).intValue();
-
-        }
-
-        current_Sequence.setTaxid(taxid);
-        current_Sequence.getSequenceOrigin().setIndex((int)current_Sequence.getIndex());
+        current_Sequence.getSequenceOrigin().setIndex(this.targets_positions.get(current_Sequence.getHeader()));
         //currentSequence.getSequenceOrigin().setFilename(fileName);
         current_Sequence.setSeqId(seqId);
+
+
     }
 
 

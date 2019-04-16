@@ -98,6 +98,8 @@ public class Sketcher2Pair implements PairFlatMapFunction<Sequence,Integer, Loca
                         returnedValues.add(new Tuple2<Integer, LocationBasic>(newValue,
                                 new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()).intValue(), numWindows)));
 
+                        //returnedValues.add(new Tuple2<Integer, LocationBasic>(this.sequencesIndexes.get(inputSequence.getSeqId()).intValue(),
+                        //                new LocationBasic(newValue, numWindows)));
 
                     }
                 }

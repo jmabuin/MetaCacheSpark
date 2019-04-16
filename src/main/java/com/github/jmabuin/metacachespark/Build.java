@@ -89,9 +89,9 @@ public class Build implements Serializable {
     }
 
     public void load_taxonomy_into_database(Database db) {
-        db.apply_taxonomy( this.make_taxonomic_hierarchy(this.taxonomy_param .getNodesFile(),
-                this.taxonomy_param .getNamesFile(),
-                this.taxonomy_param .getMergeFile()));
+        db.apply_taxonomy( this.make_taxonomic_hierarchy(this.taxonomy_param.getNodesFile(),
+                this.taxonomy_param.getNamesFile(),
+                this.taxonomy_param.getMergeFile()));
 
         LOG.info("Taxonomy applied to database.");
     }
@@ -346,16 +346,16 @@ public class Build implements Serializable {
 				System.err.println("[JMAbuin] "+currentFile);
 			}*/
 
-            TreeMap<String, Long> seqid2tax = this.db.make_sequence_to_taxon_id_map(this.taxonomy_param.getMappingPreFiles(),
+            TreeMap<String, Long> seq2taxid = this.db.make_sequence_to_taxon_id_map(this.taxonomy_param.getMappingPreFiles(),
                     inFilesTaxonIdMap);
 
-            this.add_targets_to_database(db, seqid2tax,
+            this.add_targets_to_database(db, seq2taxid,
                     build_info.moderate);
 
 
             // This block has been moved to Database.buildDatabaseMulti2
 
-            db.try_to_rank_unranked_targets();
+            //db.try_to_rank_unranked_targets();
 
             if(this.param.getProperties().getRemoveAmbigFeaturesOnRank() != Taxonomy.Rank.none && db.taxon_count() > 1) {
 
@@ -408,8 +408,17 @@ public class Build implements Serializable {
                 db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
             }
             else {
-                //if(inputDirs.isEmpty()) {
+
+                if (this.param.isSimple()) {
+                    db.buildDatabaseSimple(this.param.getInfiles(), sequ2taxid, infoMode);
+                }
+                else {
                     db.buildDatabaseMultiPartitions(this.param.getInfiles(), sequ2taxid, infoMode);
+                }
+
+                //if(inputDirs.isEmpty()) {
+                    //db.buildDatabaseMultiPartitions(this.param.getInfiles(), sequ2taxid, infoMode);
+                //LOG.warn("Building with database simple");
                 //db.buildDatabaseSimple(this.param.getInfiles(), sequ2taxid, infoMode);
                 /*}
                 else if (!input_files.isEmpty()) {
