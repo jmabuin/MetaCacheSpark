@@ -35,9 +35,9 @@ import java.util.*;
 /**
  * Created by Jose M. Abuin on 3/28/17.
  */
-public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, List<MatchCandidate>> {
+public class PartialQueryNativePairedFull implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, List<MatchCandidate>> {
 
-    private static final Log LOG = LogFactory.getLog(PartialQueryNativePaired.class);
+    private static final Log LOG = LogFactory.getLog(PartialQueryNativePairedFull.class);
 
     private String fileName;
     private String fileName2;
@@ -48,7 +48,7 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
     private MetaCacheOptions options;
     private long window_stride;
 
-    public PartialQueryNativePaired(String file_name, String file_name2, long init, int bufferSize//) {
+    public PartialQueryNativePairedFull(String file_name, String file_name2, long init, int bufferSize//) {
             , long window_stride, MetaCacheOptions options) {//}, Taxonomy taxa_, List<TargetProperty> targets_) {
         this.fileName = file_name;
         this.fileName2 = file_name2;
@@ -61,7 +61,7 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
 
     }
 
-    public PartialQueryNativePaired(String file_name, String file_name2, long init, int bufferSize) {
+    public PartialQueryNativePairedFull(String file_name, String file_name2, long init, int bufferSize) {
         this.fileName = file_name;
         this.fileName2 = file_name2;
         this.init = init;
@@ -315,9 +315,21 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
                 }
             } else {
                 //end of current target
-                if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
+                //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
+                //if (curBest.getHits() > 1) {
+                if (this.options.isGreater_than_one()) {
+
+                    if (curBest.getHits() > 1) {
+                        best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+                    }
+
+                }
+                else {
                     best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
                 }
+
+
+                //}
                 //reset to new target
                 entryFST = entryLST;
                 //fst = all_hits.get_location(entryFST);
@@ -332,7 +344,15 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
 
 
         }
-        if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
+        //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
+        if (this.options.isGreater_than_one()) {
+
+            if (curBest.getHits() > 1) {
+                best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+            }
+
+        }
+        else {
             best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
         }
 
@@ -361,34 +381,7 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
 
         MatchCandidate best = best_hits.get(0);
 
-        //return best_hits;
-
-        if (best.getHits() < this.options.getProperties().getHitsMin()) {
-            return new ArrayList<MatchCandidate>();
-        }
-
-
-        double threshold = best.getHits() > this.options.getProperties().getHitsMin() ?
-                (best.getHits() - this.options.getProperties().getHitsMin()) *
-                        this.options.getProperties().getHitsDiffFraction() : 0;
-
-        for (int i = 0; i < best_hits.size() && i < rules.getMaxCandidates(); ++i) {
-            MatchCandidate current_entry = best_hits.get(i);
-
-
-            //if (current_entry.getHits() > threshold) {
-            if ((current_entry.getHits() > this.options.getProperties().getHitsMin()) && (current_entry.getHits() > threshold)&& (top_list.size() <= rules.getMaxCandidates())) {
-            //if ((current_entry.getHits() > this.options.getProperties().getHitsMin()) && (top_list.size() <= rules.getMaxCandidates())) {
-            //if (current_entry.getHits() > this.options.getProperties().getHitsMin()) {
-                top_list.add(current_entry);
-            } else {
-                break;
-            }
-
-        }
-
-
-        return top_list;
+        return best_hits;
 
 
     }

@@ -20,6 +20,7 @@ package com.github.jmabuin.metacachespark.spark;
 import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -28,20 +29,27 @@ import scala.Tuple2;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
-public class Locations2HashMapNativeIterable implements FlatMapFunction<Iterator<Tuple2<Integer, Iterable<LocationBasic>>>, HashMultiMapNative> {
+public class Locations2HashMapNativeIterable implements FlatMapFunction<Iterator<Tuple2<Integer, List<LocationBasic>>>, HashMultiMapNative> {
 
     private static final Log LOG = LogFactory.getLog(Locations2HashMapNativeIterable.class);
 
+    private MetaCacheOptions options;
+
+    public Locations2HashMapNativeIterable(MetaCacheOptions options) {
+        this.options = options;
+    }
+
     @Override
-    public Iterator<HashMultiMapNative> call(Iterator<Tuple2<Integer, Iterable<LocationBasic>>> inputLocations){
+    public Iterator<HashMultiMapNative> call(Iterator<Tuple2<Integer, List<LocationBasic>>> inputLocations){
 
         ArrayList<HashMultiMapNative> returnedValues = new ArrayList<HashMultiMapNative>();
 
         HashMultiMapNative map = new HashMultiMapNative(254);
 
         while(inputLocations.hasNext()) {
-            Tuple2<Integer, Iterable<LocationBasic>> current = inputLocations.next();
+            Tuple2<Integer, List<LocationBasic>> current = inputLocations.next();
             int tgtid = current._1();
 
             for (LocationBasic current_location: current._2) {
@@ -51,9 +59,9 @@ public class Locations2HashMapNativeIterable implements FlatMapFunction<Iterator
 
         }
 
-        //int total_deleted = map.post_process(true, false);
+        int total_deleted = map.post_process(this.options.isRemove_overpopulated_features(), false);
 
-        //LOG.warn("Number of deleted features: " + total_deleted);
+        LOG.warn("Number of deleted features: " + total_deleted);
 
         returnedValues.add(map);
 

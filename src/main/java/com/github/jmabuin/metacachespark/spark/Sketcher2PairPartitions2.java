@@ -19,6 +19,7 @@ package com.github.jmabuin.metacachespark.spark;
 
 import com.github.jmabuin.metacachespark.*;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.FlatMapFunction;
@@ -31,17 +32,19 @@ import java.util.*;
  * Created by chema on 1/16/17.
  */
 //public class Sketcher2Pair implements FlatMapFunction<Iterator<Sequence>,HashMap<Integer, ArrayList<LocationBasic>>> {
-//public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequence>, HashMultiMapNative> {
 public class Sketcher2PairPartitions2 implements PairFlatMapFunction<Iterator<Sequence>, Integer, LocationBasic> {
-    private static final Log LOG = LogFactory.getLog(Sketcher2PairPartitions.class);
+
+    private static final Log LOG = LogFactory.getLog(Sketcher2PairPartitions2.class);
 
     private TreeMap<String, Long> sequencesIndexes;
     private int firstEmptyPosition;
+    private MetaCacheOptions options;
 
 
-    public Sketcher2PairPartitions2(TreeMap<String, Long> sequencesIndexes) {
+    public Sketcher2PairPartitions2(TreeMap<String, Long> sequencesIndexes, MetaCacheOptions options) {
 
         this.sequencesIndexes = sequencesIndexes;
+        this.options = options;
         //this.firstEmptyPosition = 0;
         //this.lookup = new HashMap<Integer, Integer>();
     }
@@ -52,44 +55,13 @@ public class Sketcher2PairPartitions2 implements PairFlatMapFunction<Iterator<Se
 
         ArrayList<Tuple2<Integer, LocationBasic>> returnedValues = new ArrayList<Tuple2<Integer, LocationBasic>>();
         //HashMultiMapNative map = new HashMultiMapNative(254);
-        HashMap<Integer, TreeSet<LocationBasic>> java_map = new HashMap<>();
+
         int currentStart;
         int currentEnd;
 
         //String currentWindow;
         int numWindows;
         int current_sketch_size;
-
-
-        Comparator<LocationBasic> comparator = new Comparator<LocationBasic>() {
-            public int compare(LocationBasic o1,
-                               LocationBasic o2)
-            {
-
-                if (o1.getTargetId() > o2.getTargetId()) {
-                    return 1;
-                }
-
-                if (o1.getTargetId() < o2.getTargetId()) {
-                    return -1;
-                }
-
-                if (o1.getTargetId() == o2.getTargetId()) {
-                    if (o1.getWindowId() > o2.getWindowId()) {
-                        return 1;
-                    }
-
-                    if (o1.getWindowId() < o2.getWindowId()) {
-                        return -1;
-                    }
-
-                    return 0;
-
-                }
-                return 0;
-
-            }
-        };
 
         //ArrayList<Tuple2<Integer, LocationBasic>> returnedValues_local = new ArrayList<Tuple2<Integer, LocationBasic>>();
 
@@ -130,26 +102,10 @@ public class Sketcher2PairPartitions2 implements PairFlatMapFunction<Iterator<Se
                         //LOG.warn("[JMAbuin] CurrentWindow sketch size: " + sketchValues.length);
 
                         for (int newValue : sketchValues) {
-							/*
-							returnedValues_local.add(new Tuple2<Integer, LocationBasic>(newValue,
-									new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()), numWindows)));
-							*/
-                            //map.add(newValue, this.sequencesIndexes.get(inputSequence.getSeqId()).intValue(), numWindows);
-                            if (!java_map.containsKey(newValue)) {
-                                java_map.put(newValue, new TreeSet<LocationBasic>(comparator));
-                            }
 
-                            LocationBasic new_location = new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()).intValue(), numWindows);
+							returnedValues.add(new Tuple2<Integer, LocationBasic>(newValue,
+									new LocationBasic(this.sequencesIndexes.get(inputSequence.getSeqId()).intValue(), numWindows)));
 
-                            if (java_map.get(newValue).size() < 254) {
-                                java_map.get(newValue).add(new_location);
-                            }
-                            else {
-                                if (java_map.get(newValue).ceiling(new_location) != null) {
-                                    java_map.get(newValue).add(new_location);
-                                    java_map.get(newValue).remove(java_map.get(newValue).last());
-                                }
-                            }
 
                         }
                     }
@@ -162,86 +118,19 @@ public class Sketcher2PairPartitions2 implements PairFlatMapFunction<Iterator<Se
 
             }
 
-
-        }
 /*
-        int total_deleted = map.post_process(false, false);
-        //LOG.warn("Number of items in this partial map is: " + map.size());
-        //LOG.warn("Number of deleted features: " + total_deleted);
+			for(Tuple2<Integer, LocationBasic> current_loc: returnedValues_local) {
 
-        for (int key : map.keys()) {
+				map.add(current_loc._1(), current_loc._2().getTargetId(), current_loc._2().getWindowId());
 
-            for(LocationBasic loc: map.get_locations(key)) {
-                returnedValues.add(new Tuple2<Integer, LocationBasic>(key, loc));
-            }
+			}
 
-            map.clear_key(key);
-
-        }
-
-        map.clear();
-*/
-/*
-        for(int key: java_map.keySet()) {
-
-            List<LocationBasic> current_list = java_map.get(key);
-
-            current_list.sort(new Comparator<LocationBasic>() {
-                public int compare(LocationBasic o1,
-                                   LocationBasic o2)
-                {
-
-                    if (o1.getTargetId() > o2.getTargetId()) {
-                        return 1;
-                    }
-
-                    if (o1.getTargetId() < o2.getTargetId()) {
-                        return -1;
-                    }
-
-                    if (o1.getTargetId() == o2.getTargetId()) {
-                        if (o1.getWindowId() > o2.getWindowId()) {
-                            return 1;
-                        }
-
-                        if (o1.getWindowId() < o2.getWindowId()) {
-                            return -1;
-                        }
-
-                        return 0;
-
-                    }
-                    return 0;
-
-                }
-            });
-
-
-            int i;
-
-            for(i = 0; i< current_list.size() && i < 254; ++i) {
-                returnedValues.add(new Tuple2<Integer, LocationBasic>(key, current_list.get(i)));
-            }
-
-
-        }
-
-        java_map.clear();
-
-        java_map = null;
+			returnedValues_local.clear();
 */
 
-        for (int key : java_map.keySet()) {
-
-            for(LocationBasic loc: java_map.get(key)) {
-                returnedValues.add(new Tuple2<Integer, LocationBasic>(key, loc));
-            }
-
-            java_map.get(key).clear();
-
         }
 
-        java_map.clear();
+
 
 
         return returnedValues.iterator();

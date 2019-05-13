@@ -185,6 +185,90 @@ public class Taxonomy implements Serializable {
      * @return The corresponding Rank
      */
     public static Rank rank_from_name(String name) {
+        /*
+        if(name == "sequence")         return rank::Sequence;
+        if(name == "genome")           return rank::Sequence;
+        if(name == "form")             return rank::Form;
+        if(name == "forma")            return rank::Form;
+        if(name == "variety")          return rank::Variety;
+        if(name == "varietas")         return rank::Variety;
+        if(name == "subspecies")       return rank::subSpecies;
+        if(name == "species")          return rank::Species;
+        if(name == "species group")    return rank::subGenus;
+        if(name == "species subgroup") return rank::subGenus;
+        if(name == "subgenus")         return rank::subGenus;
+        if(name == "genus")            return rank::Genus;
+        if(name == "subtribe")         return rank::subTribe;
+        if(name == "tribe")            return rank::Tribe;
+        if(name == "subfamily")        return rank::subFamily;
+        if(name == "family")           return rank::Family;
+        if(name == "superfamily")      return rank::subOrder;
+        if(name == "parvorder")        return rank::subOrder;
+        if(name == "infraorder")       return rank::subOrder;
+        if(name == "suborder")         return rank::subOrder;
+        if(name == "order")            return rank::Order;
+        if(name == "superorder")       return rank::subClass;
+        if(name == "infraclass")       return rank::subClass;
+        if(name == "subclass")         return rank::subClass;
+        if(name == "class")            return rank::Class;
+        if(name == "superclass")       return rank::subPhylum;
+        if(name == "subphylum")        return rank::subPhylum;
+        if(name == "phylum")           return rank::Phylum;
+        if(name == "division")         return rank::Phylum;
+        if(name == "superphylum")      return rank::subKingdom;
+        if(name == "subkingdom")       return rank::subKingdom;
+        if(name == "kingdom")          return rank::Kingdom;
+        if(name == "subdomain")        return rank::Kingdom;
+        if(name == "superkingdom")     return rank::Domain;
+        if(name == "domain")           return rank::Domain;
+        if(name == "root")             return rank::root;
+        return rank::none;
+         */
+
+        String lower_name = name.toLowerCase();
+        //Rank return_rank = Rank.none;
+
+        switch (lower_name) {
+            case "sequence":    return Rank.Sequence;
+            case "genome":        return Rank.Sequence;
+            case "form":         return Rank.Form;
+            case "forma":         return Rank.Form;
+            case "variety":       return Rank.Variety;
+            case "varietas":      return Rank.Variety;
+            case "subspecies":    return Rank.subSpecies;
+            case "species":       return Rank.Species;
+            case "species group": return Rank.subGenus;
+            case "species subgroup": return Rank.subGenus;
+            case "subgenus":      return Rank.subGenus;
+            case "genus":        return Rank.Genus;
+            case "subtribe":      return Rank.subTribe;
+            case "tribe":        return Rank.Tribe;
+            case "subfamily":     return Rank.subFamily;
+            case "family":       return Rank.Family;
+            case "superfamily":  return Rank.subOrder;
+            case "parvorder":        return Rank.subOrder;
+            case "infraorder":       return Rank.subOrder;
+            case "suborder":      return Rank.subOrder;
+            case "order":        return Rank.Order;
+            case "superorder":       return Rank.subClass;
+            case "infraclass":       return Rank.subClass;
+            case "subclass":      return Rank.subClass;
+            case "class":         return Rank.Class;
+            case "superclass":       return Rank.subPhylum;
+            case "subphylum":     return Rank.subPhylum;
+            case "phylum":      return Rank.Phylum;
+            case "division":      return Rank.Phylum;
+            case "superphylum":      return Rank.subKingdom;
+            case "subkingdom":    return Rank.subKingdom;
+            case "kingdom":       return Rank.Kingdom;
+            case "subdomain":        return Rank.Kingdom;
+            case "superkingdom":  return Rank.Domain;
+            case "domain":        return Rank.Domain;
+            case "root":         return Rank.root;
+            default: return Rank.none;
+        }
+
+/*
         if(name.equals("sequence"))      return Rank.Sequence;
         if(name.equals("genome"))        return Rank.Sequence;
         if(name.equals("form"))          return Rank.Form;
@@ -193,25 +277,35 @@ public class Taxonomy implements Serializable {
         if(name.equals("varietas"))      return Rank.Variety;
         if(name.equals("subspecies"))    return Rank.subSpecies;
         if(name.equals("species"))       return Rank.Species;
+        if(name.equals("species group")) return Rank.subGenus;
+        if(name.equals("species subgroup")) return Rank.subGenus;
         if(name.equals("subgenus"))      return Rank.subGenus;
         if(name.equals("genus"))         return Rank.Genus;
         if(name.equals("subtribe"))      return Rank.subTribe;
         if(name.equals("tribe"))         return Rank.Tribe;
         if(name.equals("subfamily"))     return Rank.subFamily;
         if(name.equals("family"))        return Rank.Family;
+        if(name.equals("superfamily") )  return Rank.subOrder;
+        if(name.equals("parvorder"))        return Rank.subOrder;
+        if(name.equals("infraorder"))       return Rank.subOrder;
         if(name.equals("suborder"))      return Rank.subOrder;
         if(name.equals("order"))         return Rank.Order;
+        if(name.equals("superorder"))       return Rank.subClass;
+        if(name.equals("infraclass"))       return Rank.subClass;
         if(name.equals("subclass"))      return Rank.subClass;
         if(name.equals("class"))         return Rank.Class;
+        if(name.equals("superclass"))       return Rank.subPhylum;
         if(name.equals("subphylum"))     return Rank.subPhylum;
         if(name.equals("phylum"))        return Rank.Phylum;
         if(name.equals("division"))      return Rank.Phylum;
+        if(name.equals("superphylum"))      return Rank.subKingdom;
         if(name.equals("subkingdom"))    return Rank.subKingdom;
         if(name.equals("kingdom"))       return Rank.Kingdom;
+        if(name.equals("subdomain"))        return Rank.Kingdom;
         if(name.equals("superkingdom"))  return Rank.Domain;
         if(name.equals("domain"))        return Rank.Domain;
         if(name.equals("root"))          return Rank.root;
-        return Rank.none;
+        return Rank.none;*/
     }
 
     /**
@@ -350,7 +444,7 @@ public class Taxonomy implements Serializable {
             if(currentTaxon != null) {
                 //LOG.warn("JMABUIN "+currentTaxon.getTaxonName() + currentTaxon.getRank().name());
                 //LOG.warn("JMABUIN "+currentTaxon.getRank().ordinal() +" - "+Rank.none.ordinal());
-                if(currentTaxon.getRank().ordinal() != Rank.none.ordinal()) {
+                if((currentTaxon.getRank().ordinal() != Rank.none.ordinal())) { // && (lin[it.getRank().ordinal()] == 0)
                     lin[currentTaxon.getRank().ordinal()] = currentTaxon.getTaxonId();
                 }
                 if(currentTaxon.getParentId() != id){
@@ -388,8 +482,8 @@ public class Taxonomy implements Serializable {
      * @param rankName The Taxon Rank name
      */
     public void emplace(long taxonId, long parentId, String taxonName, String rankName) {
-
-        this.emplace(taxonId, parentId, taxonName, rank_from_name(rankName.toLowerCase()) );
+        //LOG.warn("Emplacing: "+taxonId+" "+rankName+" :" + Taxonomy.rank_from_name(rankName.toLowerCase()).name() + " : "+Taxonomy.rank_from_name(rankName.toLowerCase()).ordinal());
+        this.emplace(taxonId, parentId, taxonName, Taxonomy.rank_from_name(rankName.toLowerCase()) );
 
     }
 
@@ -401,7 +495,7 @@ public class Taxonomy implements Serializable {
      * @param rank The Taxon Rank
      */
     public void emplace(long taxonId, long parentId, String taxonName, Rank rank) {
-
+        //LOG.warn("Emplacing: "+taxonId+" "+parentId+" :" + taxonName + " : "+rank.name() + " : " +rank.ordinal());
         this.taxa_.put(taxonId,new Taxon(taxonId, parentId, taxonName, rank));
 
     }
@@ -570,6 +664,8 @@ public class Taxonomy implements Serializable {
         return ranked_lca(a.getTaxonId(), b.getTaxonId());
     }
 
+
+
     /**
      * Function that, given two Taxon IDs, obtains its Ranks and checks if they have a common ancestor
      * @param a ID of Taxon a
@@ -580,12 +676,80 @@ public class Taxonomy implements Serializable {
         return this.pos(ranked_lca_id(ranks(a), ranks(b) ));
     }
 
+    public Taxon ranked_lca_map(long a, long b) {
+        return this.pos(ranked_lca_id(ranks(a), ranks(b) ));
+    }
+
     /**
      * Function that returns the Ranks of the ancestors of a current Taxon ID
      * @param id The Taxon ID
      * @return An Array containing the Ranks of the ancestors
      */
     public long[] ranks(long id) {
+
+        long[] lin = new long[this.getNum_ranks()];
+
+
+        for(long x : lin) {
+            x = 0;
+        }
+
+        while(id != 0) {
+
+            Taxon it = taxa_.get(id);
+
+            if(it != null) {
+                if((it.getRank().ordinal() != Rank.none.ordinal())) {
+                    lin[it.getRank().ordinal()] = it.getTaxonId();
+                }
+
+                if(it.getParentId() != id) {
+                    id = it.getParentId();
+                } else {
+                    id = 0;
+                }
+            } else {
+                id = 0;
+            }
+        }
+
+        return lin;
+    }
+
+    /*
+    public ArrayList<Long> lineage(Long id) {
+
+        ArrayList<Long> lin = new ArrayList<Long>();
+        Taxon currentTaxon = null;
+
+        while(id != 0) {
+
+            currentTaxon = this.taxa_.get(id);
+            if (currentTaxon != null) {
+
+                lin.add(id);
+                if(currentTaxon.getParentId() != id) {
+                    id = currentTaxon.getParentId();
+                }
+                else {
+                    id = (long)0;
+                }
+
+            }
+            else {
+                id = (long) 0;
+            }
+
+        }
+
+        //LOG.warn("[JMAbuin] lineage size: "+lin.size());
+
+        return lin;
+    }
+     */
+
+/*
+    public HashMap<String, Long> ranks_map(long id) {
 
         long[] lin = new long[this.getNum_ranks()];
 
@@ -615,7 +779,7 @@ public class Taxonomy implements Serializable {
 
         return lin;
     }
-
+*/
 
     public void write(String fileName, JavaSparkContext jsc) {
 
@@ -737,4 +901,36 @@ public class Taxonomy implements Serializable {
         this.taxa_.clear();
     }
 
+
+    public Long ancestor(Long id, int rank) {
+
+        return this.lineage(id).get(rank);
+
+    }
+
+    public Long ancestor(Long id, Rank rank) {
+
+        //Long[] ranks = this.ranks(id);
+
+        //return ranks[rank.ordinal()];
+
+        return this.lineage_hash(id, rank);
+
+    }
+
+
+    public Long lineage_hash(Long id, Rank rank) {
+
+        List<Long> lin = this.lineage(id);
+
+        //Rank[] vals = Rank.values();
+
+        HashMap<String, Long> values_hashmap = new HashMap<>();
+
+        for(int i = 0; i< lin.size(); ++i) {
+            values_hashmap.put(this.taxa_.get(lin.get(i)).rank_name(), lin.get(i));
+        }
+
+        return values_hashmap.get(rank.name());
+    }
 }

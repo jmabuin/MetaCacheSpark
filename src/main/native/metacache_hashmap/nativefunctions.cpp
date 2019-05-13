@@ -39,6 +39,7 @@ size_t add_to_map(unsigned key, location loc) {
 
         if (sid != map->end()) {
             //if(std::find(v.begin(), v.end(), x) != v.end()) {
+            //make sure we don't insert the same feature more than once
             if ((sid->second.size() < max_locations) && (std::find(sid->second.begin(), sid->second.end(), loc) == sid->second.end())) {
                 sid->second.insert(std::upper_bound( sid->second.begin(), sid->second.end(), loc ), loc);
                 //sid->second.push_back(loc);
@@ -72,9 +73,17 @@ size_t add_to_map(unsigned key, location loc) {
         return map->size();
 }
 
+unsigned long non_empty_bucket_count() {
+                      auto n = 0;
+                      for(auto bucket = map->begin(); bucket!=map->end(); ++bucket) {
+                          if(!bucket->second.empty()) ++n;
+                      }
+                      return n;
+                  }
+
 void serialize(std::ostream& os) {
 
-            mc::write_binary(os, map->size());
+            mc::write_binary(os, non_empty_bucket_count());
             //write_binary(os, len_t(value_count()));
 
             std::vector<unsigned> target_id_buf;
@@ -82,7 +91,7 @@ void serialize(std::ostream& os) {
 
             //for(const auto& bucket : buckets_) {
             for(auto bucket = map->begin(); bucket!=map->end(); ++bucket) {
-                //if(!bucket.empty()) {
+                if(!bucket->second.empty()) {
                     mc::write_binary(os, bucket->first);
                     mc::write_binary(os, bucket->second.size());
 
@@ -98,7 +107,7 @@ void serialize(std::ostream& os) {
 
                     mc::write_binary(os, target_id_buf);
                     mc::write_binary(os, window_id_buf);
-                //}
+                }
             }
 
 }
@@ -222,13 +231,17 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     const char *nativeString = env->GetStringUTFChars(fileName, 0);
 
     std::string newFileName(nativeString);
-/*
+    /*std::string newFileName2(nativeString);
+
+    newFileName2 = newFileName2 + "_natural";
+
+
     std::ofstream ofs;
 
-    ofs.open(newFileName);
+    ofs.open(newFileName2);
 
     if (!ofs.good()) {
-        std::cerr << "Can't open file" << newFileName << std::endl;
+        std::cerr << "Can't open file" << newFileName2 << std::endl;
         exit(1);
     }
 
@@ -238,8 +251,13 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
     for(it = map->begin(); it != map->end(); ++it) {
 
-        ofs << it->first << ":";
         current_vector = it->second;
+
+        if (current_vector.size() > 0) {
+            ofs << it->first << ":";
+        }
+
+
 
         for (int i = 0; i< current_vector.size(); ++i ) {
 
@@ -405,6 +423,26 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
 }
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_post_1process (JNIEnv *env, jobject jobj, jboolean over_populated, jboolean ambiguous) {
+    if(over_populated) {
+
+            auto maxlpf = max_locations - 1;
+            if(maxlpf > 0) { //always keep buckets with size 1
+
+                //note that features are not really removed, because the hashmap
+                //does not support erasing keys; instead all values belonging to
+                //the key are cleared and the key is kept without values
+                int rem = 0;
+                for(auto i = map->begin(), e = map->end(); i != e; ++i) {
+                    if(i->second.size() > maxlpf) {
+                        i->second.clear();
+                        //map->clear(i);
+                        ++rem;
+                    }
+                }
+                return rem;
+        }
+    }
+
 /*
     if (over_populated) {
         for (unsigned current_value: marked_for_deletion) {
@@ -465,5 +503,26 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
         sit->second.clear();
 
     }
+
+}
+
+/*
+ * Class:     com_github_jmabuin_metacachespark_database_HashMultiMapNative
+ * Method:    get_size_of_key
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_get_1size_1of_1key (JNIEnv *env, jobject obj, jint javaKey) {
+
+    unsigned int key = (unsigned int) javaKey;
+
+    auto sit = map->find(key);
+
+    if(sit != map->end()) {
+
+        return sit->second.size();
+
+    }
+
+    return 0;
 
 }

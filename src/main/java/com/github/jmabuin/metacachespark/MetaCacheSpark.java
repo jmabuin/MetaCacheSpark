@@ -17,6 +17,7 @@
 
 package com.github.jmabuin.metacachespark;
 import com.esotericsoftware.kryo.serializers.MapSerializer;
+import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
 import com.github.jmabuin.metacachespark.database.LocationBasicComparator;
 import com.github.jmabuin.metacachespark.database.MatchCandidate;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
@@ -29,6 +30,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 /**
  * Created by jabuinmo on 30.01.17.
@@ -53,14 +55,18 @@ public class MetaCacheSpark implements Serializable {
 
             //sparkConf.set("spark.sql.parquet.mergeSchema", "false");
             //sparkConf.set("spark.shuffle.reduceLocality.enabled","false");
-            sparkConf.set("spark.memory.useLegacyMode","true");
-            sparkConf.set("spark.storage.memoryFraction", "0.2");
+            sparkConf.set("spark.memory.fraction", "0.14");
+            //sparkConf.set("spark.memory.storageFraction", "0.7");
+            //sparkConf.set("spark.memory.useLegacyMode","true");
+            //sparkConf.set("spark.storage.memoryFraction", "0.2");
+
+            sparkConf.set("spark.executor.extraJavaOptions","-XX:+UseG1GC");
 
             sparkConf.set("spark.sql.tungsten.enabled", "true");
             sparkConf.set("spark.io.compression.codec", "snappy");
             sparkConf.set("spark.sql.parquet.compression.codec", "snappy");
 
-            sparkConf.set("spark.driver.maxResultSize", "2g");
+            sparkConf.set("spark.driver.maxResultSize", "6g");
 
             // Kryo serializer
             sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
@@ -69,13 +75,16 @@ public class MetaCacheSpark implements Serializable {
             Class[] serializedClasses = {Location.class,
                     Sketch.class,
                     TreeMap.class,
+                    TreeSet.class,
                     HashMap.class,
                     LocationBasic.class,
                     MatchCandidate.class,
                     List.class,
                     Integer.class,
                     String.class,
-                    Long.class
+                    Long.class,
+                    Sequence.class,
+                    HashMultiMapNative.class
             };
             sparkConf.registerKryoClasses(serializedClasses);
 
@@ -135,7 +144,7 @@ public class MetaCacheSpark implements Serializable {
 			MapSerializer serializer = new MapSerializer();
 */
             //sparkConf.set("spark.kryo.registrator","com.github.jmabuin.metacachespark.MyKryoRegistrator");
-            Class[] serializedClasses = {Location.class, Sketch.class, TreeMap.class, LocationBasic.class, MatchCandidate.class, List.class};
+            Class[] serializedClasses = {Location.class, Sketch.class, TreeMap.class, LocationBasic.class, MatchCandidate.class, List.class, HashMultiMapNative.class};
             sparkConf.registerKryoClasses(serializedClasses);
 
 

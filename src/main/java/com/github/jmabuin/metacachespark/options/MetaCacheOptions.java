@@ -66,6 +66,8 @@ public class MetaCacheOptions implements Serializable {
     private boolean metacache_like_input = false;
     private boolean simple = false;
     private boolean repartition = false;
+    private boolean greater_than_one = false;
+    private boolean remove_overpopulated_features = false;
 
     private Taxonomy.Rank abundance_per = Taxonomy.Rank.none;
 
@@ -218,6 +220,15 @@ public class MetaCacheOptions implements Serializable {
                     LOG.warn("Abundance per set to: " + cmd.getOptionValue("abundance_per"));
                 }
 
+                //-remove-overpopulated-features
+                if (cmd.hasOption('o') || cmd.hasOption("remove_overpopulated_features")) {
+                    this.remove_overpopulated_features = true;
+                }
+
+                if (cmd.hasOption('g') || cmd.hasOption("greater_than_one")) {
+                    this.greater_than_one = true;
+                }
+
             }
 
 			// Get and parse the rest of the arguments
@@ -294,6 +305,7 @@ public class MetaCacheOptions implements Serializable {
 
 		//OptionGroup modes = new OptionGroup();
 
+        // Used options: h, m, d, t, p, c, b, w, l, i, r, n, s, e, a, o
 		Option help = new Option("h","help", false,"Shows documentation");
 		privateOptions.addOption(help);
 
@@ -340,6 +352,12 @@ public class MetaCacheOptions implements Serializable {
 
         Option abundance_per = new Option("a", "abundance_per", true, "Indicates if use the abundance estimation feature and at which level");
         privateOptions.addOption(abundance_per);
+
+        Option remove_overpopulated_features = new Option("o", "remove_overpopulated_features", false, "Usees remove overpopulated features when building");
+        privateOptions.addOption(remove_overpopulated_features);
+
+        Option greater_than_one = new Option("g", "greater_than_one", false, "Gets candidates with more than one hit in the classification maps");
+        privateOptions.addOption(greater_than_one);
 
 		return privateOptions;
 	}
@@ -488,5 +506,13 @@ public class MetaCacheOptions implements Serializable {
 
     public Taxonomy.Rank getAbundance_per() {
         return abundance_per;
+    }
+
+    public boolean isRemove_overpopulated_features() {
+        return remove_overpopulated_features;
+    }
+
+    public boolean isGreater_than_one() {
+        return greater_than_one;
     }
 }

@@ -20,6 +20,8 @@ package com.github.jmabuin.metacachespark.spark;
 import com.github.jmabuin.metacachespark.Location;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.database.HashMultiMapNative;
+import com.github.jmabuin.metacachespark.database.LocationBasicComparator;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import com.google.common.collect.Lists;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,63 +34,77 @@ import java.util.*;
 /**
  * Created by chema on 4/4/17.
  */
-public class Pair2LocationsIterable implements PairFlatMapFunction<Iterator<Tuple2<Integer, Iterable<LocationBasic>>>, Integer, LocationBasic> {
+public class Pair2LocationsIterable implements PairFlatMapFunction<Iterator<Tuple2<Integer, List<LocationBasic>>>, Integer, List<LocationBasic>> {
 
     private static final Log LOG = LogFactory.getLog(Pair2LocationsIterable.class);
 
-    @Override
-    public Iterator<Tuple2<Integer, LocationBasic>> call(Iterator<Tuple2<Integer,Iterable<LocationBasic>>> tuple2Iterator) throws Exception {
+    private MetaCacheOptions options;
 
-        List<Tuple2<Integer, LocationBasic>> returnedValues = new ArrayList<Tuple2<Integer, LocationBasic>>();
+    public Pair2LocationsIterable(MetaCacheOptions options){
+        this.options = options;
+    }
+
+    @Override
+    public Iterator<Tuple2<Integer, List<LocationBasic>>> call(Iterator<Tuple2<Integer,List<LocationBasic>>> tuple2Iterator) throws Exception {
+
+        List<Tuple2<Integer, List<LocationBasic>>> returnedValues = new ArrayList<Tuple2<Integer, List<LocationBasic>>>();
+
+        HashMap<Integer, TreeSet<LocationBasic>> map = new HashMap<>();
 
 
         while(tuple2Iterator.hasNext()) {
+            Tuple2<Integer, List<LocationBasic>> currentItem = tuple2Iterator.next();
 
-            Tuple2<Integer,Iterable<LocationBasic>> current_data = tuple2Iterator.next();
+            if (!map.containsKey(currentItem._1())) {
+                map.put(currentItem._1(), new TreeSet<LocationBasic>(new LocationBasicComparator()));
+            }
 
-            int current_key = current_data._1();
-            List<LocationBasic> current_list = Lists.newArrayList(current_data._2());
+            map.get(currentItem._1()).addAll(currentItem._2());
 
-            current_list.sort(new Comparator<LocationBasic>() {
-                public int compare(LocationBasic o1,
-                                   LocationBasic o2)
-                {
+            //for(LocationBasic current_location: currentItem._2()) {
+            //    map.get(currentItem._1()).add(current_location);
 
-                    if (o1.getTargetId() > o2.getTargetId()) {
-                        return 1;
-                    }
+                /*if (map.get(currentItem._1()).size() > 254) {
 
-                    if (o1.getTargetId() < o2.getTargetId()) {
-                        return -1;
-                    }
 
-                    if (o1.getTargetId() == o2.getTargetId()) {
-                        if (o1.getWindowId() > o2.getWindowId()) {
-                            return 1;
-                        }
+                    map.get(currentItem._1()).remove(map.get(currentItem._1()).last());
 
-                        if (o1.getWindowId() < o2.getWindowId()) {
-                            return -1;
-                        }
+                }*/
+            //}
 
-                        return 0;
+        }
 
-                    }
-                    return 0;
+        tuple2Iterator = null;
 
+        // If post process
+        if(this.options.isRemove_overpopulated_features()) {
+            for(Integer key: map.keySet()) {
+
+                if(map.get(key).size() >= 254) {
+                    map.get(key).clear();
                 }
-            });
+
+            }
+        }
 
 
-            int i;
 
-            for(i = 0; i< current_list.size() && i < 254; ++i) {
-                returnedValues.add(new Tuple2<Integer, LocationBasic>(current_list.get(i).getTargetId(), new LocationBasic(current_key, current_list.get(i).getWindowId())));
+        for(Map.Entry<Integer, TreeSet<LocationBasic>> item : map.entrySet()) {
+
+            int key = item.getKey();
+
+            for (LocationBasic location: item.getValue()) {
+                List<LocationBasic> new_list = new ArrayList<>();
+                new_list.add(new LocationBasic(key, location.getWindowId()));
+                returnedValues.add(new Tuple2<Integer, List<LocationBasic>>(location.getTargetId(), new_list));
             }
 
 
-
+            map.get(key).clear();
         }
+
+        map.clear();
+        map = null;
 
 
         return returnedValues.iterator();

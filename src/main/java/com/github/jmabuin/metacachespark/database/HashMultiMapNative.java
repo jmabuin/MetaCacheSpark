@@ -59,6 +59,8 @@ public class HashMultiMapNative implements Serializable {
     public native int post_process(boolean over_populated, boolean ambiguous);
     public native void clear();
     public native void clear_key(int key);
+    public native int get_size_of_key(int key);
+    public native void add_key_to_delete(int key);
 
     public LocationBasic[] get_locations(int key) {
 

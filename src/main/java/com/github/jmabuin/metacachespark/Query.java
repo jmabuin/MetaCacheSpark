@@ -80,9 +80,80 @@ public class Query implements Serializable {
 
         this.hits = new HashMap<Location, Integer>();
 
+/*
+        LOG.warn("Ordinal for species is: " + Taxonomy.Rank.Species.ordinal());
 
+        long[] lin = this.db.getTaxa_().ranks(9913L);
 
+        for(Long item: lin) {
+            if (item == 0L) {
+                LOG.warn(item + " : ");
+            }
+            else {
+                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
+            }
 
+        }
+        LOG.warn("==============");
+
+        List<Long> lin_list = this.db.getTaxa_().lineage(9913L);
+
+        for(Long item: lin_list) {
+            if (item == 0L) {
+                LOG.warn(item + " : ");
+            }
+            else {
+                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
+            }
+
+        }
+
+        LOG.warn("==============");
+        lin = this.db.getTaxa_().ranks(9940L);
+
+        for(Long item: lin) {
+            if (item == 0L) {
+                LOG.warn(item + " : ");
+            }
+            else {
+                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
+            }
+        }
+
+        lin = this.db.getTaxa_().ranks(89462L);
+
+        for(Long item: lin) {
+            if (item == 0L) {
+                LOG.warn(item + " : ");
+            }
+            else {
+                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
+            }
+        }
+
+        lin = this.db.getTaxa_().ranks(9925L);
+
+        for(Long item: lin) {
+            if (item == 0L) {
+                LOG.warn(item + " : ");
+            }
+            else {
+                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
+            }
+        }
+
+        //
+        lin = this.db.getTaxa_().ranks(9895L);
+
+        for(Long item: lin) {
+            if (item == 0L) {
+                LOG.warn(item + " : ");
+            }
+            else {
+                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
+            }
+        }
+*/
         this.allTaxCounts = new ConcurrentSkipListMap<Taxon, Float>(new Comparator<Taxon>() {
             @Override
             public int compare(Taxon taxon, Taxon t1) {
@@ -441,6 +512,7 @@ public class Query implements Serializable {
 
     public void classify_on_file_pairs(String[] infilenames, BufferedWriter d, ClassificationStatistics stats) {
 
+        this.db.adapt_options_to_database();
 
         //pair up reads from two consecutive files in the list
         for(int i = 0; i < infilenames.length; i += 2) {
@@ -538,8 +610,16 @@ public class Query implements Serializable {
                 // Get corresponding hits for this buffer
                 //List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
                 //        startRead, bufferSize);
-                Map<Long, List<MatchCandidate>> hits = this.db.accumulate_matches_paired(f1, f2,
-                                startRead, bufferSize);
+                Map<Long, List<MatchCandidate>> hits;
+
+                if(this.param.isRemove_overpopulated_features()) {
+                    hits = this.db.accumulate_matches_paired_full(f1, f2,
+                            startRead, bufferSize);
+                }
+                else {
+                    hits = this.db.accumulate_matches_paired(f1, f2,
+                            startRead, bufferSize);
+                }
 
                 LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
 
@@ -667,7 +747,7 @@ public class Query implements Serializable {
 
     public void classify(String filename, BufferedWriter d, ClassificationStatistics stats) {
 
-        LOG.warn("Entering classify");
+        //LOG.warn("Entering classify");
         long initTime = System.nanoTime();
 
         try {
@@ -1968,26 +2048,44 @@ public class Query implements Serializable {
             highestRank = Taxonomy.Rank.Domain;
         }
 
+
+
+        double threshold = cand.getTop_list().get(0).getHits() > this.param.getProperties().getHitsMin() ?
+                (cand.getTop_list().get(0).getHits() - this.param.getProperties().getHitsMin()) *
+                        this.param.getProperties().getHitsDiffFraction() : 0;
+
+
         //int best_pos = cand.getTop_list().size() - 1;
         Taxon lca = db.taxon_of_target((long)cand.getTop_list().get(0).getTgt());
-        //LOG.warn("Best taxon is: " + lca.getTaxonName() + ", hits: " + cand.getTop_list().get(0).getHits());
+        //LOG.warn("Best taxon is: " + lca.getTaxonName() + ", hits: " + cand.getTop_list().get(0).getHits() + " threshold is: " + threshold);
+
+        if(cand.getTop_list().get(0).getHits() < this.param.getProperties().getHitsMin()) {
+            return this.db.getTaxa_().getNoTaxon_();
+        }
 
         for (int i = 1; i < cand.getTop_list().size(); ++i) {
-            //LOG.warn("Other taxon is: " + db.taxon_of_target((long)cand.getTop_list().get(i).getTgt()).getTaxonName() +
-            //       ", hits: " + cand.getTop_list().get(i).getHits());
-            lca = this.db.ranked_lca(lca, cand.getTop_list().get(i).getTax());
-            //LOG.warn("Obtained LCA: " + lca.getTaxonName());
-            if (lca == null || lca == this.db.getTaxa_().getNoTaxon_() || lca.getRank().ordinal() > this.param.getProperties().getHighestRank().ordinal()) {
-                return this.db.getTaxa_().getNoTaxon_();
+
+            if(cand.getTop_list().get(i).getHits() > threshold) {
+                lca = this.db.ranked_lca(lca, cand.getTop_list().get(i).getTax());
+                //LOG.warn("Obtained LCA: " + lca.getTaxonName());
+                if (lca == null || lca == this.db.getTaxa_().getNoTaxon_() || lca.getRank().ordinal() > this.param.getProperties().getHighestRank().ordinal()) {
+                    return this.db.getTaxa_().getNoTaxon_();
+                }
             }
             else {
                 break;
             }
 
 
+
+
         }
 
         //LOG.warn("Final LCA is: " + lca.getTaxonName());
+
+        //if(lowestRank.ordinal() > lca.getRank().ordinal()) {
+        //    return this.db.getTaxa_().getNoTaxon_();
+        //}
 
         while ((lowestRank.ordinal() > lca.getRank().ordinal()) && (lca.getParentId()!=0)) {
 
@@ -2454,11 +2552,12 @@ public class Query implements Serializable {
         if(matches.isEmpty()) {
             return;
         }
-        try {
+        try {/*
             if(lowest == Taxonomy.Rank.Sequence) {
                 for(MatchCandidate r : matches) {
                     os.write(db.sequence_id_of_target(r.getTgt())+
-                            '/'+ r.getTgt()+
+                            "/Tgt:"+ r.getTgt()+","+
+                            "TaxId:" + r.getTax().getTaxonId()+
                             '/' + r.getHits()+
                             ':' + r.getTax().getTaxonName() + ',');
                     os.newLine();
@@ -2466,13 +2565,34 @@ public class Query implements Serializable {
             }
             else {
                 for(MatchCandidate r : matches) {
-                    long taxid = db.ranks_of_target(r.getTgt())[lowest.ordinal()];
-                    os.write(Long.toString(taxid) + ':' + r.getHits() +
-                            '/'+ r.getTgt()+
+                    //long taxid = db.ranks_of_target(r.getTgt())[lowest.ordinal()];
+                    os.write("/TaxId:"+r.getTax().getTaxonId() + ':' + r.getHits() +
+                            "/Tgt:"+ r.getTgt()+
                             '/' + r.getTax().getTaxonName()+ ',');
                     os.newLine();
                 }
+            }*/
+
+            if(lowest == Taxonomy.Rank.Sequence) {
+                os.write("\t");
+                for(MatchCandidate r : matches) {
+                    os.write(r.getTax().getTaxonId()+"["+
+                            r.getTgt()+"]"+
+                            ':' + r.getHits()+',');
+                    //os.newLine();
+                }
+                os.write("\t");
             }
+            else {
+                os.write("\t");
+                for(MatchCandidate r : matches) {
+                    //long taxid = db.ranks_of_target(r.getTgt())[lowest.ordinal()];
+                    os.write(r.getTax().getTaxonId()+":" + r.getHits()+",");
+                    //os.newLine();
+                }
+                os.write("\t");
+            }
+
         }
         catch(IOException e) {
             LOG.error("IOException in function show_matches: "+ e.getMessage());

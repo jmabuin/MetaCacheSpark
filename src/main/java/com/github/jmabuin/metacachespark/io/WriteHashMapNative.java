@@ -78,6 +78,7 @@ public class WriteHashMapNative implements Function2<Integer, Iterator<HashMulti
 				is.close();
 */
 				fs.copyFromLocalFile(true, true, new Path(filename + "_" + i), new Path(this.path + "/"+filename + "_" + i));
+				//fs.copyFromLocalFile(true, true, new Path(filename + "_" + i+"_natural"), new Path(this.path + "/"+filename + "_" + i+"_natural"));
 
 				i++;
 			}

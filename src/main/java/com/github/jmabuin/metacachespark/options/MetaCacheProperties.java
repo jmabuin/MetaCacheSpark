@@ -141,6 +141,9 @@ public class MetaCacheProperties implements Serializable {
 
         this.maxTaxaPerFeature = Integer.parseInt(properties.getProperty("max_ambig_per_feature"));
 
+        if (this.mergeBelow != Taxonomy.Rank.Sequence) {
+            this.lowestRank = this.mergeBelow;
+        }
         //this.myWholeTextFiles = Boolean.parseBoolean(properties.getProperty("wholetextfiles"));
 
     }

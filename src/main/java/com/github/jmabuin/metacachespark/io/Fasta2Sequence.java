@@ -157,8 +157,8 @@ public class Fasta2Sequence implements FlatMapFunction<Iterator<String>, Sequenc
 
                 //Sequence currentSequence = currentSequence_tuple._2;
 
-                String seqId = extraction.extract_sequence_id(currentSequence.getHeader());//SequenceReader.extract_sequence_id(currentSequence.getHeader());
-                String fileIdentifier = extraction.extract_sequence_id(FilenameUtils.getName(currentSequence.getOriginFilename()));//SequenceReader.extract_sequence_id(fileName);
+                String seqId = extraction.extract_accession_string(currentSequence.getHeader());//SequenceReader.extract_sequence_id(currentSequence.getHeader());
+                String fileIdentifier = extraction.extract_accession_string(FilenameUtils.getName(currentSequence.getOriginFilename()));//SequenceReader.extract_sequence_id(fileName);
 
                 //make sure sequence id is not empty,
                 //use entire header if neccessary

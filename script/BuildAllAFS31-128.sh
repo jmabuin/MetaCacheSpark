@@ -1,7 +1,7 @@
 #!/bin/bash
 
 INPUT_SEQUENCES=Genomica/InputDatasets/AFS31/
-TAXONOMY=Genomica/InputDatasets/RefSeq90/Refseq-Release90-Taxonomy
+TAXONOMY=Genomica/InputDatasets/Taxonomy
 PARTITION_NUMBER=128
 DATABASE_NAME=DatabaseNativeAFS31_$PARTITION_NUMBER
 

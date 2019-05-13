@@ -1,7 +1,7 @@
 #!/bin/bash
 
-INPUT_SEQUENCES=Genomica/InputDatasets/BigDataset/
-TAXONOMY=Genomica/InputDatasets/RefSeq90/Refseq-Release90-Taxonomy
+INPUT_SEQUENCES=Genomica/InputDatasets/AFS20RS90
+TAXONOMY=Genomica/InputDatasets/Taxonomy
 PARTITION_NUMBER=64
 DATABASE_NAME=DatabaseNativeAFS20RS90_$PARTITION_NUMBER
 

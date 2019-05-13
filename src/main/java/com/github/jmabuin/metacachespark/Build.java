@@ -18,6 +18,7 @@
 package com.github.jmabuin.metacachespark;
 
 import com.github.jmabuin.metacachespark.database.Database;
+import com.github.jmabuin.metacachespark.database.Taxon;
 import com.github.jmabuin.metacachespark.database.Taxonomy;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.cli.*;
@@ -233,15 +234,17 @@ public class Build implements Serializable {
 
             LOG.info("Reading taxonomic tree ... ");
 
-            long taxonId = 0;
-            long parentId = 0;
-            String rankName = "";
+
 
             for(String line; (line = br.readLine()) != null; ) {
                 String[] lineParts = line.split("\\|");
+                long taxonId = 0;
+                long parentId = 0;
+                String rankName = "";
 
                 for(int i = 0; i< lineParts.length; i++) {
                     String currentvalueTrim = lineParts[i].trim();
+
                     if((i == 0) && (!currentvalueTrim.isEmpty())) {
                         taxonId = Long.parseLong(currentvalueTrim);
                     }
@@ -253,6 +256,10 @@ public class Build implements Serializable {
                     }
 
                 }
+
+                /*if(rankName.equals("no rank")) {
+                    LOG.warn("No rank in taxid: " + taxonId + " Obtained rank: " + Taxonomy.rank_from_name(rankName.toLowerCase()).name());
+                }*/
 
                 //get taxon name
                 String taxonName = "";
@@ -293,8 +300,8 @@ public class Build implements Serializable {
         }
 
         //make sure every taxon has a rank designation
-        tax.rank_all_unranked();
-        LOG.info("End of rank_all_unranked");
+        //tax.rank_all_unranked();
+        //LOG.info("End of rank_all_unranked");
         return tax;
     }
 
@@ -315,6 +322,14 @@ public class Build implements Serializable {
         if(!this.taxonomy_param.getPath().isEmpty()) {
             this.load_taxonomy_into_database(this.db);
         }
+
+        Taxon tax  = this.db.taxon_with_id(6072L);
+        LOG.warn(tax.getTaxonId());
+        LOG.warn(tax.getTaxonName());
+        LOG.warn(tax.getParentId());
+        LOG.warn(tax.getRank().ordinal());
+        LOG.warn(tax.getRank().name());
+
 
         if(this.db.taxon_count() < 1) {
             LOG.info("The database doesn't contain a taxonomic hierarchy yet.\n" +

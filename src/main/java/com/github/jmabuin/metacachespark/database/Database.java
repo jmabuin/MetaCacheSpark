@@ -32,6 +32,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
@@ -743,7 +744,7 @@ public class Database implements Serializable{
 
     public void buildDatabaseMultiPartitions(String inputdir, TreeMap<String, Long> sequ2taxid, Build.build_info infoMode) {
         try {
-
+            LOG.warn("Building database in mode buildDatabaseMultiPartitions");
             this.inputSequences = null;
             //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
 
@@ -763,6 +764,11 @@ public class Database implements Serializable{
             int current_target = 0;
 
             ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
+
+            for(int num = 0; (num < infiles.size()) && (num < 40); ++num) {
+                LOG.warn("Assigning file: " + infiles.get(num));
+            }
+
 
             if (this.params.isMetacache_like_input()) {
 
@@ -819,6 +825,7 @@ public class Database implements Serializable{
                 List<String> sequences = this.jsc.textFile(all_files.toString(), repartition_files)
                         .filter(item -> item.startsWith(">"))
                         .map(item -> item.substring(1))
+                        //.repartition(repartition_files)
                         .collect();
 
                 for(String current_header: sequences) {
@@ -829,6 +836,7 @@ public class Database implements Serializable{
 
             //ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
             Map<String, Long> infiles_lengths = Database.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
+            //infiles_lengths = Database.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
                     0, this.jsc), false);
 
             HashMap<String, Integer> partitions_map = new HashMap<String, Integer>();
@@ -1009,6 +1017,45 @@ public class Database implements Serializable{
             this.nextTargetId_ = this.name2tax_sequences.size();
 
 
+            JavaRDD<HashMultiMapNative> map = this.inputSequences
+                    .mapPartitions(new Sketcher2PairPartitions(this.name2tax_sequences, this.params), true)
+                    .persist(StorageLevel.MEMORY_ONLY_SER());
+
+            List<Integer> delete_features;
+
+            if (this.params.isRemove_overpopulated_features()) {
+                delete_features = map.mapPartitionsToPair(new GetSizes())
+                        .reduceByKey(new SizesReducer())
+                        .mapPartitions(new SketchesMap2Boolean(this.params))
+                        .collect();
+            }
+            else {
+                delete_features = new ArrayList<>();
+            }
+
+
+
+            //List<Integer> delete_features = new ArrayList<>();
+
+
+/*
+            JavaPairRDD<Integer, LocationBasic> tmp_sketches_rdd = this.inputSequences
+                    //.mapPartitionsToPair(new Sketcher2PairPartitions2(this.name2tax_), true)
+                    //.mapPartitionsToPair(new Sketcher2PairPartitions2(this.name2tax_sequences, this.params), true)
+                    .flatMapToPair(new Sketcher2Pair(this.name2tax_sequences))
+                    .persist(StorageLevel.MEMORY_ONLY_SER());
+
+            //LOG.warn("Total items in sketches without overpopulated: " + tmp_sketches_rdd.count());
+
+            List<Integer> delete_features = tmp_sketches_rdd
+                    .combineByKey(new CombinerCreate(), new CombinerMerge(), new CombinerMergeCombiners())
+                    .mapPartitions(new SketchesMap2Boolean(this.params), true)
+                    .collect();
+
+            TreeSet<Integer> delete_features_tree = new TreeSet<>(delete_features);
+*/
+            //delete_features.clear();
+
             if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
                 LOG.warn("Building database with isBuildModeHashMap");
 
@@ -1027,8 +1074,11 @@ public class Database implements Serializable{
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
                 LOG.warn("Building database with isBuildModeHashMultiMapMC");
 
-                this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_sequences), true);
+                //this.locationJavaRDDHashMultiMapNative = this.inputSequences
+                //        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_sequences, this.params), true);
+                //this.locationJavaRDDHashMultiMapNative = tmp_sketches_rdd.mapPartitions(new FilterAndSave(delete_features_tree), true);
+
+                this.locationJavaRDDHashMultiMapNative = map.mapPartitions(new FilterAndSaveNative(delete_features), true);
 
             }
             else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
@@ -1068,6 +1118,7 @@ public class Database implements Serializable{
     public void buildDatabaseMultiPartitionsMetacacheLike(String inputdir, TreeMap<String, Long> sequ2taxid, Build.build_info infoMode) {
         try {
 
+            LOG.warn("Building database in mode buildDatabaseMultiPartitionsMetacacheLike");
             this.inputSequences = null;
             //JavaPairRDD<TargetProperty, ArrayList<Location>> databaseRDD = null;
 
@@ -1084,6 +1135,11 @@ public class Database implements Serializable{
             int current_target = 0;
 
             ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
+
+
+            for(int num = 0; (num < infiles.size()) && (num < 40); ++num) {
+                LOG.warn("Assigning file: " + infiles.get(num));
+            }
 
             if (this.params.isMetacache_like_input()) {
 
@@ -1123,6 +1179,7 @@ public class Database implements Serializable{
 
                 LOG.info("Number of files: " + infiles.size());
 
+
                 for (int index=0; index < infiles.size(); ++index){//String current_file: infiles) {
                     if (!infiles.get(index).equals("assembly_summary.txt")) {
 
@@ -1140,6 +1197,7 @@ public class Database implements Serializable{
                 List<String> sequences = this.jsc.textFile(all_files.toString(), repartition_files)
                         .filter(item -> item.startsWith(">"))
                         .map(item -> item.substring(1))
+                        //.repartition(repartition_files)
                         .collect();
 
                 for(String current_header: sequences) {
@@ -1150,6 +1208,7 @@ public class Database implements Serializable{
 
             //ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
             Map<String, Long> infiles_lengths = Database.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
+            //infiles_lengths = Database.sortByComparator(FilesysUtility.files_in_directory_with_size(inputdir,
                     0, this.jsc), false);
 
             HashMap<String, Integer> partitions_map = new HashMap<String, Integer>();
@@ -1310,7 +1369,7 @@ public class Database implements Serializable{
 
                 this.taxa_.getTaxa_().put(j, new Taxon(j, parentTaxId, target.getIdentifier(), Taxonomy.Rank.Sequence));
 
-                this.name2tax_.put(seqId, j);
+                this.name2tax_.put(target.getIdentifier(), j);
                 //this.taxa_.getTaxa_().put(j, new Taxon(j, 0, target.getIdentifier(), Taxonomy.Rank.Sequence));
                 //--j;
                 //}
@@ -1323,6 +1382,7 @@ public class Database implements Serializable{
             LOG.warn("Size of taxonomy is: " + this.taxa_.getTaxa_().size());
             this.try_to_rank_unranked_targets();
 
+
             LOG.warn("Size of name2tax_sequences is: " + this.name2tax_sequences.size());
 
             this.nextTargetId_ = this.name2tax_sequences.size();
@@ -1331,32 +1391,48 @@ public class Database implements Serializable{
                     //.mapPartitionsToPair(new Sketcher2PairPartitions2(this.name2tax_), true)
                     .flatMapToPair(new Sketcher2Pair(this.name2tax_sequences))
                     .partitionBy(new MyCustomPartitioner(this.numPartitions))
-                    .mapPartitionsToPair(new Pair2Locations(), true)
+                    .mapPartitionsToPair(new Pair2KeyValues(this.params))
                     .partitionBy(new MyCustomPartitioner(this.numPartitions))
                     .persist(StorageLevel.MEMORY_ONLY_SER());
 
 /*
-            JavaPairRDD<Integer, Iterable<LocationBasic>> tmp_rdd = this.inputSequences
-                    //.mapPartitionsToPair(new Sketcher2PairPartitions2(this.name2tax_))
-                    .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                    .groupByKey()
-                    .mapPartitionsToPair(new Pair2LocationsIterable())
-                    .groupByKey()
-                    .repartition(this.numPartitions)
-                    .persist(StorageLevel.MEMORY_ONLY_SER());
-*/
-     /*       JavaPairRDD<Integer, Iterable<LocationBasic>> tmp_rdd = this.inputSequences
+            JavaPairRDD<Integer, LocationBasic> tmp_sketches_rdd = this.inputSequences
                     //.mapPartitionsToPair(new Sketcher2PairPartitions2(this.name2tax_), true)
-                    .flatMapToPair(new Sketcher2Pair(this.name2tax_))
-                    .partitionBy(new MyCustomPartitioner(this.numPartitions))
-                    .mapPartitionsToPair(new Pair2Locations())
-                    .groupByKey()
-                    .repartition(this.numPartitions)
+                    .flatMapToPair(new Sketcher2Pair(this.name2tax_sequences))
                     .persist(StorageLevel.MEMORY_ONLY_SER());
+
+            Map<Integer, Integer> sketches_sizes = tmp_sketches_rdd.mapToPair(new SketchesMap())
+                    .reduceByKey(new SketchesReducer())
+                    .collectAsMap();
+
+            Map<Integer, Boolean> delete_features = new HashMap<>();
+
+            for(Map.Entry<Integer, Integer> entry : sketches_sizes.entrySet()) {
+
+                if (entry.getValue() > this.params.getProperties().getMax_locations_per_feature()) {
+                    delete_features.put(entry.getValue(), true);
+                }
+                else {
+                    delete_features.put(entry.getValue(), false);
+                }
+
+            }
+
+            sketches_sizes.clear();
 */
+
+
+
+
             LOG.warn("Number of items in HashMap: " + tmp_rdd.count());
 
+            LOG.warn("Building database with isBuildModeHashMultiMapMC");
 
+            this.locationJavaRDDHashMultiMapNative = tmp_rdd
+                    .mapPartitions(new Locations2HashMapNative(), true);
+                    //.mapPartitions(new Locations2HashMapNativeIterable(this.params), true);
+
+/*
             if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
                 LOG.warn("Building database with isBuildModeHashMap");
 
@@ -1397,7 +1473,7 @@ public class Database implements Serializable{
                         this.params.getProperties().getMax_locations_per_feature()));
 
             }
-
+*/
 
         } catch (Exception e) {
             LOG.error("ERROR! "+e.getMessage());
@@ -2074,6 +2150,21 @@ public class Database implements Serializable{
         }
         else {
             LOG.warn(unranked.size() + " targets remain unranked.");
+            int i = 0;
+
+            Iterator<Long> it_unranked = unranked.iterator();
+
+
+
+            for (i = 0; i< 40 && it_unranked.hasNext(); ++i) {
+                Long current = it_unranked.next();
+
+                Long id = this.getTaxa_().getTaxa_().get(current).getTaxonId();
+                String name = this.getTaxa_().getTaxa_().get(current).getTaxonName();
+
+                LOG.warn("Unranked taxon: " + id + " :: " + name);
+
+            }
         }
 
     }
@@ -2521,12 +2612,83 @@ public class Database implements Serializable{
     }
 */
 
+    public Map<Long, List<MatchCandidate>> accumulate_matches_paired_full(String fileName, String fileName2,
+                                                                     long init, int size) {
+
+        Map<Long, List<MatchCandidate>> results = null;
+
+        //CandidateGenerationRules rules = new CandidateGenerationRules(this.params.getProperties());
+
+        if (this.params.getNumThreads() == 1) {
+            switch (this.params.getDatabase_type()) {
+
+                case HASHMULTIMAP_NATIVE:
+                    //LOG.warn("Yes, it is full");
+                    results = this.locationJavaRDDHashMultiMapNative
+                            .mapPartitionsToPair(new PartialQueryNativePairedFull(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNativeFull(this.params))
+                            .collectAsMap();
+
+                    break;
+                case HASHMAP:
+                    results = this.locationJavaHashRDD
+                            .mapPartitionsToPair(new PartialQueryJavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                case HASHMULTIMAP_GUAVA:
+                    results = this.locationJavaHashMMRDD
+                            .mapPartitionsToPair(new PartialQueryGuavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                default:
+                    //this.classify(filename, d, stats);
+                    break;
+
+
+            }
+        }
+        else {
+            switch (this.params.getDatabase_type()) {
+
+                case HASHMULTIMAP_NATIVE:
+                    results = this.locationJavaRDDHashMultiMapNative
+                            .mapPartitionsToPair(new PartialQueryNativeMultiThreadPairedFull(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNativeFull(this.params))
+                            .collectAsMap();
+
+                    break;
+                case HASHMAP:
+                    results = this.locationJavaHashRDD
+                            .mapPartitionsToPair(new PartialQueryJavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                case HASHMULTIMAP_GUAVA:
+                    results = this.locationJavaHashMMRDD
+                            .mapPartitionsToPair(new PartialQueryGuavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                            .reduceByKey(new QueryReducerListNative(this.params))
+                            .collectAsMap();
+                    break;
+                default:
+                    //this.classify(filename, d, stats);
+                    break;
+
+
+            }
+        }
+        return results;
+    }
+
 
 
     public Map<Long, List<MatchCandidate>> accumulate_matches_paired(String fileName, String fileName2,
                                                                      long init, int size) {
 
         Map<Long, List<MatchCandidate>> results = null;
+
+        //CandidateGenerationRules rules = new CandidateGenerationRules(this.params.getProperties());
 
         if (this.params.getNumThreads() == 1) {
             switch (this.params.getDatabase_type()) {
@@ -2777,14 +2939,24 @@ public class Database implements Serializable{
             //JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
             FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
 
-            if(!fs.isFile(new Path(mappingFile))) {
+            Path current_file_path = new Path(mappingFile);
+
+            if(!fs.isFile(current_file_path)) {
                 LOG.warn("File: " + mappingFile + " does not exist");
                 return;
             }
 
-            FSDataInputStream inputStream = fs.open(new Path(mappingFile));
+            Path local_file = new Path(FilenameUtils.getName(mappingFile));
 
-            BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
+            fs.copyToLocalFile(current_file_path, local_file);
+
+            //FSDataInputStream inputStream = fs.open(new Path(mappingFile));
+            //BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
+
+
+            FileReader file_Reader = new FileReader(local_file.getName());
+
+            BufferedReader d = new BufferedReader(file_Reader);
 
             String acc;
             String accver;
@@ -2828,7 +3000,7 @@ public class Database implements Serializable{
                         Taxon tax = this.taxon_with_name(accver);
 
 
-                        if(tax.equals(this.getTaxa_().getNoTaxon_())) {
+                        if( (tax == null) || tax.equals(this.getTaxa_().getNoTaxon_())) {
                             tax = this.taxon_with_similar_name(acc);
                             if(tax.equals(this.getTaxa_().getNoTaxon_())) {
                                 tax = this.taxon_with_name(gi);
@@ -2880,7 +3052,8 @@ public class Database implements Serializable{
             }
 
             d.close();
-            inputStream.close();
+            file_Reader.close();
+            //inputStream.close();
             //fs.close();
         }
 
@@ -3097,14 +3270,14 @@ public class Database implements Serializable{
 
     public void estimate_abundance(ConcurrentSkipListMap<Taxon, Float> allTaxCounts, Taxonomy.Rank rank) {
 
-
+/*
         for(Taxon taxCount: allTaxCounts.keySet()) {
             LOG.warn("Taxon in allTaxCounts: " + taxCount.rank_name()+ ":" + taxCount.getTaxonId() + ":" + taxCount.getTaxonName() + " :: " + allTaxCounts.get(taxCount));
         }
-
+*/
 
         List<Taxon> mark_for_removal = new ArrayList<Taxon>();
-        if (rank != Taxonomy.Rank.Sequence) {
+        if (rank.ordinal() != Taxonomy.Rank.Sequence.ordinal()) {
 
             //prune taxon below estimation rank
             Taxon t = new Taxon(0, 0, "", rank.previous());
@@ -3135,7 +3308,7 @@ public class Database implements Serializable{
                         index +=1;
                     }
 
-                    if ((ancestor != null) && (ancestor != this.taxa_.getNoTaxon_())) {
+                    if ((ancestor != null) && (ancestor != this.taxa_.getNoTaxon_()) && (ancestor.getRank().ordinal() > taxCount.getRank().ordinal())) {
 
                         if (!allTaxCounts.containsKey(ancestor)) {
                             allTaxCounts.put(ancestor, 0F);
@@ -3180,6 +3353,7 @@ public class Database implements Serializable{
         for (int i = keyList.size() - 1; i >= 0; --i) {
             Taxon taxCount = keyList.get(i);
 
+            //find closest parent
             Long[] lineage = this.ranks(taxCount);
             Taxon parent = null;
 
@@ -3188,7 +3362,7 @@ public class Database implements Serializable{
             while (index < lineage.length) {
                 parent = this.taxa_.getTaxa_().get(lineage[index]);
 
-                if ((parent != null) && (parent != this.taxa_.getNoTaxon_()) && taxWeights.containsKey(parent)) {
+                if ((lineage[index] != 0) && (parent != null) && (parent != this.taxa_.getNoTaxon_()) && taxWeights.containsKey(parent)) {
                     //add own count to parent
                     taxWeights.put(parent, (long) (taxWeights.get(parent) + taxWeights.get(taxCount) + allTaxCounts.get(taxCount)));
                     //link from parent to child
@@ -3240,6 +3414,27 @@ public class Database implements Serializable{
 
 
 
+    }
+
+     /*************************************************************************//**
+     *
+     * @brief sets up some query options according to database parameters
+     *        or command line options
+     *
+     *****************************************************************************/
+    public void adapt_options_to_database()
+    {
+        //deduce hit threshold from database?
+        if(this.params.getProperties().getHitsMin() < 1) {
+            int sks = this.params.getProperties().getSketchlen();
+            if(sks >= 6) {
+                this.params.getProperties().setHitsMin((int)(sks / 3.0));
+            } else if (sks >= 4) {
+                this.params.getProperties().setHitsMin(2);
+            } else {
+                this.params.getProperties().setHitsMin(1);
+            }
+        }
     }
 
 

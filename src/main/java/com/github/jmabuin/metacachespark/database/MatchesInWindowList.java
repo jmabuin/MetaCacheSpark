@@ -57,7 +57,7 @@ public class MatchesInWindowList implements Serializable {
         this.matches = null;
         this.targets_ = targets_;
         this.taxa_ = taxa_;
-        this.rules = new CandidateGenerationRules();
+        this.rules = new CandidateGenerationRules(options.getProperties());
 
         this.rules.setMaxWindowsInRange(numWindows);
 
@@ -66,16 +66,96 @@ public class MatchesInWindowList implements Serializable {
         this.rules.setMaxCandidates(this.options.getProperties().getMaxCandidates());
 
         this.all_hits = null;
-        this.top_list = matches;
+        this.top_list = new ArrayList<>();
 
-        // Rank candidates
-        for (MatchCandidate m: this.top_list) {
+        //CandidateGenerationRules rules = new CandidateGenerationRules();
 
-            m.setTax(this.get_taxon(m.getTgt()));
+        int i = 0;
+        //double threshold = 0.0;
+
+        if (! matches.isEmpty()) {
+
+            // Sort candidates in DESCENDING order according number of hits
+            matches.sort(new Comparator<MatchCandidate>() {
+                public int compare(MatchCandidate o1,
+                                   MatchCandidate o2) {
+
+                    if (o1.getHits() < o2.getHits()) {
+                        return 1;
+                    }
+
+                    if (o1.getHits() > o2.getHits()) {
+                        return -1;
+                    }
+
+                    return 0;
+
+                }
+            });
+
+
+            /*threshold = matches.get(0).getHits() > this.options.getProperties().getHitsMin() ?
+                    (matches.get(0).getHits() - this.options.getProperties().getHitsMin()) *
+                            this.options.getProperties().getHitsDiffFraction() : 0;*/
+
+        }
+
+
+
+
+        // Rank candidates and check if above sequence level
+        for (MatchCandidate m: matches) {
+
+
+            //if(m.getHits() > threshold) {
+
+                m.setTax(this.get_taxon(m.getTgt()));
+
+                if (rules.getMergeBelow().ordinal() > Taxonomy.Rank.Sequence.ordinal()) {
+                    //this.taxa_.getTaxa_().get(this.targets_.get(tgt_id).getTax());
+                    //Long ancestor = this.taxa_.ancestor(this.targets_.get(m.getTgt()).getTax(), rules.getMergeBelow().ordinal());
+                    Long ancestor = this.taxa_.ancestor(this.targets_.get(m.getTgt()).getTax(), rules.getMergeBelow());
+                    if (ancestor != 0) m.setTax(this.taxa_.getTaxa_().get(ancestor));
+                }
+
+                if ((m.getTax().getRank().ordinal() == Taxonomy.Rank.Sequence.ordinal()) && (i < rules.getMaxCandidates())) {
+                    this.top_list.add(m);
+                    ++i;
+                }
+
+                //above sequence level, taxa can occur more than once
+                else {
+                    boolean found = false;
+
+                    for (MatchCandidate cand : this.top_list) {
+                        if (cand.getTax().getTaxonId() == m.getTax().getTaxonId()) {
+                            found = true;
+                            break;
+                        }
+
+                    }
+
+
+                    if ((!found) && ((i < rules.getMaxCandidates()))) {
+                        this.top_list.add(m);
+                        ++i;
+                    }
+                }
+
+                if (i >= rules.getMaxCandidates()) {
+                    break;
+                }
+            //}
+            //else {
+            //    break;
+            //}
 
         }
 
         this.best = null;
+
+
+
 
         if (this.top_list.size() > 0) {
             this.best = this.top_list.get(0);

@@ -87,6 +87,22 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_clear_1key
   (JNIEnv *, jobject, jint);
 
+/*
+ * Class:     com_github_jmabuin_metacachespark_database_HashMultiMapNative
+ * Method:    get_size_of_key
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_get_1size_1of_1key
+  (JNIEnv *, jobject, jint);
+
+/*
+ * Class:     com_github_jmabuin_metacachespark_database_HashMultiMapNative
+ * Method:    add_key_to_delete
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_add_1key_1to_1delete
+  (JNIEnv *, jobject, jint);
+
 #ifdef __cplusplus
 }
 #endif
