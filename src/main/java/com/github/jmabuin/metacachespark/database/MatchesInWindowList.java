@@ -115,7 +115,7 @@ public class MatchesInWindowList implements Serializable {
                     //this.taxa_.getTaxa_().get(this.targets_.get(tgt_id).getTax());
                     //Long ancestor = this.taxa_.ancestor(this.targets_.get(m.getTgt()).getTax(), rules.getMergeBelow().ordinal());
                     Long ancestor = this.taxa_.ancestor(this.targets_.get(m.getTgt()).getTax(), rules.getMergeBelow());
-                    if (ancestor != 0) m.setTax(this.taxa_.getTaxa_().get(ancestor));
+                    if ((ancestor!=null) && (ancestor != 0)) m.setTax(this.taxa_.getTaxa_().get(ancestor));
                 }
 
                 if ((m.getTax().getRank().ordinal() == Taxonomy.Rank.Sequence.ordinal()) && (i < rules.getMaxCandidates())) {

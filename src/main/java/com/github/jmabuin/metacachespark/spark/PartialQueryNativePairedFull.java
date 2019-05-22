@@ -315,18 +315,18 @@ public class PartialQueryNativePairedFull implements PairFlatMapFunction<Iterato
                 }
             } else {
                 //end of current target
-                //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
-                //if (curBest.getHits() > 1) {
-                if (this.options.isGreater_than_one()) {
 
-                    if (curBest.getHits() > 1) {
+                /*if (this.options.getHits_greater_than() > 0) {
+
+                    if (curBest.getHits() > this.options.getHits_greater_than()) {
                         best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
                     }
 
                 }
-                else {
+                else {*/
                     best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
-                }
+                //}
+
 
 
                 //}
@@ -345,16 +345,17 @@ public class PartialQueryNativePairedFull implements PairFlatMapFunction<Iterato
 
         }
         //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
-        if (this.options.isGreater_than_one()) {
+        /*if (this.options.getHits_greater_than() > 0) {
 
-            if (curBest.getHits() > 1) {
+            if (curBest.getHits() > this.options.getHits_greater_than()) {
                 best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
             }
 
         }
-        else {
+        else {*/
             best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
-        }
+       // }
+
 
         if (best_hits.isEmpty()) {
             return new ArrayList<MatchCandidate>();
@@ -379,7 +380,14 @@ public class PartialQueryNativePairedFull implements PairFlatMapFunction<Iterato
         });
 
 
-        MatchCandidate best = best_hits.get(0);
+        //for(int i = 0; (i< this.options.getProperties().getMaxCandidates()) && (i < best_hits.size()) ; ++i) {
+        /*for(int i = 0; i < best_hits.size() ; ++i) {
+            //top_list.add(best_hits.get(i));
+            LOG.warn("Best: " + best_hits.get(i).getTgt() + "::" + best_hits.get(i).getHits());
+        }
+        LOG.warn("Best: ---------------");*/
+
+        //MatchCandidate best = best_hits.get(0);
 
         return best_hits;
 

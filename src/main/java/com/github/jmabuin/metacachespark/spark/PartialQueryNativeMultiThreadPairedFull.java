@@ -67,7 +67,9 @@ public class PartialQueryNativeMultiThreadPairedFull implements PairFlatMapFunct
 
         //long initTime = System.nanoTime();
 
-        long max_wait_time = 600; // Max number of seconds to wait for threads to finish
+        long max_wait_time = 1800; // Max number of seconds to wait for threads to finish
+
+        //Tuple2<Long, List<MatchCandidate>>[] finalResultsArray = new Tuple2[this.bufferSize];
 
         List<Tuple2<Long, List<MatchCandidate>>> finalResults = Collections.synchronizedList(new ArrayList<Tuple2<Long, List<MatchCandidate>>>());
 
@@ -121,17 +123,19 @@ public class PartialQueryNativeMultiThreadPairedFull implements PairFlatMapFunct
             long currentSequence = this.init;
 
             // Theoretically there is only one HashMap per partition
-            while(myHashMaps.hasNext()){
+            while(myHashMaps.hasNext()) {
 
                 HashMultiMapNative currentHashMap = myHashMaps.next();
 
                 //LOG.info("Processing hashmap " + currentSequence );
 
                 int current_thread = 0;
-
+                int i = 0;
                 //creating the ThreadPoolExecutor
-                ThreadPoolExecutor executorPool = new ThreadPoolExecutor(this.options.getNumThreads(),
-                        this.options.getNumThreads(), 10, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(this.bufferSize));
+                //ThreadPoolExecutor executorPool = new ThreadPoolExecutor(this.options.getNumThreads(),
+                //        this.options.getNumThreads(), 30, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(this.bufferSize));
+
+                ThreadPoolExecutor executorPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(this.options.getNumThreads());
 
                 while((seqReader.next() != null) && (seqReader2.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
 
@@ -145,7 +149,7 @@ public class PartialQueryNativeMultiThreadPairedFull implements PairFlatMapFunct
 
                     executorPool.execute(new RunnableClassification("Thread" + current_thread + "Seq"+currentSequence,
                             header, data, qua, header2, data2, qua2,  this.options, this.window_stride, finalResults,
-                            currentHashMap, currentSequence));
+                            currentHashMap, currentSequence, i));
 
                     if (current_thread >= this.options.getNumThreads()) {
                         current_thread = 0;
@@ -158,6 +162,7 @@ public class PartialQueryNativeMultiThreadPairedFull implements PairFlatMapFunct
 
                 }
 
+
                 executorPool.shutdown();
 
                 try {
@@ -167,6 +172,8 @@ public class PartialQueryNativeMultiThreadPairedFull implements PairFlatMapFunct
                     System.out.println("InterruptedException " + e.getMessage());
                 }
 
+
+
                 seqReader.close();
                 seqReader2.close();
             }
@@ -174,6 +181,7 @@ public class PartialQueryNativeMultiThreadPairedFull implements PairFlatMapFunct
             //long endTime = System.nanoTime();
 
             //LOG.warn("Time spent in executor is: " + ((endTime - initTime) / 1e9) + " seconds");
+
 
             return finalResults.iterator();
 
@@ -230,12 +238,13 @@ public class PartialQueryNativeMultiThreadPairedFull implements PairFlatMapFunct
         private List<Tuple2<Long, List<MatchCandidate>>> finalResults;
         private HashMultiMapNative currentHashMap;
         private long currentSequence;
+        private int pos;
 
         RunnableClassification(String name, String header, String data, String qua,
                                String header2, String data2, String qua2,
                                MetaCacheOptions options,
                                long window_stride, List<Tuple2<Long, List<MatchCandidate>>> finalResults,
-                               HashMultiMapNative currentHashMap, long currentSequence) {
+                               HashMultiMapNative currentHashMap, long currentSequence, int pos) {
             this.threadName = name;
             this.header =header;
             this.data = data;
@@ -248,6 +257,7 @@ public class PartialQueryNativeMultiThreadPairedFull implements PairFlatMapFunct
             this.finalResults = finalResults;
             this.currentHashMap = currentHashMap;
             this.currentSequence = currentSequence;
+            this.pos = pos;
         }
 
         public void run() {
@@ -300,6 +310,7 @@ public class PartialQueryNativeMultiThreadPairedFull implements PairFlatMapFunct
                 List<MatchCandidate> hits = this.insert_all(current_results, numWindows);
 
                 finalResults.add(new Tuple2<Long, List<MatchCandidate>>(currentSequence, hits));
+                //finalResults[pos] = new Tuple2<Long, List<MatchCandidate>>(currentSequence, hits);
 
             }
             catch (Exception e) {

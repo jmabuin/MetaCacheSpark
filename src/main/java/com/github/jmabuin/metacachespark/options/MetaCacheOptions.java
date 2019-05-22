@@ -66,7 +66,7 @@ public class MetaCacheOptions implements Serializable {
     private boolean metacache_like_input = false;
     private boolean simple = false;
     private boolean repartition = false;
-    private boolean greater_than_one = false;
+    private int hits_greater_than = 0;
     private boolean remove_overpopulated_features = false;
 
     private Taxonomy.Rank abundance_per = Taxonomy.Rank.none;
@@ -217,7 +217,7 @@ public class MetaCacheOptions implements Serializable {
                 //-abundance-per
                 if (cmd.hasOption('a') || cmd.hasOption("abundance_per")) {
                     this.abundance_per = Taxonomy.rank_from_name(cmd.getOptionValue("abundance_per"));
-                    LOG.warn("Abundance per set to: " + cmd.getOptionValue("abundance_per"));
+                    //LOG.warn("Abundance per set to: " + cmd.getOptionValue("abundance_per"));
                 }
 
                 //-remove-overpopulated-features
@@ -225,8 +225,8 @@ public class MetaCacheOptions implements Serializable {
                     this.remove_overpopulated_features = true;
                 }
 
-                if (cmd.hasOption('g') || cmd.hasOption("greater_than_one")) {
-                    this.greater_than_one = true;
+                if (cmd.hasOption('g') || cmd.hasOption("hits_greater_than")) {
+                    this.hits_greater_than = Integer.parseInt(cmd.getOptionValue("hits_greater_than"));
                 }
 
             }
@@ -356,8 +356,8 @@ public class MetaCacheOptions implements Serializable {
         Option remove_overpopulated_features = new Option("o", "remove_overpopulated_features", false, "Usees remove overpopulated features when building");
         privateOptions.addOption(remove_overpopulated_features);
 
-        Option greater_than_one = new Option("g", "greater_than_one", false, "Gets candidates with more than one hit in the classification maps");
-        privateOptions.addOption(greater_than_one);
+        Option hits_greater_than = new Option("g", "hits_greater_than", true, "Gets candidates with more than specified hits in the classification maps");
+        privateOptions.addOption(hits_greater_than);
 
 		return privateOptions;
 	}
@@ -512,7 +512,7 @@ public class MetaCacheOptions implements Serializable {
         return remove_overpopulated_features;
     }
 
-    public boolean isGreater_than_one() {
-        return greater_than_one;
+    public int getHits_greater_than() {
+        return hits_greater_than;
     }
 }

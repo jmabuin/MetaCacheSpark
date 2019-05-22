@@ -28,10 +28,12 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.broadcast.Broadcast;
+import scala.Tuple2;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.*;
 
 
 public class Query implements Serializable {
@@ -80,80 +82,6 @@ public class Query implements Serializable {
 
         this.hits = new HashMap<Location, Integer>();
 
-/*
-        LOG.warn("Ordinal for species is: " + Taxonomy.Rank.Species.ordinal());
-
-        long[] lin = this.db.getTaxa_().ranks(9913L);
-
-        for(Long item: lin) {
-            if (item == 0L) {
-                LOG.warn(item + " : ");
-            }
-            else {
-                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
-            }
-
-        }
-        LOG.warn("==============");
-
-        List<Long> lin_list = this.db.getTaxa_().lineage(9913L);
-
-        for(Long item: lin_list) {
-            if (item == 0L) {
-                LOG.warn(item + " : ");
-            }
-            else {
-                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
-            }
-
-        }
-
-        LOG.warn("==============");
-        lin = this.db.getTaxa_().ranks(9940L);
-
-        for(Long item: lin) {
-            if (item == 0L) {
-                LOG.warn(item + " : ");
-            }
-            else {
-                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
-            }
-        }
-
-        lin = this.db.getTaxa_().ranks(89462L);
-
-        for(Long item: lin) {
-            if (item == 0L) {
-                LOG.warn(item + " : ");
-            }
-            else {
-                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
-            }
-        }
-
-        lin = this.db.getTaxa_().ranks(9925L);
-
-        for(Long item: lin) {
-            if (item == 0L) {
-                LOG.warn(item + " : ");
-            }
-            else {
-                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
-            }
-        }
-
-        //
-        lin = this.db.getTaxa_().ranks(9895L);
-
-        for(Long item: lin) {
-            if (item == 0L) {
-                LOG.warn(item + " : ");
-            }
-            else {
-                LOG.warn(item + " : " + this.db.getTaxa_().getTaxa_().get(item).rank_name());
-            }
-        }
-*/
         this.allTaxCounts = new ConcurrentSkipListMap<Taxon, Float>(new Comparator<Taxon>() {
             @Override
             public int compare(Taxon taxon, Taxon t1) {
@@ -520,7 +448,15 @@ public class Query implements Serializable {
             String fname2 = infilenames[i+1];
 
             LOG.warn("Classifying file pairs on " + fname1 + " and " + fname2 );
-            this.classify_pairs(fname1, fname2, d, stats);
+
+            if(this.param.getNumThreads() > 1) {
+                this.classify_pairs_multithread(fname1, fname2, d, stats);
+            }
+            else {
+                this.classify_pairs(fname1, fname2, d, stats);
+            }
+
+
             //this.classify_pairs_list(fname1, fname2, d, stats);
             //this.classify_pairs_best(fname1, fname2, d, stats);
             //this.classify_pairs_main(fname1, fname2, d, stats);
@@ -550,11 +486,193 @@ public class Query implements Serializable {
 
     }
 
+    public void classify_pairs_multithread(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
+
+        LOG.warn("Entering classify_pairs");
+        long initTime = System.nanoTime();
+        long max_wait_time = 1800; // Max number of seconds to wait for threads to finish
+
+        try {
+
+            long totalReads = 0;
+            long totalReads2 = 0;
+
+            if (FilesysUtility.isFastaFile(f1) && FilesysUtility.isFastaFile(f2)) {
+                totalReads = FilesysUtility.readsInFastaFile(f1);
+                totalReads2 = FilesysUtility.readsInFastaFile(f1);
+
+                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+
+                if (totalReads != totalReads2) {
+                    System.exit(1);
+                }
+
+            }
+            else if (FilesysUtility.isFastqFile(f1) && FilesysUtility.isFastqFile(f2)) {
+                totalReads = FilesysUtility.readsInFastqFile(f1);
+                totalReads2 = FilesysUtility.readsInFastqFile(f1);
+
+                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+                if (totalReads != totalReads2) {
+
+                    System.exit(1);
+                }
+            }
+            else {
+                LOG.error("Not recognized file format in " + f1 + " and " + f2);
+                System.exit(1);
+            }
+
+
+            long startRead;
+            int bufferSize = this.param.getBuffer_size();
+
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
+            SequenceFileReaderLocal seqReader2 = new SequenceFileReaderLocal(f2, 0);
+
+            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+
+            SequenceData data;
+            SequenceData data2;
+
+
+
+            String[] headers;
+
+            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
+                //while((currentRead < startRead+bufferSize) && ) {
+
+                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+
+
+                // Get corresponding hits for this buffer
+                //List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
+                //        startRead, bufferSize);
+                Map<Long, List<MatchCandidate>> hits;
+
+                if(!this.param.isRemove_overpopulated_features()) {
+                    hits = this.db.accumulate_matches_paired_full(f1, f2,
+                            startRead, bufferSize);
+                }
+                else {
+                    hits = this.db.accumulate_matches_paired(f1, f2,
+                            startRead, bufferSize);
+                }
+
+                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
+
+                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
+
+                //LocationBasic current_key;
+
+                long current_read;
+
+                //Classification[] classifications = new Classification[hits.size()];
+                //List<Classification> classifications = Collections.synchronizedList(new ArrayList<>(hits.size()));
+                Map<Integer, Classification> classifications = Collections.synchronizedMap(new HashMap<>());
+                headers = new String[hits.size()];
+
+                //creating the ThreadPoolExecutor
+                //ThreadPoolExecutor executorPool = new ThreadPoolExecutor(this.param.getNumThreads(),
+                //        this.param.getNumThreads(), 100, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(this.param.getBuffer_size()));
+                ThreadPoolExecutor executorPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(this.param.getNumThreads());
+
+                int current_thread = 0;
+
+                for(int i = 0;  i < hits.size() ; i++) {
+
+                    current_read = startRead + i;
+                    //Theoretically, number of sequences in data is the same as number of hits
+                    data = seqReader.next();
+                    data2 = seqReader2.next();
+                    headers[i] = data.getHeader();
+
+                    if((i == 0) || (i == hits.size()-1)) {
+                        LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
+                    }
+
+                    if((data == null) || (data2 == null)) {
+                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
+                        break;
+                    }
+
+                    List<MatchCandidate> currentHits = hits.get(current_read);
+
+                    executorPool.execute(new RunnableProcessDatabaseAnswer( this,
+                            classifications, currentHits, "Thread" + current_thread + "Seq"+i, data.getHeader(),
+                            data.getData().length(), data2.getData().length(),  (int)this.db.getTargetWindowStride_(),
+                            this.param, i));
+
+                    if (current_thread >= this.param.getNumThreads()) {
+                        current_thread = 0;
+                    }
+                    else {
+                        current_thread++;
+                    }
+
+                    //this.process_database_answer(data.getHeader(), data.getData(),
+                    //        data2.getData(), currentHits, d, stats);
+
+                }
+
+                executorPool.shutdown();
+
+                try {
+                    executorPool.awaitTermination(max_wait_time, TimeUnit.SECONDS);
+                }
+                catch (InterruptedException e) {
+                    System.out.println("InterruptedException " + e.getMessage());
+                }
+
+
+
+
+
+                for (int i = 0; i < hits.size(); i++) {
+                    //LOG.warn("Processing " + i);
+                    if(classifications.containsKey(i)) {
+                        this.print_classification(classifications.get(i), d, stats, headers[i]);
+                    }
+                    else {
+                        this.print_classification(new Classification(), d, stats, headers[i]);
+                    }
+
+                }
+
+                classifications.clear();
+                headers = null;
+
+
+            }
+
+            seqReader.close();
+            seqReader2.close();
+
+            long endTime = System.nanoTime();
+
+            LOG.warn("[QUERY] Time in classify_pairs_best for " + this.param.getOutfile() + " is: " + ((endTime - initTime) / 1e9) + " seconds");
+            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in classify_pairs: "+e.getMessage());
+            System.exit(1);
+        }
+
+    }
+
 
     public void classify_pairs(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
 
         LOG.warn("Entering classify_pairs");
         long initTime = System.nanoTime();
+
+        //Broadcast<Taxonomy> taxonomy_broadcast = this.jsc.broadcast(this.db.getTaxa_());
+        //Broadcast<List<TargetProperty>> targets_broadcast = this.jsc.broadcast(this.db.getTargets_());
+
 
         try {
 
@@ -612,7 +730,7 @@ public class Query implements Serializable {
                 //        startRead, bufferSize);
                 Map<Long, List<MatchCandidate>> hits;
 
-                if(this.param.isRemove_overpopulated_features()) {
+                if(!this.param.isRemove_overpopulated_features()) {
                     hits = this.db.accumulate_matches_paired_full(f1, f2,
                             startRead, bufferSize);
                 }
@@ -647,7 +765,9 @@ public class Query implements Serializable {
 
                     List<MatchCandidate> currentHits = hits.get(current_read);
 
-
+                    /*for(MatchCandidate current_Cand: currentHits) {
+                        LOG.warn("Best item: " +current_Cand.getTgt() + "::" + current_Cand.getHits());
+                    }*/
 
                     this.process_database_answer(data.getHeader(), data.getData(),
                             data2.getData(), currentHits, d, stats);
@@ -2092,6 +2212,10 @@ public class Query implements Serializable {
             lca = this.db.getTaxa_().getTaxa_().get(lca.getParentId());
         }
 
+        if(lca == null) {
+            return this.db.getTaxa_().getNoTaxon_();
+        }
+
         return lca;
         /*
 
@@ -2764,4 +2888,295 @@ public class Query implements Serializable {
     }
 
 
+    class RunnableProcessDatabaseAnswer implements Runnable {
+        private Thread t;
+        private Query query_obj;
+        private List<MatchCandidate> hits;
+        //private Classification[] classifications;
+        private Map<Integer, Classification> classifications;
+        private String threadName;
+        private String header;
+        private int size_data1;
+        private int size_data2;
+        private int targetWindowStride;
+        private MetaCacheOptions options;
+        private int currentSequence;
+
+        RunnableProcessDatabaseAnswer(Query query_obj, Map<Integer, Classification> classifications, List<MatchCandidate> hits, String name, String header, int size_data1, int size_data2, int targetWindowStride,
+                               MetaCacheOptions options, int currentSequence) {
+            this.query_obj = query_obj;
+            this.classifications = classifications;
+            this.hits = hits;
+            this.threadName = name;
+            this.header =header;
+            this.size_data1 = size_data1;
+            this.size_data2 = size_data2;
+            this.targetWindowStride = targetWindowStride;
+            this.options = options;
+            this.currentSequence = currentSequence;
+        }
+
+        public void run() {
+            //System.out.println("Running " +  threadName );
+            try {
+                if(this.header.isEmpty()) return;
+
+                //preparation -------------------------------
+                Classification groundTruth = new Classification();
+
+                if(this.options.getProperties().isTestPrecision() ||
+                        (this.options.getProperties().getMapViewMode() != EnumModes.map_view_mode.none && this.options.getProperties().isShowGroundTruth()) ||
+                        (this.options.getProperties().getExcludedRank() != Taxonomy.Rank.none) ) {
+
+                    groundTruth = this.query_obj.db.ground_truth(header);
+
+                }
+
+                //clade exclusion
+                if(this.options.getProperties().getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
+                    long exclTaxid = this.query_obj.db.ranks(groundTruth.tax())[this.options.getProperties().getExcludedRank().ordinal()];
+                    remove_hits_on_rank( this.options.getProperties().getExcludedRank(), exclTaxid); //Todo: Look what this function does
+                }
+
+                //classify ----------------------------------
+                long numWindows = ( 2 + Math.max(size_data1 + size_data2,this.options.getProperties().getInsertSizeMax()) / this.targetWindowStride);
+
+                //LOG.warn("Starting classification");
+                MatchesInWindowList tophits = new MatchesInWindowList(this.hits, (int)numWindows, this.query_obj.db.getTargets_(), this.query_obj.db.getTaxa_(), this.options);
+                //tophits.print_top_hits();
+                Classification cls = this.query_obj.sequence_classification(tophits);
+
+                //this.classifications[this.currentSequence] = cls;
+
+                this.classifications.put(this.currentSequence, cls);
+
+            }
+            catch (Exception e) {
+                System.out.println("Thread " +  threadName + " interrupted.");
+                e.printStackTrace();
+            }
+            //System.out.println("Thread " +  threadName + " exiting.");
+        }
+
+        public void start () {
+            //System.out.println("Starting " +  threadName );
+            if (t == null) {
+                t = new Thread (this, threadName);
+                t.start ();
+            }
+        }
+
+        private List<MatchCandidate> insert_all(List<LocationBasic> all_hits, long num_windows) {
+
+            //HashMap<Integer, MatchCandidate> hits_map = new HashMap<>();
+            List<MatchCandidate> best_hits = new ArrayList<>();
+            List<MatchCandidate> top_list = new ArrayList<>();
+
+            CandidateGenerationRules rules = new CandidateGenerationRules();
+            rules.setMaxWindowsInRange((int)num_windows);
+
+            //rules.setMaxWindowsInRange(numWindows);
+
+            if(all_hits.isEmpty()) {
+                //LOG.warn("Matches is empty!");
+                return top_list;
+            }
+            //else {
+            //    LOG.warn("We have matches!");
+            //}
+
+            //Sort candidates list in ASCENDING order by tgt and window
+            //Collections.sort(all_hits, new Comparator<LocationBasic>() {
+            all_hits.sort(new Comparator<LocationBasic>() {
+                public int compare(LocationBasic o1,
+                                   LocationBasic o2)
+                {
+
+                    if (o1.getTargetId() > o2.getTargetId()) {
+                        return 1;
+                    }
+
+                    if (o1.getTargetId() < o2.getTargetId()) {
+                        return -1;
+                    }
+
+                    if (o1.getTargetId() == o2.getTargetId()) {
+                        if (o1.getWindowId() > o2.getWindowId()) {
+                            return 1;
+                        }
+
+                        if (o1.getWindowId() < o2.getWindowId()) {
+                            return -1;
+                        }
+
+                        return 0;
+
+                    }
+                    return 0;
+
+                }
+            });
+
+            //check hits per query sequence
+            LocationBasic fst = all_hits.get(0);
+            LocationBasic lst;
+
+
+            long hits = 1;
+            MatchCandidate curBest = new MatchCandidate();
+            //curBest.setTax(this.get_taxon(fst));
+            curBest.setTgt(fst.getTargetId());
+            curBest.setHits(hits);
+            curBest.setPos_beg(fst.getWindowId());
+            curBest.setPos_end(fst.getWindowId());
+
+            int entryFST = 0;
+
+            // Iterate over candidates
+            for(int entryLST = entryFST +1; entryLST< all_hits.size(); entryLST++) {
+
+                lst = all_hits.get(entryLST);
+
+                //look for neighboring windows with the highest total hit count
+                //as long as we are in the same target and the windows are in a
+                //contiguous range
+                if(lst.getTargetId() == curBest.getTgt()) {
+                    //add new hits to the right
+                    hits ++;
+                    //subtract hits to the left that fall out of range
+                    while(entryFST != entryLST && (lst.getWindowId() - fst.getWindowId()) >= rules.getMaxWindowsInRange())
+                    {
+                        hits--;
+                        //move left side of range
+                        ++entryFST;
+                        fst = all_hits.get(entryFST);
+                        //win = fst.getKey().getWindowId();
+                    }
+                    //track best of the local sub-ranges
+                    if(hits > curBest.getHits()) {
+                        curBest.setHits(hits);
+                        curBest.setPos_beg(fst.getWindowId());
+                        curBest.setPos_end(lst.getWindowId());
+                    }
+                }
+                else {
+                    //end of current target
+                    //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
+                    best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+                    //}
+                    //reset to new target
+                    entryFST = entryLST;
+                    //fst = all_hits.get_location(entryFST);
+                    fst = all_hits.get(entryFST);
+                    hits = 1;
+                    curBest.setTgt(fst.getTargetId());
+                    //curBest.setTax(this.get_taxon(fst));
+                    curBest.setPos_beg(fst.getWindowId());
+                    curBest.setPos_end(fst.getWindowId());
+                    curBest.setHits(hits);
+                }
+
+
+            }
+            //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
+            best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+            //}
+
+            if (best_hits.isEmpty()) {
+                return new ArrayList<MatchCandidate>();
+            }
+
+            // Sorting the list in DESCENDING order based on hits
+            best_hits.sort(new Comparator<MatchCandidate>() {
+                public int compare(MatchCandidate o1,
+                                   MatchCandidate o2) {
+
+                    if (o1.getHits() < o2.getHits()) {
+                        return 1;
+                    }
+
+                    if (o1.getHits() > o2.getHits()) {
+                        return -1;
+                    }
+
+                    return 0;
+
+                }
+            });
+
+
+            return best_hits;
+
+
+
+        }
+
+
+
+    }
+
+
+    public void print_classification(Classification cls, BufferedWriter d, ClassificationStatistics stats, String header) {
+
+        if (cls == null) {
+            LOG.warn("cls is null for header: " + header);
+        }
+
+        if (cls.rank() == null) {
+            LOG.warn("rank is null");
+        }
+
+        if (stats == null) {
+            LOG.warn("stats is null for header: " + header);
+        }
+
+        stats.assign(cls.rank());
+
+        /*if(opt.output.makeTaxCounts && cls.best) {
+                        ++buf.taxCounts[cls.best];
+                    }*/
+        if ((this.param.getAbundance_per() != Taxonomy.Rank.none) && (cls.has_taxon() && (cls.tax() != this.db.getTaxa_().getNoTaxon_()))) {
+            Taxon best = cls.tax();
+
+            if(!this.allTaxCounts.containsKey(best)) {
+                this.allTaxCounts.put(best, 0F);
+            }
+
+            this.allTaxCounts.put(best, this.allTaxCounts.get(best) + 1);
+
+        }
+
+
+        boolean showMapping = (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.all) ||
+                (this.param.getProperties().getMapViewMode() == EnumModes.map_view_mode.mapped_only && !cls.none());
+
+        try{
+            if(showMapping) {
+                //print query header and ground truth
+                //show first contiguous string only
+                int l = header.indexOf(' ');
+
+                if (l != -1) {
+                    d.write(header, 0, l);
+                    /*
+                    auto oit = std::ostream_iterator<char>{os, ""};
+                    std::copy(header.begin(), header.begin() + l, oit);
+                     */
+                }
+                else {
+                    d.write(header);
+
+                }
+
+                d.write(this.param.getProperties().getOutSeparator());
+
+                show_classification(d, this.db, cls);
+
+            }
+
+    } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
 }

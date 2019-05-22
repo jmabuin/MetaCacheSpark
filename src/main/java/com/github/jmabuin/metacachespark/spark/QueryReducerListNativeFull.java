@@ -45,6 +45,45 @@ public class QueryReducerListNativeFull implements Function2<List<MatchCandidate
         v1.addAll(v2);
 
         return v1;
+        /*CandidateGenerationRules rules = new CandidateGenerationRules();
+        rules.setMaxCandidates(this.options.getProperties().getMaxCandidates() * 4);
+
+
+        List<MatchCandidate> results = new ArrayList<>();
+
+        if (! v1.isEmpty()) {
+
+            // Sort candidates in DESCENDING order according number of hits
+            v1.sort(new Comparator<MatchCandidate>() {
+                public int compare(MatchCandidate o1,
+                                   MatchCandidate o2) {
+
+                    if (o1.getHits() < o2.getHits()) {
+                        return 1;
+                    }
+
+                    if (o1.getHits() > o2.getHits()) {
+                        return -1;
+                    }
+
+                    return 0;
+
+                }
+            });
+
+
+            //for (MatchCandidate v: v1) {
+            for(int i = 0; i< v1.size() && i < rules.getMaxCandidates(); ++i) {
+
+                results.add(v1.get(i));
+
+
+            }
+
+
+        }
+
+        return results;*/
 
 
     }

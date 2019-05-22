@@ -17,12 +17,17 @@
 
 package com.github.jmabuin.metacachespark.spark;
 
+import com.github.jmabuin.metacachespark.LocationBasic;
+import com.github.jmabuin.metacachespark.TargetProperty;
 import com.github.jmabuin.metacachespark.database.CandidateGenerationRules;
 import com.github.jmabuin.metacachespark.database.MatchCandidate;
+import com.github.jmabuin.metacachespark.database.Taxon;
+import com.github.jmabuin.metacachespark.database.Taxonomy;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.broadcast.Broadcast;
 
 import java.util.*;
 
@@ -31,9 +36,17 @@ import java.util.*;
  */
 public class QueryReducerListNative implements Function2<List<MatchCandidate>, List<MatchCandidate>, List<MatchCandidate>> {
 
-    //private static final Log LOG = LogFactory.getLog(QueryReducerListNative.class);
+    private static final Log LOG = LogFactory.getLog(QueryReducerListNative.class);
 
     private MetaCacheOptions options;
+    /*private Taxonomy taxa_;
+    private List<TargetProperty> targets_;
+
+    public QueryReducerListNative(MetaCacheOptions options, Broadcast<Taxonomy> taxonomy_broadcast, Broadcast<List<TargetProperty>> targets_broadcast) {
+        this.options = options;
+        this.taxa_ = taxonomy_broadcast.value();
+        this.targets_ = targets_broadcast.value();
+    }*/
 
     public QueryReducerListNative(MetaCacheOptions options) {
         this.options = options;
@@ -42,20 +55,17 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
     @Override
     public List<MatchCandidate> call(List<MatchCandidate> v1, List<MatchCandidate> v2) {
 
-        //v1.addAll(v2);
-
-        //return v1;
-
+        CandidateGenerationRules rules = new CandidateGenerationRules(this.options.getProperties());
+        //rules.setMaxCandidates(this.options.getProperties().getMaxCandidates() * this.options.getProperties().getMaxCandidates());
 
 
-        //long initTime = System.nanoTime();
-
-        CandidateGenerationRules rules = new CandidateGenerationRules();
-        rules.setMaxCandidates(this.options.getProperties().getMaxCandidates() * this.options.getProperties().getMaxCandidates());
+        List<MatchCandidate> results = new ArrayList<>();
 
         v1.addAll(v2);
 
-        List<MatchCandidate> results = new ArrayList<>();
+        //rules.setMaxCandidates((int)(v1.size() / 3));
+
+        int local_min_hits = this.options.getProperties().getHitsMin() / 2;
 
         if (! v1.isEmpty()) {
 
@@ -77,31 +87,71 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
                 }
             });
 
-            double threshold = v1.get(0).getHits() > this.options.getProperties().getHitsMin() ?
-                    (v1.get(0).getHits() - this.options.getProperties().getHitsMin()) *
-                            this.options.getProperties().getHitsDiffFraction() : 0;
 
-
-            //for (MatchCandidate v: v1) {
-            for(int i = 0; i< v1.size() && i < rules.getMaxCandidates(); ++i) {
-
-                MatchCandidate v = v1.get(i);
-                if (v.getHits() > threshold) {
-                    results.add(v);
-                }
-                else {
-                    break;
+            //for (int i = 0; (i < v1.size()) && (i < rules.getMaxCandidates()); ++i) {
+            for (int i = 0; i < v1.size(); ++i) {
+                if (v1.get(i).getHits() >= local_min_hits) {
+                    results.add(v1.get(i));
                 }
 
             }
 
 
-        }
+            /*int i = 0;
+            for (MatchCandidate m: v1) {
 
+                m.setTax(this.get_taxon(m.getTgt()));
+
+                if (rules.getMergeBelow().ordinal() > Taxonomy.Rank.Sequence.ordinal()) {
+                    //this.taxa_.getTaxa_().get(this.targets_.get(tgt_id).getTax());
+                    //Long ancestor = this.taxa_.ancestor(this.targets_.get(m.getTgt()).getTax(), rules.getMergeBelow().ordinal());
+                    Long ancestor = this.taxa_.ancestor(this.targets_.get(m.getTgt()).getTax(), rules.getMergeBelow());
+                    if ((ancestor!=null) && (ancestor != 0)) m.setTax(this.taxa_.getTaxa_().get(ancestor));
+                }
+
+                if ((m.getTax().getRank().ordinal() == Taxonomy.Rank.Sequence.ordinal()) && (i < rules.getMaxCandidates())) {
+                    results.add(m);
+                    ++i;
+                }
+
+                //above sequence level, taxa can occur more than once
+                else {
+                    boolean found = false;
+
+                    for (MatchCandidate cand : results) {
+                        if (cand.getTax().getTaxonId() == m.getTax().getTaxonId()) {
+                            found = true;
+                            break;
+                        }
+
+                    }
+
+
+                    if ((!found) && ((i < rules.getMaxCandidates()))) {
+                        results.add(m);
+                        ++i;
+                    }
+                }
+
+                if (i >= rules.getMaxCandidates()) {
+                    break;
+                }
+
+            }
+            //LOG.warn("Best reducer: ---------------");
+
+        }*/
+        }
         return results;
 
 
+    }
 
-}
+    /*private Taxon get_taxon(int tgt) {
+        //LOG.warn("Getting taxon for TgtId: " + entry.getTargetId());
+        //LOG.warn("Target is: " + entry.getTargetId());
+        //LOG.warn("Taxa from target in targets_ is: " + this.targets_.get(entry.getTargetId()).getTax());
+        return this.taxa_.getTaxa_().get(this.targets_.get(tgt).getTax());
+    }*/
 
 }

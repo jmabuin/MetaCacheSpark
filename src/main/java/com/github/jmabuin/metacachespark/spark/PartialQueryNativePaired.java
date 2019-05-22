@@ -27,6 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
+import org.apache.spark.broadcast.Broadcast;
 import scala.Tuple2;
 
 import java.io.File;
@@ -37,7 +38,7 @@ import java.util.*;
  */
 public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, List<MatchCandidate>> {
 
-    private static final Log LOG = LogFactory.getLog(PartialQueryNativePaired.class);
+    private static final Log LOG = LogFactory.getLog(PartialQueryNativePairedFull.class);
 
     private String fileName;
     private String fileName2;
@@ -49,7 +50,11 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
     private long window_stride;
 
     public PartialQueryNativePaired(String file_name, String file_name2, long init, int bufferSize//) {
-            , long window_stride, MetaCacheOptions options) {//}, Taxonomy taxa_, List<TargetProperty> targets_) {
+            , long window_stride, MetaCacheOptions options) {// , Broadcast<Taxonomy> taxonomy_broadcast,
+                                    //Broadcast<List<TargetProperty>> targets_broadcast) {
+
+        //this.taxa_ = taxonomy_broadcast.value();
+        //this.targets_ = targets_broadcast.value();
         this.fileName = file_name;
         this.fileName2 = file_name2;
         this.init = init;
@@ -232,14 +237,16 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
         CandidateGenerationRules rules = new CandidateGenerationRules();
         rules.setMaxWindowsInRange((int)num_windows);
 
-        rules.setMaxCandidates(this.options.getProperties().getMaxCandidates());
+        int local_min_hits = this.options.getProperties().getHitsMin() / 2;
+
+        //rules.setMaxCandidates(this.options.getProperties().getMaxCandidates() * 2);
 
         if (all_hits.isEmpty()) {
-            //LOG.warn("Matches is empty!");
+            //LOG.warn("Matches is empty!. Max cand is: " + rules.getMaxCandidates());
             return top_list;
         }
         //else {
-        //    LOG.warn("We have matches!");
+        //    LOG.warn("Matches is We have matches!. Max cand is: " + rules.getMaxCandidates());
         //}
 
         //Sort candidates list in ASCENDING order by tgt and window
@@ -315,9 +322,21 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
                 }
             } else {
                 //end of current target
-                if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
-                    best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+
+                /*if (this.options.getHits_greater_than() > 0) {
+
+                    if (curBest.getHits() > this.options.getHits_greater_than()) {
+                        best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+                    }
+
                 }
+                else {*/
+                best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+                //}
+
+
+
+                //}
                 //reset to new target
                 entryFST = entryLST;
                 //fst = all_hits.get_location(entryFST);
@@ -332,9 +351,18 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
 
 
         }
-        if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
-            best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+        //if (curBest.getHits() > this.options.getProperties().getHitsMin()) {
+        /*if (this.options.getHits_greater_than() > 0) {
+
+            if (curBest.getHits() > this.options.getHits_greater_than()) {
+                best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+            }
+
         }
+        else {*/
+        best_hits.add(new MatchCandidate(curBest.getTgt(), curBest.getHits(), curBest.getPos(), curBest.getTax()));
+        // }
+
 
         if (best_hits.isEmpty()) {
             return new ArrayList<MatchCandidate>();
@@ -359,34 +387,24 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
         });
 
 
-        MatchCandidate best = best_hits.get(0);
+        //int num_candidates_with_different_hits = 0;
 
-        //return best_hits;
+        //for(int i = 0; (i< this.options.getProperties().getMaxCandidates()) && (i < best_hits.size()) ; ++i) {
+            //top_list.add(best_hits.get(i));
+        //}
+        for(int i = 0; i < best_hits.size() ; ++i) {
 
-        if (best.getHits() < this.options.getProperties().getHitsMin()) {
-            return new ArrayList<MatchCandidate>();
-        }
-
-
-        double threshold = best.getHits() > this.options.getProperties().getHitsMin() ?
-                (best.getHits() - this.options.getProperties().getHitsMin()) *
-                        this.options.getProperties().getHitsDiffFraction() : 0;
-
-        for (int i = 0; i < best_hits.size() && i < rules.getMaxCandidates(); ++i) {
-            MatchCandidate current_entry = best_hits.get(i);
-
-
-            //if (current_entry.getHits() > threshold) {
-            if ((current_entry.getHits() > this.options.getProperties().getHitsMin()) && (current_entry.getHits() > threshold)&& (top_list.size() <= rules.getMaxCandidates())) {
-            //if ((current_entry.getHits() > this.options.getProperties().getHitsMin()) && (top_list.size() <= rules.getMaxCandidates())) {
-            //if (current_entry.getHits() > this.options.getProperties().getHitsMin()) {
-                top_list.add(current_entry);
-            } else {
+            if(best_hits.get(i).getHits() >= local_min_hits) {
+                top_list.add(best_hits.get(i));
+            }
+            else {
                 break;
             }
 
         }
 
+
+        //MatchCandidate best = best_hits.get(0);
 
         return top_list;
 
@@ -413,6 +431,6 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
         //LOG.warn("Target is: " + entry.getTargetId());
         //LOG.warn("Taxa from target in targets_ is: " + this.targets_.get(entry.getTargetId()).getTax());
         return this.taxa_.getTaxa_().get(this.targets_.get(entry.getTargetId()).getTax());
-    }
-*/
+    }*/
+
 }

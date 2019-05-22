@@ -67,7 +67,7 @@ public class PartialQueryNativeMultiThreadPaired implements PairFlatMapFunction<
 
         //long initTime = System.nanoTime();
 
-        long max_wait_time = 600; // Max number of seconds to wait for threads to finish
+        long max_wait_time = 1800; // Max number of seconds to wait for threads to finish
 
         List<Tuple2<Long, List<MatchCandidate>>> finalResults = Collections.synchronizedList(new ArrayList<Tuple2<Long, List<MatchCandidate>>>());
 
@@ -130,8 +130,9 @@ public class PartialQueryNativeMultiThreadPaired implements PairFlatMapFunction<
                 int current_thread = 0;
 
                 //creating the ThreadPoolExecutor
-                ThreadPoolExecutor executorPool = new ThreadPoolExecutor(this.options.getNumThreads(),
-                        this.options.getNumThreads(), 10, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(this.bufferSize));
+                //ThreadPoolExecutor executorPool = new ThreadPoolExecutor(this.options.getNumThreads(),
+                //        this.options.getNumThreads(), 10, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(this.bufferSize));
+                ThreadPoolExecutor executorPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(this.options.getNumThreads());
 
                 while((seqReader.next() != null) && (seqReader2.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
 
@@ -326,6 +327,9 @@ public class PartialQueryNativeMultiThreadPaired implements PairFlatMapFunction<
             CandidateGenerationRules rules = new CandidateGenerationRules();
             rules.setMaxWindowsInRange((int)num_windows);
 
+            int local_min_hits = this.options.getProperties().getHitsMin() / 2;
+            //rules.setMaxCandidates(this.options.getProperties().getMaxCandidates() * 2);
+
             //rules.setMaxWindowsInRange(numWindows);
 
             if(all_hits.isEmpty()) {
@@ -456,30 +460,25 @@ public class PartialQueryNativeMultiThreadPaired implements PairFlatMapFunction<
             });
 
 
-            MatchCandidate best = best_hits.get(0);
-
-
-            if (best.getHits() < this.options.getProperties().getHitsMin()) {
-                return new ArrayList<MatchCandidate>();
-            }
-
-            double threshold = best.getHits() > this.options.getProperties().getHitsMin() ?
-                    (best.getHits() - this.options.getProperties().getHitsMin()) *
+            /*double threshold = best_hits.get(0).getHits() > this.options.getProperties().getHitsMin() ?
+                    (best_hits.get(0).getHits() - this.options.getProperties().getHitsMin()) *
                             this.options.getProperties().getHitsDiffFraction() : 0;
+*/
 
-            for (int i = 0; i < best_hits.size(); ++i) {
-                MatchCandidate current_entry = best_hits.get(i);
+            //for(int i = 0; (i< this.options.getProperties().getMaxCandidates()) && (i < best_hits.size()) ; ++i) {
+            for(int i = 0; i < best_hits.size() ; ++i) {
 
-
-                if (current_entry.getHits() > threshold) {
-                    top_list.add(current_entry);
-                } else {
+                if(best_hits.get(i).getHits() >= local_min_hits) {
+                    top_list.add(best_hits.get(i));
+                }
+                else {
                     break;
                 }
 
             }
 
 
+            //MatchCandidate best = best_hits.get(0);
 
             return top_list;
 

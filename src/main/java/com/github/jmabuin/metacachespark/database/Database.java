@@ -34,6 +34,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
 import scala.Tuple2;
@@ -2946,17 +2947,17 @@ public class Database implements Serializable{
                 return;
             }
 
-            Path local_file = new Path(FilenameUtils.getName(mappingFile));
+            //Path local_file = new Path(FilenameUtils.getName(mappingFile));
 
-            fs.copyToLocalFile(current_file_path, local_file);
+            //fs.copyToLocalFile(current_file_path, local_file);
 
-            //FSDataInputStream inputStream = fs.open(new Path(mappingFile));
-            //BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
+            FSDataInputStream inputStream = fs.open(current_file_path);
+            BufferedReader d = new BufferedReader(new InputStreamReader(inputStream));
 
 
-            FileReader file_Reader = new FileReader(local_file.getName());
+            //FileReader file_Reader = new FileReader(local_file.getName());
 
-            BufferedReader d = new BufferedReader(file_Reader);
+            //BufferedReader d = new BufferedReader(file_Reader);
 
             String acc;
             String accver;
@@ -3052,7 +3053,7 @@ public class Database implements Serializable{
             }
 
             d.close();
-            file_Reader.close();
+            //file_Reader.close();
             //inputStream.close();
             //fs.close();
         }
