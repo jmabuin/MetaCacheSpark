@@ -2097,7 +2097,7 @@ public class Database implements Serializable{
 
         }
 
-        LOG.warn("Number of unranked trgets is: " + res.size());
+        LOG.warn("Number of unranked targets is: " + res.size());
 
         /*for(long i = 0; i < this.target_count(); ++i) {
             if(this.taxon_of_target(i) == null) {
