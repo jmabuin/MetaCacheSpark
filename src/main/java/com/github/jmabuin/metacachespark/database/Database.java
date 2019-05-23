@@ -20,7 +20,9 @@ import com.github.jmabuin.metacachespark.*;
 import com.github.jmabuin.metacachespark.io.*;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import com.github.jmabuin.metacachespark.spark.*;
+import com.google.common.base.Splitter;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Iterables;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -766,9 +768,9 @@ public class Database implements Serializable{
 
             ArrayList<String> infiles = FilesysUtility.files_in_directory(inputdir, 0, this.jsc);
 
-            for(int num = 0; (num < infiles.size()) && (num < 40); ++num) {
-                LOG.warn("Assigning file: " + infiles.get(num));
-            }
+            //for(int num = 0; (num < infiles.size()) && (num < 40); ++num) {
+            //    LOG.warn("Assigning file: " + infiles.get(num));
+            //}
 
 
             if (this.params.isMetacache_like_input()) {
@@ -843,7 +845,7 @@ public class Database implements Serializable{
             HashMap<String, Integer> partitions_map = new HashMap<String, Integer>();
 
             int current_partition = 0;
-            int partition_pos = 0;
+            //int partition_pos = 0;
 
             boolean positive = true;
             for (String current_key: infiles_lengths.keySet()) {
@@ -861,10 +863,10 @@ public class Database implements Serializable{
 */
                 partitions_map.put(current_key, current_partition);
 
-                if (partition_pos < this.getNumPartitions()*2 + 3) {
-                    LOG.warn("Partitioning file: " + current_key + " into partition: " + current_partition );
-                    partition_pos++;
-                }
+                //if (partition_pos < this.getNumPartitions()*2 + 3) {
+                //    LOG.warn("Partitioning file: " + current_key + " into partition: " + current_partition );
+                //    partition_pos++;
+                //}
 
                 if(positive) {
                     current_partition++;
@@ -912,15 +914,15 @@ public class Database implements Serializable{
 
                 current_partition = 0;
                 positive = true;
-                partition_pos = 0;
+                //partition_pos = 0;
                 for (String current_key: sequences_lengths.keySet()) {
 
                     sequences_distribution.put((long)this.targets_positions.get(current_key), current_partition);
 
-                    if (partition_pos < this.getNumPartitions()*2 + 3) {
-                        LOG.warn("Partitioning sequence: " + current_key + " into partition: " + current_partition );
-                        partition_pos++;
-                    }
+                    //if (partition_pos < this.getNumPartitions()*2 + 3) {
+                    //    LOG.warn("Partitioning sequence: " + current_key + " into partition: " + current_partition );
+                    //    partition_pos++;
+                    //}
 
 
                     if(positive) {
@@ -2138,10 +2140,15 @@ public class Database implements Serializable{
         if(!unranked.isEmpty()) {
             LOG.warn(unranked.size() + " targets could not be ranked.");
 
+            long initTime = System.nanoTime();
+
             for(String file : this.taxonomyParam.getMappingPostFiles()) {
                 //this.rank_targets_post_process(unranked, file);
                 this.rank_targets_with_mapping_file(file, unranked);
             }
+
+            long endTime = System.nanoTime();
+            LOG.warn("Time spent trying to rank unranked is: " + ((endTime - initTime) / 1e9) + " seconds");
         }
 
         unranked = this.unranked_targets();
@@ -2933,9 +2940,11 @@ public class Database implements Serializable{
 
         if(targetTaxa.isEmpty()) return;
 
+        long initTime = System.nanoTime();
+
 
         try {
-            LOG.warn("Try to map sequences to taxa using '" + mappingFile);
+            //LOG.warn("Try to map sequences to taxa using '" + mappingFile);
 
             //JavaSparkContext javaSparkContext = new JavaSparkContext(this.sparkS.sparkContext());
             FileSystem fs = FileSystem.get(this.jsc.hadoopConfiguration());
@@ -2966,7 +2975,7 @@ public class Database implements Serializable{
 
 
             String newLine = d.readLine();
-            LOG.warn("First line: " + newLine);
+            //LOG.warn("First line: " + newLine);
 
             while((newLine = d.readLine()) != null) {
 
@@ -2976,14 +2985,19 @@ public class Database implements Serializable{
                 }
                 else {
 
-                    String lineSplits[] = newLine.split("\t");
+                    //String lineSplits[] = newLine.split("\t");
+                    //String lineSplits[] = newLine.split("\\s+");
+                    //String[] lineSplits = Iterables.toArray(Splitter.on('\t').split(newLine), String.class);
+                    StringTokenizer st = new StringTokenizer(newLine);
 
-                    if(lineSplits.length == 4) {
 
-                        acc = lineSplits[0].trim();
-                        accver = lineSplits[1].trim();
-                        taxid = Long.valueOf(lineSplits[2]);
-                        gi = lineSplits[3].trim();
+                    //if(lineSplits.length == 4) {
+                    if (st.countTokens() == 4) {
+
+                        acc = st.nextToken();
+                        accver = st.nextToken();
+                        taxid = Long.valueOf(st.nextToken());
+                        gi = st.nextToken();
 
 
                         /*if (acc.contains("CM000378")) {
@@ -3056,6 +3070,9 @@ public class Database implements Serializable{
             //file_Reader.close();
             //inputStream.close();
             //fs.close();
+
+            long endTime = System.nanoTime();
+            LOG.warn("Time spent trying to rank with file " + mappingFile + " is: " + ((endTime - initTime) / 1e9) + " seconds");
         }
 
         catch (IOException e) {
