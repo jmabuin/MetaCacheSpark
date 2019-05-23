@@ -323,12 +323,12 @@ public class Build implements Serializable {
             this.load_taxonomy_into_database(this.db);
         }
 
-        Taxon tax  = this.db.taxon_with_id(6072L);
+        /*Taxon tax  = this.db.taxon_with_id(6072L);
         LOG.warn(tax.getTaxonId());
         LOG.warn(tax.getTaxonName());
         LOG.warn(tax.getParentId());
         LOG.warn(tax.getRank().ordinal());
-        LOG.warn(tax.getRank().name());
+        LOG.warn(tax.getRank().name());*/
 
 
         if(this.db.taxon_count() < 1) {
