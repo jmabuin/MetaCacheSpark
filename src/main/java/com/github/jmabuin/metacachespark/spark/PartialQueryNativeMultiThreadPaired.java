@@ -327,7 +327,7 @@ public class PartialQueryNativeMultiThreadPaired implements PairFlatMapFunction<
             CandidateGenerationRules rules = new CandidateGenerationRules();
             rules.setMaxWindowsInRange((int)num_windows);
 
-            int local_min_hits = this.options.getProperties().getHitsMin() / 2;
+            int local_min_hits = this.options.getHits_greater_than();//this.options.getProperties().getHitsMin() / 2;
             //rules.setMaxCandidates(this.options.getProperties().getMaxCandidates() * 2);
 
             //rules.setMaxWindowsInRange(numWindows);
@@ -460,15 +460,16 @@ public class PartialQueryNativeMultiThreadPaired implements PairFlatMapFunction<
             });
 
 
-            /*double threshold = best_hits.get(0).getHits() > this.options.getProperties().getHitsMin() ?
-                    (best_hits.get(0).getHits() - this.options.getProperties().getHitsMin()) *
+            double threshold = best_hits.get(0).getHits() > local_min_hits ?
+                    (best_hits.get(0).getHits() - local_min_hits) *
                             this.options.getProperties().getHitsDiffFraction() : 0;
-*/
+
 
             //for(int i = 0; (i< this.options.getProperties().getMaxCandidates()) && (i < best_hits.size()) ; ++i) {
             for(int i = 0; i < best_hits.size() ; ++i) {
 
-                if(best_hits.get(i).getHits() >= local_min_hits) {
+                //if(best_hits.get(i).getHits() >= local_min_hits) {
+                if(best_hits.get(i).getHits() >= threshold) {
                     top_list.add(best_hits.get(i));
                 }
                 else {

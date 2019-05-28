@@ -60,13 +60,13 @@ public class MetaCacheOptions implements Serializable {
     private String[] infiles_query;
 
     private int numThreads = 1;
-    private boolean myWholeTextFiles = false;
+    //private boolean myWholeTextFiles = false;
     private boolean paired_reads = false;
-    private boolean metacache_like = false;
-    private boolean metacache_like_input = false;
-    private boolean simple = false;
+    //private boolean metacache_like = false;
+    //private boolean metacache_like_input = false;
+    //private boolean simple = false;
     private boolean repartition = false;
-    private int hits_greater_than = 0;
+    private int hits_greater_than = 2;
     private boolean remove_overpopulated_features = false;
 
     private Taxonomy.Rank abundance_per = Taxonomy.Rank.none;
@@ -185,7 +185,7 @@ public class MetaCacheOptions implements Serializable {
                 if (cmd.hasOption('b') || cmd.hasOption("buffer_size")) {
                     this.buffer_size = Integer.parseInt(cmd.getOptionValue("buffer_size"));
                 }
-
+                /*
                 if (cmd.hasOption('w') || cmd.hasOption("myWholeTextFiles")) {
                     this.myWholeTextFiles = true;
                 }
@@ -197,7 +197,7 @@ public class MetaCacheOptions implements Serializable {
                 if (cmd.hasOption('i') || cmd.hasOption("metacache_like_input")) {
                     this.metacache_like_input = true;
                 }
-
+                */
                 if (cmd.hasOption('r') || cmd.hasOption("paired_reads")) {
                     this.paired_reads = true;
                 }
@@ -205,11 +205,11 @@ public class MetaCacheOptions implements Serializable {
                 if (cmd.hasOption('n') || cmd.hasOption("num_threads")) {
                     this.numThreads = Integer.parseInt(cmd.getOptionValue("num_threads"));
                 }
-
+                /*
                 if (cmd.hasOption('s') || cmd.hasOption("simple")) {
                     this.simple = true;
                 }
-
+                */
                 if (cmd.hasOption('e') || cmd.hasOption("repartition")) {
                     this.repartition = true;
                 }
@@ -305,7 +305,7 @@ public class MetaCacheOptions implements Serializable {
 
 		//OptionGroup modes = new OptionGroup();
 
-        // Used options: h, m, d, t, p, c, b, w, l, i, r, n, s, e, a, o
+        // Used options: h, m, d, t, p, c, b, w, l, i, r, n, s, e, a, o, g
 		Option help = new Option("h","help", false,"Shows documentation");
 		privateOptions.addOption(help);
 
@@ -329,14 +329,14 @@ public class MetaCacheOptions implements Serializable {
         Option buffer_size = new Option("b", "buffer_size", true, "Buffer size to perform query operations. if not specified, no buffer mode.");
         privateOptions.addOption(buffer_size);
 
-        Option myWholeTextFiles = new Option("w", "myWholeTextFiles", false, "Use customize wholetextfiles or not");
-        privateOptions.addOption(myWholeTextFiles);
+        //Option myWholeTextFiles = new Option("w", "myWholeTextFiles", false, "Use customize wholetextfiles or not");
+        //privateOptions.addOption(myWholeTextFiles);
 
-        Option metacache_like = new Option("l", "metacache_like", false, "Create the database in the most similar way to metacache");
-        privateOptions.addOption(metacache_like);
+        //Option metacache_like = new Option("l", "metacache_like", false, "Create the database in the most similar way to metacache");
+        //privateOptions.addOption(metacache_like);
 
-        Option metacache_like_input = new Option("i", "metacache_like_input", false, "Reads the input sequences in alpabetic order, just like metacache (only for building)");
-        privateOptions.addOption(metacache_like_input);
+        //Option metacache_like_input = new Option("i", "metacache_like_input", false, "Reads the input sequences in alpabetic order, just like metacache (only for building)");
+        //privateOptions.addOption(metacache_like_input);
 
         Option paired_reads = new Option("r", "paired_reads", false, "Use paired reads or not");
         privateOptions.addOption(paired_reads);
@@ -344,8 +344,8 @@ public class MetaCacheOptions implements Serializable {
         Option num_threads = new Option("n", "num_threads", true, "Number of threads per executor to use in the classification phase");
         privateOptions.addOption(num_threads);
 
-        Option simple = new Option("s", "simple", false, "Builds database in simple mode (only for building)");
-        privateOptions.addOption(simple);
+        //Option simple = new Option("s", "simple", false, "Builds database in simple mode (only for building)");
+        //privateOptions.addOption(simple);
 
         Option repartition = new Option("e", "repartition", false, "Uses Spark repartition method to repartition sequences among executors (only for building)");
         privateOptions.addOption(repartition);
@@ -476,15 +476,15 @@ public class MetaCacheOptions implements Serializable {
         return buffer_size;
     }
 
-    public boolean isMyWholeTextFiles() {
+    /*public boolean isMyWholeTextFiles() {
         return myWholeTextFiles;
-    }
+    }*/
 
     public boolean isPaired_reads() {
         return paired_reads;
     }
 
-    public boolean isMetacache_like() {
+    /*public boolean isMetacache_like() {
         return metacache_like;
     }
 
@@ -498,7 +498,7 @@ public class MetaCacheOptions implements Serializable {
 
     public void setSimple(boolean simple) {
         this.simple = simple;
-    }
+    }*/
 
     public boolean isRepartition() {
         return repartition;

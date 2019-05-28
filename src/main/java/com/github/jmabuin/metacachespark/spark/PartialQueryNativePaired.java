@@ -237,7 +237,7 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
         CandidateGenerationRules rules = new CandidateGenerationRules();
         rules.setMaxWindowsInRange((int)num_windows);
 
-        int local_min_hits = this.options.getProperties().getHitsMin() / 2;
+        int local_min_hits = this.options.getHits_greater_than();//this.options.getProperties().getHitsMin() / 2;
 
         //rules.setMaxCandidates(this.options.getProperties().getMaxCandidates() * 2);
 
@@ -387,14 +387,13 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
         });
 
 
-        //int num_candidates_with_different_hits = 0;
+        double threshold = best_hits.get(0).getHits() > local_min_hits ?
+                (best_hits.get(0).getHits() - local_min_hits) *
+                        this.options.getProperties().getHitsDiffFraction() : 0;
 
-        //for(int i = 0; (i< this.options.getProperties().getMaxCandidates()) && (i < best_hits.size()) ; ++i) {
-            //top_list.add(best_hits.get(i));
-        //}
         for(int i = 0; i < best_hits.size() ; ++i) {
 
-            if(best_hits.get(i).getHits() >= local_min_hits) {
+            if(best_hits.get(i).getHits() >= threshold) {
                 top_list.add(best_hits.get(i));
             }
             else {

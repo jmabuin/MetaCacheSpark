@@ -65,7 +65,7 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
 
         //rules.setMaxCandidates((int)(v1.size() / 3));
 
-        int local_min_hits = this.options.getProperties().getHitsMin() / 2;
+        int local_min_hits = this.options.getHits_greater_than();//this.options.getProperties().getHitsMin() / 2;
 
         if (! v1.isEmpty()) {
 
@@ -87,60 +87,21 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
                 }
             });
 
+            double threshold = v1.get(0).getHits() > local_min_hits ?
+                    (v1.get(0).getHits() - local_min_hits) *
+                            this.options.getProperties().getHitsDiffFraction() : 0;
 
             //for (int i = 0; (i < v1.size()) && (i < rules.getMaxCandidates()); ++i) {
             for (int i = 0; i < v1.size(); ++i) {
-                if (v1.get(i).getHits() >= local_min_hits) {
+                if (v1.get(i).getHits() >= threshold) {
                     results.add(v1.get(i));
                 }
-
-            }
-
-
-            /*int i = 0;
-            for (MatchCandidate m: v1) {
-
-                m.setTax(this.get_taxon(m.getTgt()));
-
-                if (rules.getMergeBelow().ordinal() > Taxonomy.Rank.Sequence.ordinal()) {
-                    //this.taxa_.getTaxa_().get(this.targets_.get(tgt_id).getTax());
-                    //Long ancestor = this.taxa_.ancestor(this.targets_.get(m.getTgt()).getTax(), rules.getMergeBelow().ordinal());
-                    Long ancestor = this.taxa_.ancestor(this.targets_.get(m.getTgt()).getTax(), rules.getMergeBelow());
-                    if ((ancestor!=null) && (ancestor != 0)) m.setTax(this.taxa_.getTaxa_().get(ancestor));
-                }
-
-                if ((m.getTax().getRank().ordinal() == Taxonomy.Rank.Sequence.ordinal()) && (i < rules.getMaxCandidates())) {
-                    results.add(m);
-                    ++i;
-                }
-
-                //above sequence level, taxa can occur more than once
                 else {
-                    boolean found = false;
-
-                    for (MatchCandidate cand : results) {
-                        if (cand.getTax().getTaxonId() == m.getTax().getTaxonId()) {
-                            found = true;
-                            break;
-                        }
-
-                    }
-
-
-                    if ((!found) && ((i < rules.getMaxCandidates()))) {
-                        results.add(m);
-                        ++i;
-                    }
-                }
-
-                if (i >= rules.getMaxCandidates()) {
                     break;
                 }
 
             }
-            //LOG.warn("Best reducer: ---------------");
 
-        }*/
         }
         return results;
 

@@ -409,6 +409,8 @@ public class Build implements Serializable {
             LOG.info(current_dir);
         }
 
+        /*
+
         if (this.param.isMetacache_like()) {
             if (!this.param.isMyWholeTextFiles()) {
                 db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
@@ -435,17 +437,12 @@ public class Build implements Serializable {
                     //db.buildDatabaseMultiPartitions(this.param.getInfiles(), sequ2taxid, infoMode);
                 //LOG.warn("Building with database simple");
                 //db.buildDatabaseSimple(this.param.getInfiles(), sequ2taxid, infoMode);
-                /*}
-                else if (!input_files.isEmpty()) {
-                    db.buildDatabaseMultiPartitions(input_files, sequ2taxid, infoMode);
-                }
-                else {
-                    LOG.error("The directory is empty!!." + this.param.getInfiles());
-                }*/
+
             }
         }
 
-
+        */
+        db.build_database(this.param.getInfiles(), sequ2taxid, infoMode);
 
 
 
