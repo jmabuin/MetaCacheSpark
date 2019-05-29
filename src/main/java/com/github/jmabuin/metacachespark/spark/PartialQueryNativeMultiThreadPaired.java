@@ -466,6 +466,7 @@ public class PartialQueryNativeMultiThreadPaired implements PairFlatMapFunction<
 
 
             //for(int i = 0; (i< this.options.getProperties().getMaxCandidates()) && (i < best_hits.size()) ; ++i) {
+
             for(int i = 0; i < best_hits.size() ; ++i) {
 
                 //if(best_hits.get(i).getHits() >= local_min_hits) {
@@ -477,6 +478,7 @@ public class PartialQueryNativeMultiThreadPaired implements PairFlatMapFunction<
                 }
 
             }
+            //top_list.add(best_hits.get(0));
 
 
             //MatchCandidate best = best_hits.get(0);

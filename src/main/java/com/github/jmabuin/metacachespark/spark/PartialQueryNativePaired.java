@@ -131,6 +131,14 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
 
             long currentSequence = this.init;
 
+            /*StringBuilder str_header = new StringBuilder();
+            StringBuilder str_data = new StringBuilder();
+            StringBuilder str_qua = new StringBuilder();
+
+            StringBuilder str_header2 = new StringBuilder();
+            StringBuilder str_data2 = new StringBuilder();
+            StringBuilder str_qua2 = new StringBuilder();*/
+
             // Theoretically there is only one HashMap per partition
             while (myHashMaps.hasNext()) {
 
@@ -147,8 +155,17 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
                     String header2 = seqReader2.get_header();
                     String data2 = seqReader2.get_data();
                     String qua2 = seqReader2.get_quality();
+/*
+                    str_header.append(seqReader.get_header());
+                    str_data.append(seqReader.get_data());
+                    str_qua.append(seqReader.get_quality());
 
+                    str_header2.append(seqReader2.get_header());
+                    str_data2.append(seqReader2.get_data());
+                    str_qua2.append(seqReader2.get_quality());
+*/
                     long numWindows = (2 + Math.max(data.length() + data2.length(), this.options.getProperties().getInsertSizeMax()) / this.window_stride);
+                    //long numWindows = (2 + Math.max(str_data.length() + str_data2.length(), this.options.getProperties().getInsertSizeMax()) / this.window_stride);
 
                     if (seqReader.get_header().isEmpty() || seqReader2.get_header().isEmpty()) {
                         continue;
@@ -157,13 +174,10 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
                     // TreeMap where hits from this sequences will be stored
                     List<LocationBasic> current_results = new ArrayList<>();
 
-                    if ((currentSequence == this.init) || (currentSequence == this.init + 1)) {
-                        LOG.warn("Processing sequence " + currentSequence + " :: " + header + " :: " + header2);
-                    }
-
-
                     SequenceData currentData = new SequenceData(header, data, qua);
                     SequenceData currentData2 = new SequenceData(header2, data2, qua2);
+                    //SequenceData currentData = new SequenceData(str_header.toString(), str_data.toString(), str_qua.toString());
+                    //SequenceData currentData2 = new SequenceData(str_header2.toString(), str_data2.toString(), str_qua2.toString());
 
                     locations = SequenceFileReader.getSketchStatic(currentData);
                     locations2 = SequenceFileReader.getSketchStatic(currentData2);
