@@ -111,6 +111,10 @@ esac
 
 
 case "$PARTITION_NUMBER" in
+        8)
+            EXECUTOR_MEM="100G"
+            ;;
+
         16)
             EXECUTOR_MEM="50G"
             ;;
