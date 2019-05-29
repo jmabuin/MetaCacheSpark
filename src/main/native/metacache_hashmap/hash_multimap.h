@@ -1111,7 +1111,7 @@ private:
         return true;
     }
 
-
+public:
     //---------------------------------------------------------------
     size_type numKeys_;
     size_type numValues_;

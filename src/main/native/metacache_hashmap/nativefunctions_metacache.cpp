@@ -19,17 +19,28 @@
 #include "hash_multimap.h"
 
 #include <fstream>
+#include <set>
 
 //HashMultiMap *map;
-mc::hash_multimap<unsigned, location> *map;
+mc::hash_multimap<unsigned, location> *map = nullptr;
+std::set<unsigned> marked_for_deletion;
+int max_locations;
 
-JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_init (JNIEnv *env, jobject jobj) {
+
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_init (JNIEnv *env, jobject jobj, jint max_size) {
 
     //map = new HashMultiMap();
-    map = new mc::hash_multimap<unsigned, location>();
+    if (map != nullptr) {
+        map->clear();
+    }
+    else {
+        map = new mc::hash_multimap<unsigned, location>();
+    }
 
+    max_locations = (int) max_size;
     return 1;
 }
+
 
 JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_add (JNIEnv *env, jobject jobj, jint key, jint v1, jint v2) {
 
@@ -39,8 +50,8 @@ JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
 
     //map->insert(unsigned_key, newLocation);
     auto it = map->insert(unsigned_key, newLocation);
-    if(it->size() > 254) {
-        map->shrink(it, 254);
+    if(it->size() > max_locations) {
+        map->shrink(it, max_locations);
     }
 
     //int numItems = 7;
@@ -71,8 +82,8 @@ JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMulti
     }
 
     //map->write_binary_to_file(newFileName);
-    //write_binary(ofs, *map);
-    write_natural(ofs, *map);
+    write_binary(ofs, *map);
+    //write_natural(ofs, *map);
 
     ofs.close();
     env->ReleaseStringUTFChars(fileName, nativeString);
@@ -134,5 +145,105 @@ JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_Hash
     //}
 
     return iarr;
+
+}
+
+JNIEXPORT jintArray JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_keys (JNIEnv *env, jobject jobj) {
+
+    jintArray iarr = env->NewIntArray(map->non_empty_bucket_count());
+
+    int *keys = (int *)malloc(sizeof(int) * map->non_empty_bucket_count());
+
+    //std::unordered_map<unsigned, std::vector<location>>::iterator it = map->begin();
+
+    unsigned i = 0;
+    for(const auto& b : map->buckets_) {
+                if(!b.empty()) {
+                    keys[i] = b.key();
+                    ++i;
+                }
+            }
+
+
+    env->SetIntArrayRegion(iarr, 0, map->non_empty_bucket_count(), keys);
+
+    free(keys);
+
+    return iarr;
+
+}
+
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_post_1process (JNIEnv *env, jobject jobj, jboolean over_populated, jboolean ambiguous) {
+    if(over_populated) {
+
+            auto maxlpf = max_locations - 1;
+            if(maxlpf > 0) { //always keep buckets with size 1
+
+                //note that features are not really removed, because the hashmap
+                //does not support erasing keys; instead all values belonging to
+                //the key are cleared and the key is kept without values
+                int rem = 0;
+                for(auto i = map->begin(), e = map->end(); i != e; ++i) {
+                    if(i->size() > maxlpf) {
+                        map->clear(i);
+                        //map->clear(i);
+                        ++rem;
+                    }
+                }
+                return rem;
+        }
+    }
+
+    return 1;
+
+}
+
+JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_clear (JNIEnv *env, jobject jobj) {
+
+    for(auto bucket = map->begin(); bucket!=map->end(); ++bucket) {
+
+        map->clear(bucket);
+
+
+    }
+
+    map->clear();
+
+    //delete map;
+
+  }
+
+JNIEXPORT void JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_clear_1key (JNIEnv *env, jobject jobj, jint javaKey) {
+
+    unsigned int key = (unsigned int) javaKey;
+
+    auto sit = map->find(key);
+
+    if(sit != map->end()) {
+
+        map->clear(sit);
+
+    }
+
+}
+
+/*
+ * Class:     com_github_jmabuin_metacachespark_database_HashMultiMapNative
+ * Method:    get_size_of_key
+ * Signature: (I)I
+ */
+JNIEXPORT jint JNICALL Java_com_github_jmabuin_metacachespark_database_HashMultiMapNative_get_1size_1of_1key (JNIEnv *env, jobject obj, jint javaKey) {
+
+    unsigned int key = (unsigned int) javaKey;
+
+    auto sit = map->find(key);
+
+    if(sit != map->end()) {
+
+        return sit->size();
+
+    }
+
+    return 0;
 
 }
