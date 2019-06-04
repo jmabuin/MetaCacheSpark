@@ -58,9 +58,9 @@ public class MyCustomPartitionerStr extends Partitioner {
 
         int partition_number = this.values.get(str_key);
 
-        if (str_key.contains("/AFS/")) {
-            LOG.info("Assigning partition " + partition_number +" to file: " + str_key);
-        }
+        //if (str_key.contains("/AFS/")) {
+         //   LOG.warn("Assigning partition " + partition_number +" to file: " + str_key);
+        //}
 
         return partition_number;
 

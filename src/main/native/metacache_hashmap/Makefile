@@ -6,7 +6,7 @@ all: libmetacache.so
 
 metacache:
 	if [ ! -d "$(BUILD_DIR_HASHMAP)" ]; then mkdir $(BUILD_DIR_HASHMAP); fi
-	$(CC) $(METACACHE_FLAGS) nativefunctions_metacache.cpp -o $(BUILD_DIR_HASHMAP)/nativefunctions.o $(LIBMETACACHE_LIBS)
+	$(CC) $(METACACHE_FLAGS) nativefunctions.cpp -o $(BUILD_DIR_HASHMAP)/nativefunctions.o $(LIBMETACACHE_LIBS)
 
 libmetacache.so: metacache
 	$(CC) $(LIBMETACACHE_FLAGS) $(BUILD_DIR_HASHMAP)/libmetacache.so $(BUILD_DIR_HASHMAP)/*.o $(LIBMETACACHE_LIBS)

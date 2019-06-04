@@ -46,7 +46,8 @@ public class MetaCacheOptions implements Serializable {
 	public enum InputFormat {FASTA, FASTQ}
 */
 	private EnumModes.Mode operation_mode;
-	private EnumModes.DatabaseType database_type;
+	//private EnumModes.DatabaseType database_type;
+	private EnumModes.QueryMode query_mode;
 	private String taxonomy;
 	private int partitions = 1;
 	private String configuration;
@@ -65,7 +66,6 @@ public class MetaCacheOptions implements Serializable {
     //private boolean metacache_like = false;
     //private boolean metacache_like_input = false;
     //private boolean simple = false;
-    private boolean repartition = false;
     private int hits_greater_than = 2;
     private boolean remove_overpopulated_features = false;
 
@@ -137,6 +137,7 @@ public class MetaCacheOptions implements Serializable {
                     this.operation_mode = EnumModes.Mode.HELP;
                 }
 
+                /*
                 if (cmd.hasOption('d') || cmd.hasOption("database_type")) {
 
                     String selected_database_type = cmd.getOptionValue("database_type");
@@ -165,7 +166,7 @@ public class MetaCacheOptions implements Serializable {
                 else {
                     this.database_type = EnumModes.DatabaseType.HASHMAP;
                 }
-
+                */
                 if ( cmd.hasOption('t') || cmd.hasOption("taxonomy")) {
                     this.taxonomy = cmd.getOptionValue("taxonomy");
                 }
@@ -210,9 +211,9 @@ public class MetaCacheOptions implements Serializable {
                     this.simple = true;
                 }
                 */
-                if (cmd.hasOption('e') || cmd.hasOption("repartition")) {
+                /*if (cmd.hasOption('e') || cmd.hasOption("repartition")) {
                     this.repartition = true;
-                }
+                }*/
 
                 //-abundance-per
                 if (cmd.hasOption('a') || cmd.hasOption("abundance_per")) {
@@ -228,6 +229,33 @@ public class MetaCacheOptions implements Serializable {
                 if (cmd.hasOption('g') || cmd.hasOption("hits_greater_than")) {
                     this.hits_greater_than = Integer.parseInt(cmd.getOptionValue("hits_greater_than"));
                 }
+
+                if (cmd.hasOption('q') || cmd.hasOption("query_mode")) {
+
+                    String selected_database_type = cmd.getOptionValue("query_mode");
+
+                    switch (selected_database_type) {
+                        case "precise":
+                            this.query_mode = EnumModes.QueryMode.PRECISE;
+                            break;
+                        case "threshold":
+                            this.query_mode = EnumModes.QueryMode.THRESHOLD;
+                            break;
+                        case "fast":
+                            this.query_mode = EnumModes.QueryMode.FAST;
+                            break;
+                        case "very_fast":
+                            this.query_mode = EnumModes.QueryMode.VERY_FAST;
+                            break;
+                        default:
+                            this.query_mode = EnumModes.QueryMode.FAST;
+                            break;
+                    }
+                }
+                else {
+                    this.query_mode = EnumModes.QueryMode.FAST;
+                }
+
 
             }
 
@@ -312,9 +340,9 @@ public class MetaCacheOptions implements Serializable {
         Option mode = new Option("m", "mode", true, "Operation mode to use with MetaCacheSpark.\nAvailable options are: build, query, add, info, annotate.");
         privateOptions.addOption(mode);
 
-        Option database_type = new Option("d", "database_type", true, "Construction method of the database to be used.\nAvailable options: hashmap, hashmultimap," +
+        /*Option database_type = new Option("d", "database_type", true, "Construction method of the database to be used.\nAvailable options: hashmap, hashmultimap," +
                 "hashmultimap_native, parquet, combine.");
-        privateOptions.addOption(database_type);
+        privateOptions.addOption(database_type);*/
 
         Option taxonomy = new Option("t", "taxonomy", true, "Path to the taxonomy to be used in the HDFS.");
         //taxonomy.setRequired(true);
@@ -358,6 +386,9 @@ public class MetaCacheOptions implements Serializable {
 
         Option hits_greater_than = new Option("g", "hits_greater_than", true, "Gets candidates with more than specified hits in the classification maps");
         privateOptions.addOption(hits_greater_than);
+
+        Option query_mode = new Option("q", "query_mode", true, "Mode selected for query. Available options are: precise, threshold, fast, very_fast. Default: threshold");
+        privateOptions.addOption(query_mode);
 
 		return privateOptions;
 	}
@@ -431,11 +462,11 @@ public class MetaCacheOptions implements Serializable {
     public EnumModes.Mode getOperation_mode() {
         return operation_mode;
     }
-
+/*
     public EnumModes.DatabaseType getDatabase_type() {
         return database_type;
     }
-
+*/
     public String getTaxonomy() {
         return taxonomy;
     }
@@ -500,9 +531,9 @@ public class MetaCacheOptions implements Serializable {
         this.simple = simple;
     }*/
 
-    public boolean isRepartition() {
+    /*public boolean isRepartition() {
         return repartition;
-    }
+    }*/
 
     public Taxonomy.Rank getAbundance_per() {
         return abundance_per;
@@ -514,5 +545,9 @@ public class MetaCacheOptions implements Serializable {
 
     public int getHits_greater_than() {
         return hits_greater_than;
+    }
+
+    public EnumModes.QueryMode getQuery_mode() {
+        return query_mode;
     }
 }

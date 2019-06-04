@@ -144,6 +144,10 @@ public class MetaCacheSpark implements Serializable {
 			MapSerializer serializer = new MapSerializer();
 */
             //sparkConf.set("spark.kryo.registrator","com.github.jmabuin.metacachespark.MyKryoRegistrator");
+            // Kryo serializer
+            sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer");
+            sparkConf.set("spark.kryoserializer.buffer.max","2047m");
+
             Class[] serializedClasses = {Location.class,
                     Sketch.class,
                     TreeMap.class,
@@ -151,7 +155,8 @@ public class MetaCacheSpark implements Serializable {
                     MatchCandidate.class,
                     List.class,
                     HashMultiMapNative.class,
-                    Long.class};
+                    Long.class,
+                    EnumModes.class};
             sparkConf.registerKryoClasses(serializedClasses);
 
 

@@ -17,6 +17,7 @@
 
 package com.github.jmabuin.metacachespark.spark;
 
+import com.github.jmabuin.metacachespark.EnumModes;
 import com.github.jmabuin.metacachespark.LocationBasic;
 import com.github.jmabuin.metacachespark.TargetProperty;
 import com.github.jmabuin.metacachespark.database.CandidateGenerationRules;
@@ -86,22 +87,53 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
 
                 }
             });
+            if (this.options.getQuery_mode() == EnumModes.QueryMode.THRESHOLD) {
+                double threshold = v1.get(0).getHits() > local_min_hits ?
+                        (v1.get(0).getHits() - local_min_hits) *
+                                this.options.getProperties().getHitsDiffFraction() : 0;
 
-            double threshold = v1.get(0).getHits() > local_min_hits ?
-                    (v1.get(0).getHits() - local_min_hits) *
-                            this.options.getProperties().getHitsDiffFraction() : 0;
+                for(int i = 0; i < v1.size() ; ++i) {
 
-            //for (int i = 0; (i < v1.size()) && (i < rules.getMaxCandidates()); ++i) {
-            for (int i = 0; i < v1.size(); ++i) {
-                if (v1.get(i).getHits() >= threshold) {
-                    results.add(v1.get(i));
+                    if(v1.get(i).getHits() >= threshold) {
+                        results.add(v1.get(i));
+                    }
+                    else {
+                        break;
+                    }
+
                 }
-                else {
-                    break;
-                }
-
             }
 
+            else if (this.options.getQuery_mode() == EnumModes.QueryMode.FAST) {
+                for(int i = 0; i < v1.size() ; ++i) {
+
+                    if(v1.get(i).getHits() >= local_min_hits) {
+                        results.add(v1.get(i));
+                    }
+                    else {
+                        break;
+                    }
+
+                }
+            }
+
+            else if (this.options.getQuery_mode() == EnumModes.QueryMode.PRECISE){
+                /*for(int i = 0; i < v1.size() ; ++i) {
+
+                    results.add(v1.get(i));
+
+                }*/
+                results.addAll(v1);
+            }
+
+            else { //VERY_FAST mode
+                for(int i = 0; (i < local_min_hits * 2) && (i < v1.size()) ; ++i) {
+
+                    results.add(v1.get(i));
+
+
+                }
+            }
         }
         return results;
 

@@ -268,7 +268,8 @@ public class Query implements Serializable {
             long endTime = System.nanoTime();
 
             //show results
-            int numQueries = (this.param.getProperties().getPairing() == EnumModes.pairing_mode.none) ? stats.total() :
+            //int numQueries = (this.param.getProperties().getPairing() == EnumModes.pairing_mode.none) ? stats.total() :
+            int numQueries = (!this.param.isPaired_reads()) ? stats.total() :
                     2 * stats.total();
 
             double speed = (60.0 * (double)numQueries) / ((double)(endTime - initTime)/1e9);
@@ -501,8 +502,8 @@ public class Query implements Serializable {
                 totalReads = FilesysUtility.readsInFastaFile(f1);
                 totalReads2 = FilesysUtility.readsInFastaFile(f1);
 
-                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
-                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+                //LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                //        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
 
                 if (totalReads != totalReads2) {
                     System.exit(1);
@@ -513,8 +514,8 @@ public class Query implements Serializable {
                 totalReads = FilesysUtility.readsInFastqFile(f1);
                 totalReads2 = FilesysUtility.readsInFastqFile(f1);
 
-                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
-                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+                //LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                //        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
                 if (totalReads != totalReads2) {
 
                     System.exit(1);
@@ -532,7 +533,7 @@ public class Query implements Serializable {
             SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
             SequenceFileReaderLocal seqReader2 = new SequenceFileReaderLocal(f2, 0);
 
-            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+            //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
 
             SequenceData data;
             SequenceData data2;
@@ -543,8 +544,8 @@ public class Query implements Serializable {
 
             for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
                 //while((currentRead < startRead+bufferSize) && ) {
-
-                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+                long initTimePartial = System.nanoTime();
+                //LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
 
 
                 // Get corresponding hits for this buffer
@@ -552,16 +553,22 @@ public class Query implements Serializable {
                 //        startRead, bufferSize);
                 Map<Long, List<MatchCandidate>> hits;
 
-                if(!this.param.isRemove_overpopulated_features()) {
+                //long initTimePartial2 = System.nanoTime();
+                /*if(!this.param.isRemove_overpopulated_features()) {
                     hits = this.db.accumulate_matches_paired_full(f1, f2,
                             startRead, bufferSize);
                 }
                 else {
                     hits = this.db.accumulate_matches_paired(f1, f2,
                             startRead, bufferSize);
-                }
+                }*/
+                hits = this.db.accumulate_matches_paired(f1, f2,
+                        startRead, bufferSize);
+                //long endTimePartial2 = System.nanoTime();
 
-                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
+                //LOG.warn("Time in processing from " + startRead + " in Map-Reduce is: " + ((endTimePartial2 - initTimePartial2) / 1e9) + " seconds");
+
+                //LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
 
                 //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
 
@@ -589,9 +596,9 @@ public class Query implements Serializable {
                     data2 = seqReader2.next();
                     headers[i] = data.getHeader();
 
-                    if((i == 0) || (i == hits.size()-1)) {
+                    /*if((i == 0) || (i == hits.size()-1)) {
                         LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
-                    }
+                    }*/
 
                     if((data == null) || (data2 == null)) {
                         LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
@@ -626,10 +633,6 @@ public class Query implements Serializable {
                     System.out.println("InterruptedException " + e.getMessage());
                 }
 
-
-
-
-
                 for (int i = 0; i < hits.size(); i++) {
                     //LOG.warn("Processing " + i);
                     if(classifications.containsKey(i)) {
@@ -644,6 +647,9 @@ public class Query implements Serializable {
                 classifications.clear();
                 headers = null;
 
+                long endTimePartial = System.nanoTime();
+
+                LOG.warn("Time in processing from " + startRead + " is: " + ((endTimePartial - initTimePartial) / 1e9) + " seconds");
 
             }
 
@@ -683,8 +689,8 @@ public class Query implements Serializable {
                 totalReads = FilesysUtility.readsInFastaFile(f1);
                 totalReads2 = FilesysUtility.readsInFastaFile(f1);
 
-                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
-                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+                //LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                //        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
 
                 if (totalReads != totalReads2) {
                     System.exit(1);
@@ -695,8 +701,8 @@ public class Query implements Serializable {
                 totalReads = FilesysUtility.readsInFastqFile(f1);
                 totalReads2 = FilesysUtility.readsInFastqFile(f1);
 
-                LOG.warn("Number of reads in " + f1 + " is " + totalReads +
-                        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
+                //LOG.warn("Number of reads in " + f1 + " is " + totalReads +
+                //        ", while number of reads in " + f2 + " is " + totalReads2 + ".");
                 if (totalReads != totalReads2) {
 
                     System.exit(1);
@@ -714,7 +720,7 @@ public class Query implements Serializable {
             SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0);
             SequenceFileReaderLocal seqReader2 = new SequenceFileReaderLocal(f2, 0);
 
-            LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+            //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
 
             SequenceData data;
             SequenceData data2;
@@ -722,7 +728,7 @@ public class Query implements Serializable {
             for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
                 //while((currentRead < startRead+bufferSize) && ) {
 
-                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+                //LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
 
 
                 // Get corresponding hits for this buffer
@@ -730,16 +736,19 @@ public class Query implements Serializable {
                 //        startRead, bufferSize);
                 Map<Long, List<MatchCandidate>> hits;
 
-                if(!this.param.isRemove_overpopulated_features()) {
+                /*if(!this.param.isRemove_overpopulated_features()) {
                     hits = this.db.accumulate_matches_paired_full(f1, f2,
                             startRead, bufferSize);
                 }
                 else {
                     hits = this.db.accumulate_matches_paired(f1, f2,
                             startRead, bufferSize);
-                }
+                }*/
 
-                LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
+                hits = this.db.accumulate_matches_paired(f1, f2,
+                        startRead, bufferSize);
+
+                //LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
 
                 //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
 
@@ -754,9 +763,9 @@ public class Query implements Serializable {
                     data = seqReader.next();
                     data2 = seqReader2.next();
 
-                    if((i == 0) || (i == hits.size()-1)) {
+                    /*if((i == 0) || (i == hits.size()-1)) {
                         LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
-                    }
+                    }*/
 
                     if((data == null) || (data2 == null)) {
                         LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
@@ -795,74 +804,6 @@ public class Query implements Serializable {
         }
 
     }
-/*
-    public void classify_pairs_main(String fname1, String fname2, BufferedWriter d, ClassificationStatistics stats) {
-
-        switch (this.param.getDatabase_type()) {
-
-            case HASHMULTIMAP_NATIVE:
-                LOG.info("Classifying per file with native hashmap buffered");
-                this.classify_pairs(fname1, fname2, d, stats);
-
-                break;
-            case HASHMAP:
-
-                break;
-            case HASHMULTIMAP_GUAVA:
-
-                break;
-            default:
-                //this.classify(filename, d, stats);
-                break;
-
-        }
-
-
-    }
-*/
-/*
-    public void classify_main(String filename, BufferedWriter d, ClassificationStatistics stats){
-
-        switch (this.param.getDatabase_type()) {
-
-            case HASHMULTIMAP_NATIVE:
-                if (this.param.getBuffer_size() > 0) {
-                    LOG.info("Classifying per file with native hashmap buffered");
-                    this.classify(filename, d, stats);
-                }
-                else if (this.param.getBuffer_size() == 0) {
-                    LOG.info("Classifying per file with native hashmap single");
-                    this.classify_native_single(filename, d, stats);
-                }
-                break;
-            case HASHMAP:
-                if (this.param.getBuffer_size() > 0) {
-                    LOG.info("Classifying per file with native hashmap buffered");
-                    this.classify_java_hashmap_buffered(filename, d, stats);
-                }
-                else if (this.param.getBuffer_size() == 0) {
-                    LOG.info("Classifying per file with native hashmap single");
-                    this.classify_java_hashmap_single(filename, d, stats);
-                }
-                break;
-            case HASHMULTIMAP_GUAVA:
-                if (this.param.getBuffer_size() > 0) {
-                    LOG.info("Classifying per file with Guava hashmultimap buffered");
-                    this.classify_guava_hashmap_buffered(filename, d, stats);
-                }
-                else if (this.param.getBuffer_size() == 0) {
-                    LOG.info("Classifying per file with Guava hashmultimap single");
-                    this.classify_guava_hashmap_single(filename, d, stats);
-                }
-                break;
-            default:
-                //this.classify(filename, d, stats);
-                break;
-
-        }
-
-    }
-*/
 
 
     public void classify(String filename, BufferedWriter d, ClassificationStatistics stats) {
@@ -905,7 +846,7 @@ public class Query implements Serializable {
             for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
                 //while((currentRead < startRead+bufferSize) && ) {
 
-                LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
+                //LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
 
 
                 // Get corresponding hits for this buffer

@@ -471,62 +471,62 @@ public class Database implements Serializable{
 
             //LOG.info("Number of partitioned files: " + tmpInput.count());
 
-            if (!this.params.isRepartition()) {
+            //if (!this.params.isRepartition()) {
 
-                JavaPairRDD<String, Long> sequences_lengths_rdd = tmpInput.mapPartitionsToPair(new Fasta2SequenceProperties());
+            JavaPairRDD<String, Long> sequences_lengths_rdd = tmpInput.mapPartitionsToPair(new Fasta2SequenceProperties());
 
-                Map<String, Long> sequences_lengths = Database.sortByComparator(sequences_lengths_rdd
-                        .collectAsMap(), false);
+            Map<String, Long> sequences_lengths = Database.sortByComparator(sequences_lengths_rdd
+                    .collectAsMap(), false);
 
-                HashMap<Long, Integer> sequences_distribution = new HashMap<>();
+            HashMap<Long, Integer> sequences_distribution = new HashMap<>();
 
-                current_partition = 0;
-                positive = true;
-                //partition_pos = 0;
-                for (String current_key: sequences_lengths.keySet()) {
+            current_partition = 0;
+            positive = true;
+            //partition_pos = 0;
+            for (String current_key: sequences_lengths.keySet()) {
 
-                    sequences_distribution.put((long)this.targets_positions.get(current_key), current_partition);
+                sequences_distribution.put((long)this.targets_positions.get(current_key), current_partition);
 
-                    //if (partition_pos < this.getNumPartitions()*2 + 3) {
-                    //    LOG.warn("Partitioning sequence: " + current_key + " into partition: " + current_partition );
-                    //    partition_pos++;
-                    //}
+                //if (partition_pos < this.getNumPartitions()*2 + 3) {
+                //    LOG.warn("Partitioning sequence: " + current_key + " into partition: " + current_partition );
+                //    partition_pos++;
+                //}
 
 
-                    if(positive) {
-                        current_partition++;
-                        if (current_partition == this.numPartitions) {
-                            positive = false;
-                            current_partition-=1;
-                        }
-
+                if(positive) {
+                    current_partition++;
+                    if (current_partition == this.numPartitions) {
+                        positive = false;
+                        current_partition-=1;
                     }
-                    else {
-                        current_partition--;
-                        if (current_partition == -1) {
-                            positive = true;
-                            current_partition+=1;
-                        }
-                    }
-
-
 
                 }
+                else {
+                    current_partition--;
+                    if (current_partition == -1) {
+                        positive = true;
+                        current_partition+=1;
+                    }
+                }
 
-                this.inputSequences = tmpInput
-                        //.keys()
-                        .mapPartitionsToPair(new Fasta2SequencePair(sequ2taxid, this.targets_positions))
-                        .partitionBy(new MyCustomPartitionerSequenceID(this.numPartitions, sequences_distribution))
-                        .values()
-                        //.repartition(this.numPartitions)
-                        .persist(StorageLevel.MEMORY_ONLY_SER());
+
+
             }
+
+            this.inputSequences = tmpInput
+                    //.keys()
+                    .mapPartitionsToPair(new Fasta2SequencePair(sequ2taxid, this.targets_positions))
+                    .partitionBy(new MyCustomPartitionerSequenceID(this.numPartitions, sequences_distribution))
+                    .values()
+                    //.repartition(this.numPartitions)
+                    .persist(StorageLevel.MEMORY_ONLY_SER());
+            /*}
             else {
                 this.inputSequences = tmpInput
                         .mapPartitions(new Fasta2Sequence(sequ2taxid, this.targets_positions))
                         .repartition(this.numPartitions)
                         .persist(StorageLevel.MEMORY_ONLY_SER());
-            }
+            }*/
 
 
             LOG.warn("Number of input sequences: " + this.inputSequences.count());
@@ -605,76 +605,13 @@ public class Database implements Serializable{
             }
 
 
+            LOG.warn("Building database with isBuildModeHashMultiMapMC");
 
-            //List<Integer> delete_features = new ArrayList<>();
+            //this.locationJavaRDDHashMultiMapNative = this.inputSequences
+            //        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_sequences, this.params), true);
+            //this.locationJavaRDDHashMultiMapNative = tmp_sketches_rdd.mapPartitions(new FilterAndSave(delete_features_tree), true);
 
-
-/*
-            JavaPairRDD<Integer, LocationBasic> tmp_sketches_rdd = this.inputSequences
-                    //.mapPartitionsToPair(new Sketcher2PairPartitions2(this.name2tax_), true)
-                    //.mapPartitionsToPair(new Sketcher2PairPartitions2(this.name2tax_sequences, this.params), true)
-                    .flatMapToPair(new Sketcher2Pair(this.name2tax_sequences))
-                    .persist(StorageLevel.MEMORY_ONLY_SER());
-
-            //LOG.warn("Total items in sketches without overpopulated: " + tmp_sketches_rdd.count());
-
-            List<Integer> delete_features = tmp_sketches_rdd
-                    .combineByKey(new CombinerCreate(), new CombinerMerge(), new CombinerMergeCombiners())
-                    .mapPartitions(new SketchesMap2Boolean(this.params), true)
-                    .collect();
-
-            TreeSet<Integer> delete_features_tree = new TreeSet<>(delete_features);
-*/
-            //delete_features.clear();
-
-            if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
-                LOG.warn("Building database with isBuildModeHashMap");
-
-                this.locationJavaHashRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_sequences))
-                        .mapPartitions(new Locations2HashMap2(), true);
-
-            }
-            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) { //(paramsBuild.isBuildModeHashMultiMapG()) {
-                LOG.warn("Building database with isBuildModeHashMultiMapG");
-
-                this.locationJavaHashMMRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_sequences))
-                        .mapPartitions(new Locations2HashMultiMapGuava2(), true);
-            }
-            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {//(paramsBuild.isBuildModeHashMultiMapMC()) {
-                LOG.warn("Building database with isBuildModeHashMultiMapMC");
-
-                //this.locationJavaRDDHashMultiMapNative = this.inputSequences
-                //        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_sequences, this.params), true);
-                //this.locationJavaRDDHashMultiMapNative = tmp_sketches_rdd.mapPartitions(new FilterAndSave(delete_features_tree), true);
-
-                this.locationJavaRDDHashMultiMapNative = map.mapPartitions(new FilterAndSaveNative(delete_features), true);
-
-            }
-            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {//(paramsBuild.isBuildModeParquetDataframe()) {
-                LOG.warn("Building database with isBuildModeParquetDataframe");
-
-                this.locationJavaRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_sequences))
-                        .mapPartitions(new Locations2Parquet(), true);
-
-                this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class));
-
-
-            }
-            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) { //(paramsBuild.isBuildCombineByKey()) {
-                LOG.warn("Building database with isBuildCombineByKey");
-
-                this.locationJavaPairIterableRDD = this.inputSequences
-                        .flatMapToPair(new Sketcher2Pair(this.name2tax_sequences))
-                        .mapPartitionsToPair(new Pair2Locations(), true)
-                        .groupByKey();
-
-                this.locationsRDD = this.locationJavaPairIterableRDD.map(new LocationKeyIterable2Locations(
-                        this.params.getProperties().getMax_locations_per_feature()));
-
-            }
+            this.locationJavaRDDHashMultiMapNative = map.mapPartitions(new FilterAndSaveNative(delete_features), true);
 
 
         } catch (Exception e) {
@@ -1355,69 +1292,13 @@ public class Database implements Serializable{
 
             String path = fs.getHomeDirectory().toString();
 
-            long startTime = System.nanoTime();
+            List<String> outputs = this.locationJavaRDDHashMultiMapNative
+                    .mapPartitionsWithIndex(new WriteHashMapNative(path+"/"+this.dbfile), true)
+                    .collect();
 
-            if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {//(paramsBuild.isBuildModeHashMap()) {
-                //this.locationJavaHashRDD.saveAsObjectFile(path+"/"+this.dbfile);
-
-                List<String> outputs = this.locationJavaHashRDD
-                        .mapPartitionsWithIndex(new WriteHashMap(path+"/"+this.dbfile), true)
-                        .collect();
-
-                for(String output: outputs) {
-                    LOG.warn("Wrote file: "+output);
-                }
-
+            for(String output: outputs) {
+                LOG.warn("Writed file: "+output);
             }
-            else if (this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {//(paramsBuild.isBuildModeHashMultiMapG()) {
-                //this.locationJavaHashMMRDD.saveAsObjectFile(path+"/"+this.dbfile);
-                List<String> outputs = this.locationJavaHashMMRDD
-                        .mapPartitionsWithIndex(new WriteHashMultiMapGuava(path+"/"+this.dbfile), true)
-                        .collect();
-
-                for(String output: outputs) {
-                    LOG.warn("Wrote file: "+output);
-                }
-            }
-            else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
-                //this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
-                //this.locationJavaRDDHashMultiMapNative.saveAsObjectFile(path+"/"+this.dbfile);
-
-                List<String> outputs = this.locationJavaRDDHashMultiMapNative
-                        .mapPartitionsWithIndex(new WriteHashMapNative(path+"/"+this.dbfile), true)
-                        .collect();
-
-                for(String output: outputs) {
-                    LOG.warn("Writed file: "+output);
-                }
-
-            }
-            else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
-                this.featuresDataframe_.write().parquet(path+"/"+this.dbfile);
-                //this.featuresDataframe_.write().partitionBy("key").parquet(path+"/"+this.dbfile);
-            }
-            else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
-                //this.locationJavaPairListRDD.saveAsObjectFile(path+"/"+this.dbfile);
-
-                //this.locationsRDD.saveAsObjectFile(path+"/"+this.dbfile);
-                List<String> outputs = this.locationsRDD.mapPartitionsWithIndex(new WriteLocations(path+"/"+this.dbfile), true)
-                        .collect();
-
-                for(String file_name: outputs) {
-                    LOG.info("File written: " + file_name);
-                }
-
-            }
-
-
-
-            //LOG.warn("Time in writedatabase is: "+ (System.nanoTime() - startTime)/10e9);
-
-
-            //this.locationJavaPairListRDD.saveAsObjectFile(this.dbfile);
-            //this.locationJavaHashRDD.saveAsObjectFile(this.dbfile);
-
-            //this.featuresDataframe_.unpersist();
 
             LOG.info("Database created at "+ path+"/"+this.dbfile);
 
@@ -1438,266 +1319,55 @@ public class Database implements Serializable{
     public void loadFromFile() {
 
 
-        /*
-         * Ordering<Integer> ordering = Ordering$.MODULE$.comparatorToOrdering(Comparator.<Integer>naturalOrder());
-         */
-        if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMAP) {
-            LOG.warn("Loading database in Java HashMap format");
-            //this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
+        long init_time = System.nanoTime();
 
-            List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
+        LOG.warn("Loading database with isBuildModeHashMultiMapMC");
+        //this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
 
+        List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
+
+
+
+        JavaRDD<String> filesNamesRDD;
+
+        if(this.numPartitions != 1) {
+
+            //HashMap<String, Integer> partitions_for_distribution = new HashMap<>();
+
+            int i = 0;
             for(String newFile : filesNames) {
-                LOG.warn("New file added: "+newFile);
-            }
-
-            JavaRDD<String> filesNamesRDD;
-
-            if(this.numPartitions != 1) {
-                filesNamesRDD = this.jsc.parallelize(filesNames, this.numPartitions);
-            }
-            else {
-                filesNamesRDD = this.jsc.parallelize(filesNames);
+                LOG.warn("Native New file added: "+newFile);
+                //partitions_for_distribution.put(filesNames.get(i), i);
+                //++i;
             }
 
 
-            this.locationJavaHashRDD = filesNamesRDD
-                    .mapPartitionsWithIndex(new ReadHashMap(), true)
-                    .persist(StorageLevel.MEMORY_AND_DISK());
+                /*filesNamesRDD = this.jsc.parallelize(filesNames, this.numPartitions).zipWithIndex()
+                                .partitionBy(new MyCustomPartitionerStr(this.numPartitions, partitions_for_distribution))
+                                .keys();*/
+            LOG.warn("Number of partitions is: " + this.numPartitions + ", number of files is: " + filesNames.size());
 
-			/*
+            filesNamesRDD = this.jsc.parallelize(filesNames, this.numPartitions);
 
-            this.locationJavaHashRDD = this.jsc.objectFile(this.dbfile);
-
-            this.locationJavaHashRDD.persist(StorageLevel.MEMORY_AND_DISK());
-*/
-            LOG.warn("The number of paired persisted entries is: " + this.locationJavaHashRDD.count());
-
-
-        }
-        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_GUAVA) {
-			/*LOG.warn("Loading database with isBuildModeHashMultiMapG");
-			this.locationJavaHashMMRDD = this.jsc.objectFile(this.dbfile);
-
-			this.locationJavaHashMMRDD.persist(StorageLevel.MEMORY_AND_DISK());
-
-			LOG.warn("The number of persisted HashMultimaps is: " + this.locationJavaHashMMRDD.count());
-			*/
-
-            LOG.warn("Loading database in Guava HashMultimap format");
-
-
-
-            List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
-
-            for(String newFile : filesNames) {
-                LOG.warn("New file added: "+newFile);
-            }
-
-            JavaRDD<String> filesNamesRDD;
-
-            if(this.numPartitions != 1) {
-                filesNamesRDD = this.jsc.parallelize(filesNames, this.numPartitions);
-            }
-            else {
-                filesNamesRDD = this.jsc.parallelize(filesNames);
-            }
-
-
-            this.locationJavaHashMMRDD = filesNamesRDD
-                    .mapPartitionsWithIndex(new ReadHashMapGuava(), true)
-                    .persist(StorageLevel.MEMORY_AND_DISK());
-
-
-/*
-            this.locationJavaHashMMRDD = this.jsc.objectFile(this.dbfile);
-
-            this.locationJavaHashMMRDD.persist(StorageLevel.MEMORY_AND_DISK());
-*/
-            LOG.warn("The number of paired persisted entries is: " + this.locationJavaHashMMRDD.count());
-
-        }
-        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.HASHMULTIMAP_NATIVE) {
-
-            long init_time = System.nanoTime();
-
-            LOG.warn("Loading database with isBuildModeHashMultiMapMC");
-            //this.locationJavaPairListRDD = JavaPairRDD.fromJavaRDD(this.jsc.objectFile(this.dbfile));
-
-            List<String> filesNames = FilesysUtility.files_in_directory(this.dbfile, 0, this.jsc);
-
-            for(String newFile : filesNames) {
-                LOG.warn("New file added: "+newFile);
-            }
-
-            JavaRDD<String> filesNamesRDD;
-
-            if(this.numPartitions != 1) {
-                filesNamesRDD = this.jsc.parallelize(filesNames, this.numPartitions);
-            }
-            else {
-                filesNamesRDD = this.jsc.parallelize(filesNames);
-            }
-
-
-            this.locationJavaRDDHashMultiMapNative = filesNamesRDD
-                    .mapPartitionsWithIndex(new ReadHashMapNative(), true)
-                    .persist(StorageLevel.MEMORY_ONLY());
-
-
-            LOG.warn("The number of paired persisted entries is: " + this.locationJavaRDDHashMultiMapNative.count());
-
-            long end_time = System.nanoTime();
-
-            LOG.warn("[QUERY] Time spent in loading database for " + this.params.getOutfile() + " from HDFS is: " + ((end_time - init_time) / 1e9) + " seconds");
-        }
-        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.PARQUET) {
-            LOG.warn("Loading database with isBuildModeParquetDataframe");
-            //DataFrame dataFrame = this.sqlContext.read().parquet(this.dbfile);
-            Dataset<Location> dataFrame = this.sqlContext.read().parquet(this.dbfile).map(new Row2Location(), Encoders.bean(Location.class));
-
-            this.locationJavaRDD = dataFrame.javaRDD();
-
-            this.featuresDataframe_ = this.sqlContext.createDataset(this.locationJavaRDD.rdd(), Encoders.bean(Location.class))
-                    .persist(StorageLevel.MEMORY_AND_DISK());
-
-            this.featuresDataframe_.createOrReplaceTempView("MetaCacheSpark");
-            //this.sqlContext.cacheTable("MetaCacheSpark");
-
-            LOG.warn("The number of paired persisted entries is: " + this.featuresDataframe_.count());
-
-        }
-        else if(this.params.getDatabase_type() == EnumModes.DatabaseType.COMBINE_BY_KEY) {
-            LOG.warn("Loading database with isBuildCombineByKey");
-
-            Dataset<Location> dataFrame = this.sqlContext.read().parquet(this.dbfile).map(new Row2Location(), Encoders.bean(Location.class));
-
-            /*
-            if(this.numPartitions != 1) {
-                this.locationJavaRDD = dataFrame.javaRDD().repartition(this.numPartitions);
-            }
-            else {
-                this.locationJavaRDD = dataFrame.javaRDD();
-            }
-            */
-            this.locationJavaRDD = dataFrame.javaRDD();
-
-            this.locationsRDD = this.locationJavaRDD.mapPartitionsToPair(new Location2Pair(), true)
-                    .groupByKey()
-                    .map(new LocationKeyIterable2Locations(this.params.getProperties().getMax_locations_per_feature()));
-
-            if(this.numPartitions != 1) {
-                this.featuresDataset = this.sqlContext.createDataset(this.locationsRDD.rdd(), Encoders.bean(Locations.class))
-                        .repartition(this.numPartitions)
-                        .persist(StorageLevel.MEMORY_AND_DISK());
-            }
-            else {
-                this.featuresDataset = this.sqlContext.createDataset(this.locationsRDD.rdd(), Encoders.bean(Locations.class))
-                        .persist(StorageLevel.MEMORY_AND_DISK());
-            }
-
-
-
-            this.featuresDataset.registerTempTable("MetaCacheSpark");
-            //this.sqlContext.cacheTable("MetaCacheSpark");
-
-            LOG.warn("The number of paired persisted entries is: " + this.featuresDataset.count());
-
-
-        }
-
-    }
-
-
-
-/*    public Map<Long, List<MatchCandidate>> accumulate_matches_native_buffered_best( String fileName, String fileName2,
-                                                                              long init, int size) {
-
-        long initTime = System.nanoTime();
-
-        Map<Long, List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
-                .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                .reduceByKey(new QueryReducerListNative(this.params))
-                .collectAsMap();
-        long endTime = System.nanoTime();
-
-        LOG.warn("Time in insert into TreeMap partial is: " + ((endTime - initTime) / 1e9) + " seconds");
-
-        return results;
-
-
-    }
-*/
-
-    public Map<Long, List<MatchCandidate>> accumulate_matches_paired_full(String fileName, String fileName2,
-                                                                          long init, int size) {
-
-        Map<Long, List<MatchCandidate>> results = null;
-
-        //CandidateGenerationRules rules = new CandidateGenerationRules(this.params.getProperties());
-
-        if (this.params.getNumThreads() == 1) {
-            switch (this.params.getDatabase_type()) {
-
-                case HASHMULTIMAP_NATIVE:
-                    //LOG.warn("Yes, it is full");
-                    results = this.locationJavaRDDHashMultiMapNative
-                            .mapPartitionsToPair(new PartialQueryNativePairedFull(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNativeFull(this.params))
-                            .collectAsMap();
-
-                    break;
-                case HASHMAP:
-                    results = this.locationJavaHashRDD
-                            .mapPartitionsToPair(new PartialQueryJavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                case HASHMULTIMAP_GUAVA:
-                    results = this.locationJavaHashMMRDD
-                            .mapPartitionsToPair(new PartialQueryGuavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                default:
-                    //this.classify(filename, d, stats);
-                    break;
-
-
-            }
         }
         else {
-            switch (this.params.getDatabase_type()) {
-
-                case HASHMULTIMAP_NATIVE:
-                    results = this.locationJavaRDDHashMultiMapNative
-                            .mapPartitionsToPair(new PartialQueryNativeMultiThreadPairedFull(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNativeFull(this.params))
-                            .collectAsMap();
-
-                    break;
-                case HASHMAP:
-                    results = this.locationJavaHashRDD
-                            .mapPartitionsToPair(new PartialQueryJavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                case HASHMULTIMAP_GUAVA:
-                    results = this.locationJavaHashMMRDD
-                            .mapPartitionsToPair(new PartialQueryGuavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                default:
-                    //this.classify(filename, d, stats);
-                    break;
-
-
-            }
+            filesNamesRDD = this.jsc.parallelize(filesNames);
         }
-        return results;
-    }
 
+
+        this.locationJavaRDDHashMultiMapNative = filesNamesRDD
+                .mapPartitionsWithIndex(new ReadHashMapNative(), false)
+                .persist(StorageLevel.MEMORY_ONLY());
+
+
+        LOG.warn("The number of paired persisted entries is: " + this.locationJavaRDDHashMultiMapNative.count());
+
+        long end_time = System.nanoTime();
+
+        LOG.warn("[QUERY] Time spent in loading database for " + this.params.getOutfile() + " from HDFS is: " + ((end_time - init_time) / 1e9) + " seconds");
+
+
+    }
 
 
     public Map<Long, List<MatchCandidate>> accumulate_matches_paired(String fileName, String fileName2,
@@ -1706,67 +1376,104 @@ public class Database implements Serializable{
         Map<Long, List<MatchCandidate>> results = null;
 
         //CandidateGenerationRules rules = new CandidateGenerationRules(this.params.getProperties());
+        long initTime = System.nanoTime();
 
         if (this.params.getNumThreads() == 1) {
-            switch (this.params.getDatabase_type()) {
 
-                case HASHMULTIMAP_NATIVE:
-                    results = this.locationJavaRDDHashMultiMapNative
-                            .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
+            results = this.locationJavaRDDHashMultiMapNative
+                    .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                    .reduceByKey(new QueryReducerListNative(this.params))
+                    .collectAsMap();
 
-                    break;
-                case HASHMAP:
-                    results = this.locationJavaHashRDD
-                            .mapPartitionsToPair(new PartialQueryJavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                case HASHMULTIMAP_GUAVA:
-                    results = this.locationJavaHashMMRDD
-                            .mapPartitionsToPair(new PartialQueryGuavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                default:
-                    //this.classify(filename, d, stats);
-                    break;
-
-
-            }
         }
         else {
-            switch (this.params.getDatabase_type()) {
 
-                case HASHMULTIMAP_NATIVE:
-                    results = this.locationJavaRDDHashMultiMapNative
-                            .mapPartitionsToPair(new PartialQueryNativeMultiThreadPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-
-                    break;
-                case HASHMAP:
-                    results = this.locationJavaHashRDD
-                            .mapPartitionsToPair(new PartialQueryJavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                case HASHMULTIMAP_GUAVA:
-                    results = this.locationJavaHashMMRDD
-                            .mapPartitionsToPair(new PartialQueryGuavaPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                default:
-                    //this.classify(filename, d, stats);
-                    break;
-
-
-            }
+            results = this.locationJavaRDDHashMultiMapNative
+                    .mapPartitionsToPair(new PartialQueryNativeMultiThreadPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                    .reduceByKey(new QueryReducerListNative(this.params))
+                    .collectAsMap();
         }
+
+
+        long endTime = System.nanoTime();
+
+        LOG.warn("Time in MapReduce operation for start in " + init + " is : " + ((endTime - initTime) / 1e9) + " seconds");
+
         return results;
     }
+
+
+    // This function avoids to perform a reducebykey, but performance is also not good
+    public Map<Long, List<MatchCandidate>> accumulate_matches_paired2(String fileName, String fileName2,
+                                                                      long init, int size) {
+
+        LOG.warn("Using accumulate_matches_paired2");
+        Map<Long, List<MatchCandidate>> results = new HashMap<>();
+        List<Tuple2<Long, List<MatchCandidate>>> tmp_results = null;
+        //CandidateGenerationRules rules = new CandidateGenerationRules(this.params.getProperties());
+        long initTime = System.nanoTime();
+
+        if (this.params.getNumThreads() == 1) {
+
+            tmp_results = this.locationJavaRDDHashMultiMapNative
+                    .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                    //.reduceByKey(new QueryReducerListNative(this.params))
+                    .collect();
+
+
+
+        }
+        else {
+
+            tmp_results = this.locationJavaRDDHashMultiMapNative
+                    .mapPartitionsToPair(new PartialQueryNativeMultiThreadPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                    .collect();
+            //.reduceByKeyLocally(new QueryReducerListNative(this.params));
+
+
+        }
+
+        for(Tuple2<Long, List<MatchCandidate>> current_item : tmp_results) {
+
+            if (!results.containsKey(current_item._1())) {
+                results.put(current_item._1(), new ArrayList<MatchCandidate>());
+            }
+
+            results.get(current_item._1()).addAll(current_item._2());
+
+        }
+
+
+        for(Long key: results.keySet()) {
+            // Sort candidates in DESCENDING order according number of hits
+            results.get(key).sort(new Comparator<MatchCandidate>() {
+                public int compare(MatchCandidate o1,
+                                   MatchCandidate o2) {
+
+                    if (o1.getHits() < o2.getHits()) {
+                        return 1;
+                    }
+
+                    if (o1.getHits() > o2.getHits()) {
+                        return -1;
+                    }
+
+                    return 0;
+
+                }
+            });
+        }
+
+
+
+
+        long endTime = System.nanoTime();
+
+        LOG.warn("Time in MapReduce operation for start in " + init + " is : " + ((endTime - initTime) / 1e9) + " seconds");
+
+        return results;
+    }
+
 
     public Map<Long, List<MatchCandidate>> accumulate_matches_single(String fileName,
                                                                      long init, int size) {
@@ -1774,74 +1481,21 @@ public class Database implements Serializable{
         Map<Long, List<MatchCandidate>> results = null;
 
         if (this.params.getNumThreads() == 1) {
-            switch (this.params.getDatabase_type()) {
 
-                case HASHMULTIMAP_NATIVE:
-                    results = this.locationJavaRDDHashMultiMapNative
-                            .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-
-                    break;
-                case HASHMAP:
-                    results = this.locationJavaHashRDD
-                            .mapPartitionsToPair(new PartialQueryJava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-
-                case HASHMULTIMAP_GUAVA:
-                    results = this.locationJavaHashMMRDD
-                            .mapPartitionsToPair(new PartialQueryGuava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                case PARQUET:
-                    break;
-
-                case COMBINE_BY_KEY:
-                    break;
-                default:
-                    //this.classify(filename, d, stats);
-                    break;
+            results = this.locationJavaRDDHashMultiMapNative
+                    .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
+                    .reduceByKey(new QueryReducerListNative(this.params))
+                    .collectAsMap();
 
 
-            }
         }
         else {
-            switch (this.params.getDatabase_type()) {
 
-                case HASHMULTIMAP_NATIVE:
-                    results = this.locationJavaRDDHashMultiMapNative
-                            .mapPartitionsToPair(new PartialQueryNativeMultiThread(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
+            results = this.locationJavaRDDHashMultiMapNative
+                    .mapPartitionsToPair(new PartialQueryNativeMultiThread(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
+                    .reduceByKey(new QueryReducerListNative(this.params))
+                    .collectAsMap();
 
-                    break;
-                case HASHMAP:
-                    results = this.locationJavaHashRDD
-                            .mapPartitionsToPair(new PartialQueryJava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-
-                case HASHMULTIMAP_GUAVA:
-                    results = this.locationJavaHashMMRDD
-                            .mapPartitionsToPair(new PartialQueryGuava(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                            .reduceByKey(new QueryReducerListNative(this.params))
-                            .collectAsMap();
-                    break;
-                case PARQUET:
-                    break;
-
-                case COMBINE_BY_KEY:
-                    break;
-                default:
-                    //this.classify(filename, d, stats);
-                    break;
-
-
-            }
         }
 
 

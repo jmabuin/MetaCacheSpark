@@ -80,7 +80,7 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
     @Override
     public Iterator<Tuple2<Long, List<MatchCandidate>>> call(Iterator<HashMultiMapNative> myHashMaps) {
 
-        //long initTime = System.nanoTime();
+        long initTime = System.nanoTime();
 
         List<Tuple2<Long, List<MatchCandidate>>> finalResults = new ArrayList<Tuple2<Long, List<MatchCandidate>>>();
 
@@ -226,9 +226,9 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
                 seqReader2.close();
             }
 
-            //long endTime = System.nanoTime();
+            long endTime = System.nanoTime();
 
-            //LOG.warn("Time spent in executor is: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("Time spent in executor starting in  "+ this.init +"is: " + ((endTime - initTime) / 1e9) + " seconds");
 
             return finalResults.iterator();
 
@@ -400,22 +400,53 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
             }
         });
 
+        if (this.options.getQuery_mode() == EnumModes.QueryMode.THRESHOLD) {
+            double threshold = best_hits.get(0).getHits() > local_min_hits ?
+                    (best_hits.get(0).getHits() - local_min_hits) *
+                            this.options.getProperties().getHitsDiffFraction() : 0;
 
-        double threshold = best_hits.get(0).getHits() > local_min_hits ?
-                (best_hits.get(0).getHits() - local_min_hits) *
-                        this.options.getProperties().getHitsDiffFraction() : 0;
+            for(int i = 0; i < best_hits.size() ; ++i) {
 
-        for(int i = 0; i < best_hits.size() ; ++i) {
+                if(best_hits.get(i).getHits() >= threshold) {
+                    top_list.add(best_hits.get(i));
+                }
+                else {
+                    break;
+                }
 
-            if(best_hits.get(i).getHits() >= threshold) {
-                top_list.add(best_hits.get(i));
             }
-            else {
-                break;
-            }
-
         }
 
+        else if (this.options.getQuery_mode() == EnumModes.QueryMode.FAST) {
+            for(int i = 0; i < best_hits.size() ; ++i) {
+
+                if(best_hits.get(i).getHits() >= local_min_hits) {
+                    top_list.add(best_hits.get(i));
+                }
+                else {
+                    break;
+                }
+
+            }
+        }
+
+        else if (this.options.getQuery_mode() == EnumModes.QueryMode.PRECISE){
+            /*for(int i = 0; i < best_hits.size() ; ++i) {
+
+                top_list.add(best_hits.get(i));
+
+            }*/
+            top_list.addAll(best_hits);
+        }
+
+        else { //VERY_FAST mode
+            for(int i = 0; (i < local_min_hits) && (i < best_hits.size()) ; ++i) {
+
+                top_list.add(best_hits.get(i));
+
+
+            }
+        }
 
         //MatchCandidate best = best_hits.get(0);
 

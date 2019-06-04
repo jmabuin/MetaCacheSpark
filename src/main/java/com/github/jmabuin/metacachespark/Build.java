@@ -409,39 +409,6 @@ public class Build implements Serializable {
             LOG.info(current_dir);
         }
 
-        /*
-
-        if (this.param.isMetacache_like()) {
-            if (!this.param.isMyWholeTextFiles()) {
-                db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
-            }
-            else {
-                db.buildDatabaseMultiPartitionsMetacacheLike(this.param.getInfiles(), sequ2taxid, infoMode);
-            }
-        }
-
-        else {
-            if (!this.param.isMyWholeTextFiles()) {
-                db.buildDatabase(this.param.getInfiles(), sequ2taxid, infoMode);
-            }
-            else {
-
-                if (this.param.isSimple()) {
-                    db.buildDatabaseSimple(this.param.getInfiles(), sequ2taxid, infoMode);
-                }
-                else {
-                    db.buildDatabaseMultiPartitions(this.param.getInfiles(), sequ2taxid, infoMode);
-                }
-
-                //if(inputDirs.isEmpty()) {
-                    //db.buildDatabaseMultiPartitions(this.param.getInfiles(), sequ2taxid, infoMode);
-                //LOG.warn("Building with database simple");
-                //db.buildDatabaseSimple(this.param.getInfiles(), sequ2taxid, infoMode);
-
-            }
-        }
-
-        */
         db.build_database(this.param.getInfiles(), sequ2taxid, infoMode);
 
 

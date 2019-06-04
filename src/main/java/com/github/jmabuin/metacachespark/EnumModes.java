@@ -21,6 +21,8 @@ public class EnumModes {
 
     public enum Mode { HELP, QUERY, BUILD, ADD, INFO, ANNOTATE}
 
+    public enum QueryMode { PRECISE, THRESHOLD, FAST, VERY_FAST}
+
     public enum DatabaseType {HASHMAP, HASHMULTIMAP_GUAVA, HASHMULTIMAP_NATIVE, PARQUET, COMBINE_BY_KEY}
 
     public enum pairing_mode { none, files, sequences} // Pairing of queries
