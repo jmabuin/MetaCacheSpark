@@ -1370,6 +1370,17 @@ public class Database implements Serializable{
     }
 
 
+    public void copy_files_to_local_for_query(String fileName, String fileName2) {
+
+        List<String> result_data = this.locationJavaRDDHashMultiMapNative.mapPartitions(new CopyFilesToLocal(fileName, fileName2))
+                .collect();
+
+        for(String item: result_data) {
+            LOG.warn(item);
+        }
+
+    }
+
     public Map<Long, List<MatchCandidate>> accumulate_matches_paired(String fileName, String fileName2,
                                                                      long init, int size) {
 
@@ -1381,7 +1392,7 @@ public class Database implements Serializable{
         if (this.params.getNumThreads() == 1) {
 
             results = this.locationJavaRDDHashMultiMapNative
-                    .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                    .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params))
                     .reduceByKey(new QueryReducerListNative(this.params))
                     .collectAsMap();
 
@@ -1389,7 +1400,7 @@ public class Database implements Serializable{
         else {
 
             results = this.locationJavaRDDHashMultiMapNative
-                    .mapPartitionsToPair(new PartialQueryNativeMultiThreadPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
+                    .mapPartitionsToPair(new PartialQueryNativeMultiThreadPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params))
                     .reduceByKey(new QueryReducerListNative(this.params))
                     .collectAsMap();
         }

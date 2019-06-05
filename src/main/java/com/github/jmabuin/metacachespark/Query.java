@@ -527,6 +527,9 @@ public class Query implements Serializable {
             }
 
 
+            // Copy files to local in executors
+            this.db.copy_files_to_local_for_query(f1, f2);
+
             long startRead;
             int bufferSize = this.param.getBuffer_size();
 
@@ -713,6 +716,9 @@ public class Query implements Serializable {
                 System.exit(1);
             }
 
+
+            // Copy files to local in executors
+            this.db.copy_files_to_local_for_query(f1, f2);
 
             long startRead;
             int bufferSize = this.param.getBuffer_size();
