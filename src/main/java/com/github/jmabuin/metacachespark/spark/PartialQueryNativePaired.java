@@ -38,7 +38,7 @@ import java.util.*;
  */
 public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<HashMultiMapNative>, Long, List<MatchCandidate>> {
 
-    private static final Log LOG = LogFactory.getLog(PartialQueryNativePairedFull.class);
+    private static final Log LOG = LogFactory.getLog(PartialQueryNativePaired.class);
 
     private String fileName;
     private String fileName2;
@@ -179,8 +179,8 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
                     //SequenceData currentData = new SequenceData(str_header.toString(), str_data.toString(), str_qua.toString());
                     //SequenceData currentData2 = new SequenceData(str_header2.toString(), str_data2.toString(), str_qua2.toString());
 
-                    locations = SequenceFileReader.getSketchStatic(currentData);
-                    locations2 = SequenceFileReader.getSketchStatic(currentData2);
+                    locations = SequenceFileReader.getSketchStatic(currentData, this.options);
+                    locations2 = SequenceFileReader.getSketchStatic(currentData2, this.options);
 
                     //int block_size = locations.size() * this.result_size;
 

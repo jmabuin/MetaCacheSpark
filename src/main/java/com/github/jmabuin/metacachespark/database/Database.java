@@ -53,9 +53,6 @@ public class Database implements Serializable{
 
     private static final Log LOG = LogFactory.getLog(Database.class);
 
-    //private Random urbg_;
-    //private Sketcher targetSketcher_;
-    //private Sketcher querySketcher_;
     private long targetWindowSize_;
     private long targetWindowStride_;
     private long queryWindowSize_;
@@ -64,9 +61,7 @@ public class Database implements Serializable{
     private int nextTargetId_;
     private List<TargetProperty> targets_;
     private Dataset<Location> features_;
-    private Dataset<Location> featuresDataframe_;
-    private Dataset<Locations> featuresDataset;
-    //private DataFrame targetPropertiesDataframe_;
+
     private JavaRDD<TargetProperty> targetPropertiesJavaRDD;
     private HashMap<String,Integer> targets_positions;
     private TreeMap<String, Long> name2tax_;
@@ -79,20 +74,11 @@ public class Database implements Serializable{
     private JavaRDD<Sequence> inputSequences;
 
     private MetaCacheOptions params;
-    //private IndexedRDD<Integer, LocationBasic> indexedRDD;
-    //private JavaPairRDD<Integer, LocationBasic> locationJavaPairRDD;
-    //private JavaPairRDD<Integer, List<LocationBasic>> locationJavaPairListRDD;
-    private JavaPairRDD<Integer, Iterable<LocationBasic>> locationJavaPairIterableRDD;
-    private JavaRDD<Locations> locationsRDD;
+
     private JavaRDD<HashMultiMapNative> locationJavaRDDHashMultiMapNative;
-    private JavaRDD<Location> locationJavaRDD;
-    private JavaRDD<HashMap<Integer, List<LocationBasic>>> locationJavaHashRDD;
-    private JavaRDD<HashMultimap<Integer, LocationBasic>> locationJavaHashMMRDD;
-    //private RangePartitioner<Integer, LocationBasic> partitioner;
-    //private MyCustomPartitioner myPartitioner;
+
 
     private JavaSparkContext jsc;
-    private SQLContext sqlContext;
 
 
     public Database(JavaSparkContext jsc, TaxonomyParam taxonomyParam, MetaCacheOptions params, int numPartitions, String dbfile) {
@@ -100,8 +86,6 @@ public class Database implements Serializable{
         this.taxonomyParam = taxonomyParam;
         this.numPartitions = numPartitions;
         this.dbfile = dbfile;
-
-        this.sqlContext = new SQLContext(this.jsc);
 
         this.targets_ = new ArrayList<TargetProperty>();
         this.name2tax_ = new TreeMap<String,Long>();
@@ -125,8 +109,6 @@ public class Database implements Serializable{
         this.jsc = jsc;
         this.dbfile = dbFile;
 
-        this.sqlContext = new SQLContext(this.jsc);
-
         this.params = params;
 
         this.queryWindowSize_ = params.getProperties().getWinlen();
@@ -145,31 +127,7 @@ public class Database implements Serializable{
         this.apply_taxonomy();
 
     }
-    /*
-        public Random getUrbg_() {
-            return urbg_;
-        }
 
-        public void setUrbg_(Random urbg_) {
-            this.urbg_ = urbg_;
-        }
-
-        public Sketcher getTargetSketcher_() {
-            return targetSketcher_;
-        }
-
-        public void setTargetSketcher_(Sketcher targetSketcher_) {
-            this.targetSketcher_ = targetSketcher_;
-        }
-
-        public Sketcher getQuerySketcher_() {
-            return querySketcher_;
-        }
-
-        public void setQuerySketcher_(Sketcher querySketcher_) {
-            this.querySketcher_ = querySketcher_;
-        }
-    */
     public long getTargetWindowSize_() {
         return targetWindowSize_;
     }
@@ -607,9 +565,6 @@ public class Database implements Serializable{
 
             LOG.warn("Building database with isBuildModeHashMultiMapMC");
 
-            //this.locationJavaRDDHashMultiMapNative = this.inputSequences
-            //        .mapPartitions(new Sketcher2PairPartitions(this.name2tax_sequences, this.params), true);
-            //this.locationJavaRDDHashMultiMapNative = tmp_sketches_rdd.mapPartitions(new FilterAndSave(delete_features_tree), true);
 
             this.locationJavaRDDHashMultiMapNative = map.mapPartitions(new FilterAndSaveNative(delete_features), true);
 
@@ -1414,78 +1369,6 @@ public class Database implements Serializable{
     }
 
 
-    // This function avoids to perform a reducebykey, but performance is also not good
-    public Map<Long, List<MatchCandidate>> accumulate_matches_paired2(String fileName, String fileName2,
-                                                                      long init, int size) {
-
-        LOG.warn("Using accumulate_matches_paired2");
-        Map<Long, List<MatchCandidate>> results = new HashMap<>();
-        List<Tuple2<Long, List<MatchCandidate>>> tmp_results = null;
-        //CandidateGenerationRules rules = new CandidateGenerationRules(this.params.getProperties());
-        long initTime = System.nanoTime();
-
-        if (this.params.getNumThreads() == 1) {
-
-            tmp_results = this.locationJavaRDDHashMultiMapNative
-                    .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                    //.reduceByKey(new QueryReducerListNative(this.params))
-                    .collect();
-
-
-
-        }
-        else {
-
-            tmp_results = this.locationJavaRDDHashMultiMapNative
-                    .mapPartitionsToPair(new PartialQueryNativeMultiThreadPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params), true)
-                    .collect();
-            //.reduceByKeyLocally(new QueryReducerListNative(this.params));
-
-
-        }
-
-        for(Tuple2<Long, List<MatchCandidate>> current_item : tmp_results) {
-
-            if (!results.containsKey(current_item._1())) {
-                results.put(current_item._1(), new ArrayList<MatchCandidate>());
-            }
-
-            results.get(current_item._1()).addAll(current_item._2());
-
-        }
-
-
-        for(Long key: results.keySet()) {
-            // Sort candidates in DESCENDING order according number of hits
-            results.get(key).sort(new Comparator<MatchCandidate>() {
-                public int compare(MatchCandidate o1,
-                                   MatchCandidate o2) {
-
-                    if (o1.getHits() < o2.getHits()) {
-                        return 1;
-                    }
-
-                    if (o1.getHits() > o2.getHits()) {
-                        return -1;
-                    }
-
-                    return 0;
-
-                }
-            });
-        }
-
-
-
-
-        long endTime = System.nanoTime();
-
-        LOG.warn("Time in MapReduce operation for start in " + init + " is : " + ((endTime - initTime) / 1e9) + " seconds");
-
-        return results;
-    }
-
-
     public Map<Long, List<MatchCandidate>> accumulate_matches_single(String fileName,
                                                                      long init, int size) {
 
@@ -1508,8 +1391,6 @@ public class Database implements Serializable{
                     .collectAsMap();
 
         }
-
-
 
         return results;
     }
@@ -1871,32 +1752,6 @@ public class Database implements Serializable{
     public SequenceOrigin origin_of_target(int id) {
         return targets_.get(id).getOrigin();
     }
-
-
-    /*
-
-    taxon_id find_taxon_id(
-    const std::map<string,taxon_id>& name2tax,
-    const string& name)
-{
-    if(name2tax.empty()) return taxonomy::none_id();
-    if(name.empty()) return taxonomy::none_id();
-
-    //try to find exact match
-    auto i = name2tax.find(name);
-    if(i != name2tax.end()) return i->second;
-
-    //find nearest match
-    i = name2tax.upper_bound(name);
-    if(i == name2tax.end()) return taxonomy::none_id();
-
-    //if nearest match contains 'name' as prefix -> good enough
-    //e.g. accession vs. accession.version
-    if(i->first.compare(0,name.size(),name) != 0) return taxonomy::none_id();
-    return i->second;
-}
-
-     */
 
     public long find_taxon_id(TreeMap<String, Long> sequ2taxid, String id) {
 

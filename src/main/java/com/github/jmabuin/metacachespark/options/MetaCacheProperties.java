@@ -33,6 +33,7 @@ public class MetaCacheProperties implements Serializable {
     private int winlen    	= 128;  //< 0 : use value from database
     private int winstride	= 113;  //< 0 : use value from database
     private int kmerlen 	= 16;
+    private int overlapWindow = 15;
     /*
      * Tuning parameters
      */
@@ -99,6 +100,7 @@ public class MetaCacheProperties implements Serializable {
         this.winlen    = Integer.parseInt(properties.getProperty("winlen"));
         this.winstride = Integer.parseInt(properties.getProperty("winstride"));
         this.kmerlen   = Integer.parseInt(properties.getProperty("kmerlen"));
+        this.overlapWindow = Integer.parseInt(properties.getProperty("overlapWindow"));
 
         this.max_load_fac        = Double.parseDouble(properties.getProperty("max_load_fac"));
         this.maxTargetsPerSketchVal  = Integer.parseInt(properties.getProperty("maxTargetsPerSketchVal"));
@@ -311,5 +313,9 @@ public class MetaCacheProperties implements Serializable {
 
     public Taxonomy.Rank getMergeBelow() {
         return mergeBelow;
+    }
+
+    public int getOverlapWindow() {
+        return overlapWindow;
     }
 }

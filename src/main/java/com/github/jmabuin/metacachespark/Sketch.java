@@ -16,6 +16,8 @@
  */
 
 package com.github.jmabuin.metacachespark;
+import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
+
 import java.io.Serializable;
 
 /**
@@ -24,22 +26,22 @@ import java.io.Serializable;
 public class Sketch implements Serializable {
 
     private int[] features;
-    private String header;
-    private String sequence;
-    //private int maxFeature = Integer.MAX_VALUE;
+    //private String header;
+    //private String sequence;
 
-    public Sketch() {
+    public Sketch(MetaCacheOptions options) {
 
-        this.features = new int[MCSConfiguration.sketchSize];
+        this.features = new int[options.getProperties().getSketchlen()];
 
 
     }
 
-	public Sketch(String header, String sequence, int[] features) {
+	//public Sketch(String header, String sequence, int[] features) {
+	public Sketch(int[] features) {
 
 		this.features = features;
-		this.header = header;
-		this.sequence = sequence;
+		//this.header = header;
+		//this.sequence = sequence;
 
 	}
 
@@ -51,6 +53,7 @@ public class Sketch implements Serializable {
         this.features = features;
     }
 
+    /*
 	public String getHeader() {
 		return header;
 	}
@@ -66,36 +69,5 @@ public class Sketch implements Serializable {
 	public void setSequence(String sequence) {
 		this.sequence = sequence;
 	}
-
-    /*public boolean insert(Location feature) {
-
-        if(feature.getKey() > this.maxFeature) {
-            return false;
-        }
-        else {
-
-            int i;
-
-            for(i = 0;i < this.features.length-1;i++){
-                if(this.features[i].getKey() > feature.getKey())
-                    break;
-            }
-
-            if(i >=  this.features.length) {
-                return false;
-            }
-
-            for(int k=this.features.length-2; k>=i; k--){
-                this.features[k+1]=this.features[k];
-            }
-            this.features[i] = feature;
-            this.maxFeature = features[features.length-1].getKey();
-
-            return true;
-
-        }
-
-    }*/
-
-
+*/
 }

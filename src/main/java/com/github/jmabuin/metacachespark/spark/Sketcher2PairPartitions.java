@@ -31,7 +31,6 @@ import java.util.*;
 /**
  * Created by chema on 1/16/17.
  */
-//public class Sketcher2Pair implements FlatMapFunction<Iterator<Sequence>,HashMap<Integer, ArrayList<LocationBasic>>> {
 public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequence>, HashMultiMapNative> {
 
     private static final Log LOG = LogFactory.getLog(Sketcher2PairPartitions.class);
@@ -71,7 +70,7 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 
 
             currentStart = 0;
-            currentEnd = MCSConfiguration.windowSize;
+            currentEnd = this.options.getProperties().getWinlen();
 
             //String currentWindow = "";
             //StringBuffer currentWindow = new StringBuffer();
@@ -80,24 +79,24 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
             //LOG.warn("Processing sequence: " + inputSequence.getHeader());
             // We iterate over windows (with overlap)
 
-            while (currentStart < (inputSequence.getData().length() - MCSConfiguration.kmerSize)) {
+            while (currentStart < (inputSequence.getData().length() - this.options.getProperties().getKmerlen())) {
                 //Sketch resultSketch = new Sketch();
 
                 if (currentEnd > inputSequence.getData().length()) {
                     currentEnd = inputSequence.getData().length();
                 }
 
-                current_sketch_size = MCSConfiguration.sketchSize;
+                current_sketch_size = this.options.getProperties().getSketchlen();
 
-                if ((currentEnd - currentStart) >= MCSConfiguration.kmerSize) {
+                if ((currentEnd - currentStart) >= this.options.getProperties().getKmerlen()) {
 
-                    if (currentEnd - currentStart < MCSConfiguration.kmerSize * 2){
-                        current_sketch_size = currentEnd - currentStart - MCSConfiguration.kmerSize + 1;
+                    if (currentEnd - currentStart < this.options.getProperties().getKmerlen() * 2){
+                        current_sketch_size = currentEnd - currentStart - this.options.getProperties().getKmerlen() + 1;
                     }
 
                     // We compute the k-mers. In C
                     int sketchValues[] = HashFunctions.window2sketch32(inputSequence.getData().substring(currentStart, currentEnd)
-                            , current_sketch_size, MCSConfiguration.kmerSize);
+                            , current_sketch_size, this.options.getProperties().getKmerlen());
 
                     if (sketchValues != null) {
                         //LOG.warn("[JMAbuin] CurrentWindow sketch size: " + sketchValues.length);
@@ -117,8 +116,9 @@ public class Sketcher2PairPartitions implements FlatMapFunction<Iterator<Sequenc
 
                 }
                 numWindows++;
-                currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
-                currentEnd = currentStart + MCSConfiguration.windowSize;
+
+                currentStart = this.options.getProperties().getWinlen() * numWindows - this.options.getProperties().getOverlapWindow() * numWindows;
+                currentEnd = currentStart + this.options.getProperties().getWinlen();
 
             }
 

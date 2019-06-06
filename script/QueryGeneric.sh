@@ -1,6 +1,6 @@
 #!/bin/bash
 
-INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/1130.4.02_S4_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/1130.4.02_S4_reverse_paired.fq"
+INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/113003602_S4_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/113003602_S4_reverse_paired.fq"
 PARTITION_NUMBER=32
 EXECUTOR_MEM="30G"
 TMP_DATASET="S4"
@@ -52,7 +52,7 @@ fi
 
 case "$TMP_DATASET" in
         S4)
-            INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/1130.4.02_S4_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/1130.4.02_S4_reverse_paired.fq"
+            INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/113003602_S4_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/113003602_S4_reverse_paired.fq"
             ;;
 
         S5)
@@ -88,7 +88,7 @@ case "$TMP_DATASET" in
             INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/113003694_S13_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/113003694_S13_reverse_paired.fq"
             ;;
         S14)
-            INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/1130.4.01_S14_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/1130.4.01_S14_reverse_paired.fq"
+            INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/113003701_S14_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/113003701_S14_reverse_paired.fq"
             ;;
         S15)
             INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/113003719_S15_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/113003719_S15_reverse_paired.fq"

@@ -19,7 +19,6 @@ package com.github.jmabuin.metacachespark.io;
 
 import com.github.jmabuin.metacachespark.EnumModes;
 import com.github.jmabuin.metacachespark.HashFunctions;
-import com.github.jmabuin.metacachespark.MCSConfiguration;
 import com.github.jmabuin.metacachespark.Sketch;
 import com.github.jmabuin.metacachespark.options.MetaCacheOptions;
 import org.apache.commons.logging.Log;
@@ -32,14 +31,16 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Optional;
 
 /**
  * Created by chema on 2/17/17.
  */
 public class SequenceFileReaderLocal implements Serializable{
 
-    private static final Log LOG = LogFactory.getLog(SequenceFileReader.class); // LOG to show messages
+    private static final Log LOG = LogFactory.getLog(SequenceFileReaderLocal.class); // LOG to show messages
 
+    private MetaCacheOptions options;
     private String 							inputFile;		// File where the sequences are stored
     //private JavaSparkContext jsc;			// JavaSparkContext object to use
     private StringBuffer 					bufferHeader;	// Buffer to store sequence headers
@@ -63,13 +64,12 @@ public class SequenceFileReaderLocal implements Serializable{
      * @brief Builder when considering a file and a spark context
      * @param fileName The name of the file where the sequences are stored
      */
-    public SequenceFileReaderLocal(String fileName, long offset) {
+    public SequenceFileReaderLocal(String fileName, long offset, MetaCacheOptions options) {
 
         // Variable initialization
         this.inputFile = fileName;
-        //this.jsc = jsc;
-
         this.readedValues = offset;
+        this.options = options;
 
         this.bufferData = new StringBuffer();
         this.bufferHeader = new StringBuffer();
@@ -277,7 +277,7 @@ public class SequenceFileReaderLocal implements Serializable{
 
 
         int currentStart = 0;
-        int currentEnd = MCSConfiguration.windowSize;
+        int currentEnd = this.options.getProperties().getWinlen();
 
         ArrayList<Sketch> returnedValues = new ArrayList<Sketch>();
         //ArrayList<Location> returnedValues = new ArrayList<Location>();
@@ -288,7 +288,7 @@ public class SequenceFileReaderLocal implements Serializable{
 
         // We iterate over windows (with overlap)
         //while (currentEnd < sequence.getData().length()) {
-        while (currentStart < (sequence.getData().length() - MCSConfiguration.kmerSize)) {
+        while (currentStart < (sequence.getData().length() - this.options.getProperties().getKmerlen())) {
             //Sketch resultSketch = new Sketch();
             if(currentEnd > sequence.getData().length()) {
                 currentEnd = sequence.getData().length();
@@ -300,12 +300,12 @@ public class SequenceFileReaderLocal implements Serializable{
 
             // Compute k-mers
             // We compute the k-mers. In C
-            int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
+            int sketchValues[] = HashFunctions.window2sketch32(currentWindow,this.options.getProperties().getSketchlen(), this.options.getProperties().getKmerlen());
 
             //for(int newValue: sketchValues) {
 
-            //returnedValues.add(new Location(newValue, 0, numWindows));
-            returnedValues.add(new Sketch(sequence.getHeader(), sequence.getData(), sketchValues));
+            //returnedValues.add(new Sketch(sequence.getHeader(), sequence.getData(), sketchValues));
+            returnedValues.add(new Sketch(sketchValues));
 
             //}
 
@@ -316,64 +316,8 @@ public class SequenceFileReaderLocal implements Serializable{
 
 
             numWindows++;
-            currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
-            currentEnd = currentStart + MCSConfiguration.windowSize;
-
-
-
-
-        }
-
-
-        return returnedValues;
-    }
-
-
-    public static ArrayList<Sketch> getSketchStatic(SequenceData sequence) {
-
-
-        int currentStart = 0;
-        int currentEnd = MCSConfiguration.windowSize;
-
-        ArrayList<Sketch> returnedValues = new ArrayList<Sketch>();
-        //ArrayList<Location> returnedValues = new ArrayList<Location>();
-
-        String currentWindow = "";
-        int numWindows = 0;
-
-
-        // We iterate over windows (with overlap)
-        //while (currentEnd < sequence.getData().length()) {
-        while (currentStart < (sequence.getData().length() - MCSConfiguration.kmerSize)) {
-            //Sketch resultSketch = new Sketch();
-            if(currentEnd > sequence.getData().length()) {
-                currentEnd = sequence.getData().length();
-            }
-
-            //LOG.warn("[JMAbuin] Init: " + currentStart+" - End: "+currentEnd);
-
-            currentWindow = sequence.getData().substring(currentStart, currentEnd); // 0 - 127, 128 - 255 and so on
-
-            // Compute k-mers
-            // We compute the k-mers. In C
-            int sketchValues[] = HashFunctions.window2sketch32(currentWindow, MCSConfiguration.sketchSize, MCSConfiguration.kmerSize);
-
-            //for(int newValue: sketchValues) {
-
-            //returnedValues.add(new Location(newValue, 0, numWindows));
-            returnedValues.add(new Sketch(sequence.getHeader(), sequence.getData(), sketchValues));
-
-            //}
-
-            // We compute the k-mers
-
-
-            //returnedValuesS.add(resultSketch);
-
-
-            numWindows++;
-            currentStart = MCSConfiguration.windowSize * numWindows - MCSConfiguration.overlapWindow * numWindows;
-            currentEnd = currentStart + MCSConfiguration.windowSize;
+            currentStart = this.options.getProperties().getWinlen() * numWindows - this.options.getProperties().getOverlapWindow() * numWindows;
+            currentEnd = currentStart + this.options.getProperties().getWinlen();
 
 
 

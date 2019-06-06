@@ -243,7 +243,7 @@ public class PartialQueryNativeMultiThread implements PairFlatMapFunction<Iterat
 
                 SequenceData currentData = new SequenceData(header, data, qua);
 
-                ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(currentData);
+                ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(currentData, this.options);
 
                 //int block_size = locations.size() * this.result_size;
 

@@ -138,7 +138,7 @@ public class PartialQueryNative implements PairFlatMapFunction<Iterator<HashMult
 
                     SequenceData currentData = new SequenceData(header, data, qua);
 
-                    locations = SequenceFileReader.getSketchStatic(currentData);
+                    locations = SequenceFileReader.getSketchStatic(currentData, this.options);
 
                     //int block_size = locations.size() * this.result_size;
 

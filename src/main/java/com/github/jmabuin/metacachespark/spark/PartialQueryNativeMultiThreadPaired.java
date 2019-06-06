@@ -266,8 +266,8 @@ public class PartialQueryNativeMultiThreadPaired implements PairFlatMapFunction<
                 SequenceData currentData = new SequenceData(header, data, qua);
                 SequenceData currentData2 = new SequenceData(header2, data2, qua2);
 
-                ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(currentData);
-                ArrayList<Sketch> locations2 = SequenceFileReader.getSketchStatic(currentData2);
+                ArrayList<Sketch> locations = SequenceFileReader.getSketchStatic(currentData, this.options);
+                ArrayList<Sketch> locations2 = SequenceFileReader.getSketchStatic(currentData2, this.options);
 
                 //int block_size = locations.size() * this.result_size;
 

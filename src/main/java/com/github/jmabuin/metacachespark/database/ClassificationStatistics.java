@@ -35,8 +35,6 @@ public class ClassificationStatistics {
 
     private ConfusionStatistics coverage_[] = new ConfusionStatistics[Taxonomy.num_ranks + 1];
 
-    //private AlignmentStatistics alignmentScore_;
-
     public ClassificationStatistics() {
 
         for(int x = 0; x < assigned_.length; x++) {
@@ -58,8 +56,6 @@ public class ClassificationStatistics {
         for(int x = 0; x < this.coverage_.length; x++) {
             this.coverage_[x] = new ConfusionStatistics();
         }
-
-        //this.alignmentScore_ = new AlignmentStatistics();
 
 
     }
