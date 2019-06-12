@@ -124,6 +124,8 @@ public class MetaCacheSpark implements Serializable {
             sparkConf.set("spark.io.compression.codec", "snappy");
             sparkConf.set("spark.sql.parquet.compression.codec", "snappy");
 
+            //sparkConf.set("spark.executor.extraJavaOptions","-XX:+UseG1GC");
+
             //if (newOptions.getNumThreads() != 1) {
             //    sparkConf.set("spark.executor.cores", String.valueOf(newOptions.getNumThreads()));
             //}

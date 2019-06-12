@@ -41,7 +41,7 @@ public class Query implements Serializable {
     // Default options values
     private MetaCacheOptions param;
 
-    private Database db;
+    public Database db;
     private JavaSparkContext jsc;
 
     private EnumModes.InputFormat inputFormat;
@@ -455,10 +455,6 @@ public class Query implements Serializable {
                 this.classify_pairs(fname1, fname2, d, stats);
             }
 
-
-            //this.classify_pairs_list(fname1, fname2, d, stats);
-            //this.classify_pairs_best(fname1, fname2, d, stats);
-            //this.classify_pairs_main(fname1, fname2, d, stats);
         }
 
     }
@@ -471,9 +467,15 @@ public class Query implements Serializable {
             for(int i = 0; i < infilenames.length; i++) {
                 String fname = infilenames[i];
 
-                LOG.warn("Processing file "+fname);
+                LOG.warn("Processing single file "+fname);
 
-                this.classify(fname, d, stats);
+                if(this.param.getNumThreads() > 1) {
+                    this.classify_multithread(fname, d, stats);
+                }
+                else {
+                    this.classify(fname, d, stats);
+                }
+
 
             }
         }
@@ -485,11 +487,13 @@ public class Query implements Serializable {
 
     }
 
+
+
     public void classify_pairs_multithread(String f1, String f2, BufferedWriter d, ClassificationStatistics stats) {
 
-        LOG.warn("Entering classify_pairs");
+        LOG.warn("Entering classify_pairs_multithread");
         long initTime = System.nanoTime();
-        long max_wait_time = 1800; // Max number of seconds to wait for threads to finish
+        long max_wait_time = Long.MAX_VALUE; // Max number of seconds to wait for threads to finish
 
         try {
 
@@ -536,123 +540,90 @@ public class Query implements Serializable {
 
             //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
 
-            SequenceData data;
-            SequenceData data2;
-
-
-
-            String[] headers;
+            ThreadPoolExecutor executorPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(this.param.getNumThreads());
+            Map<Integer, Classification> classifications = Collections.synchronizedMap(new HashMap<>());
+            List<String> global_headers = new ArrayList<>();
 
             for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
-                //while((currentRead < startRead+bufferSize) && ) {
-                long initTimePartial = System.nanoTime();
-                //LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
 
 
-                // Get corresponding hits for this buffer
-                //List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
-                //        startRead, bufferSize);
-                Map<Long, List<MatchCandidate>> hits;
-
-                //long initTimePartial2 = System.nanoTime();
-                /*if(!this.param.isRemove_overpopulated_features()) {
-                    hits = this.db.accumulate_matches_paired_full(f1, f2,
-                            startRead, bufferSize);
-                }
-                else {
-                    hits = this.db.accumulate_matches_paired(f1, f2,
-                            startRead, bufferSize);
-                }*/
-                hits = this.db.accumulate_matches_paired(f1, f2,
-                        startRead, bufferSize);
-                //long endTimePartial2 = System.nanoTime();
-
-                //LOG.warn("Time in processing from " + startRead + " in Map-Reduce is: " + ((endTimePartial2 - initTimePartial2) / 1e9) + " seconds");
-
-                //LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-
-                //LocationBasic current_key;
-
-                long current_read;
-
-                //Classification[] classifications = new Classification[hits.size()];
-                //List<Classification> classifications = Collections.synchronizedList(new ArrayList<>(hits.size()));
-                Map<Integer, Classification> classifications = Collections.synchronizedMap(new HashMap<>());
-                headers = new String[hits.size()];
-
-                //creating the ThreadPoolExecutor
-                //ThreadPoolExecutor executorPool = new ThreadPoolExecutor(this.param.getNumThreads(),
-                //        this.param.getNumThreads(), 100, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(this.param.getBuffer_size()));
-                ThreadPoolExecutor executorPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(this.param.getNumThreads());
+                List<String> headers = new ArrayList<>();
+                List<Integer> data = new ArrayList<>();
+                List<Integer> data2 = new ArrayList<>();
 
                 int current_thread = 0;
 
-                for(int i = 0;  i < hits.size() ; i++) {
+                for (long j = startRead; j < startRead + bufferSize; j++) {
+                    SequenceData seq_data = seqReader.next();
+                    SequenceData seq_data2 = seqReader2.next();
 
-                    current_read = startRead + i;
-                    //Theoretically, number of sequences in data is the same as number of hits
-                    data = seqReader.next();
-                    data2 = seqReader2.next();
-                    headers[i] = data.getHeader();
-
-                    /*if((i == 0) || (i == hits.size()-1)) {
-                        LOG.warn("Read " + i + " is " + data.getHeader() + " :: " + data.getData());
-                    }*/
-
-                    if((data == null) || (data2 == null)) {
-                        LOG.warn("Data is null!! for hits: " + i + " and read " + (startRead + i));
+                    if ((seq_data == null) || (seq_data2 == null)) {
+                        LOG.warn("Data is null!! for hits: " + j);
                         break;
                     }
 
-                    List<MatchCandidate> currentHits = hits.get(current_read);
-
-                    executorPool.execute(new RunnableProcessDatabaseAnswer( this,
-                            classifications, currentHits, "Thread" + current_thread + "Seq"+i, data.getHeader(),
-                            data.getData().length(), data2.getData().length(),  (int)this.db.getTargetWindowStride_(),
-                            this.param, i));
-
-                    if (current_thread >= this.param.getNumThreads()) {
-                        current_thread = 0;
-                    }
-                    else {
-                        current_thread++;
-                    }
-
-                    //this.process_database_answer(data.getHeader(), data.getData(),
-                    //        data2.getData(), currentHits, d, stats);
+                    data.add(seq_data.getData().length());
+                    data2.add(seq_data2.getData().length());
+                    headers.add(seq_data.getHeader());
+                    global_headers.add(seq_data.getHeader());
 
                 }
 
-                executorPool.shutdown();
 
-                try {
-                    executorPool.awaitTermination(max_wait_time, TimeUnit.SECONDS);
+                executorPool.execute(new RunnableClassificationPaired(this,
+                        classifications, f1, f2, "Thread" + current_thread + "Buf" + startRead,
+                        (int) startRead, bufferSize, (int) this.db.getTargetWindowStride_(),
+                        this.param,
+                        data, data2, headers));
+
+                if (current_thread >= this.param.getNumThreads()) {
+                    current_thread = 0;
+                    /*synchronized (this) {
+                        for(int key: classifications.keySet()) {
+
+                            this.print_classification(classifications.get(key), d, stats, global_headers.get(key));
+
+                        }
+
+                        classifications.clear();
+                    }*/
+                } else {
+                    current_thread++;
                 }
-                catch (InterruptedException e) {
-                    System.out.println("InterruptedException " + e.getMessage());
-                }
 
-                for (int i = 0; i < hits.size(); i++) {
-                    //LOG.warn("Processing " + i);
-                    if(classifications.containsKey(i)) {
-                        this.print_classification(classifications.get(i), d, stats, headers[i]);
-                    }
-                    else {
-                        this.print_classification(new Classification(), d, stats, headers[i]);
-                    }
-
-                }
-
-                classifications.clear();
-                headers = null;
-
-                long endTimePartial = System.nanoTime();
-
-                LOG.warn("Time in processing from " + startRead + " is: " + ((endTimePartial - initTimePartial) / 1e9) + " seconds");
 
             }
+
+            executorPool.shutdown();
+
+            try {
+                executorPool.awaitTermination(max_wait_time, TimeUnit.SECONDS);
+            }
+            catch (InterruptedException e) {
+                System.out.println("InterruptedException " + e.getMessage());
+            }
+
+            //for (int i = 0; i < hits.size(); i++) {
+            for(int key: classifications.keySet()) {
+
+
+                    //this.print_classification(classifications.get(key), d, stats, global_headers.get((int) key));
+
+                //if(classifications.containsKey(key)) {
+                    this.print_classification(classifications.get(key), d, stats, global_headers.get(key));
+                //}
+                //else {
+                //    LOG.warn("Processing " + key + " is null");
+                //    this.print_classification(new Classification(), d, stats, global_headers.get((int) key));
+                //}
+
+
+            }
+
+            classifications.clear();
+            global_headers.clear();
+
+
 
             seqReader.close();
             seqReader2.close();
@@ -909,6 +880,138 @@ public class Query implements Serializable {
 
     }
 
+
+    public void classify_multithread(String f1, BufferedWriter d, ClassificationStatistics stats) {
+
+        LOG.warn("Entering classify_multithread");
+        long initTime = System.nanoTime();
+        long max_wait_time = Long.MAX_VALUE; // Max number of seconds to wait for threads to finish
+
+        try {
+
+            long totalReads = 0;
+
+            if (FilesysUtility.isFastaFile(f1)) {
+                totalReads = FilesysUtility.readsInFastaFile(f1);
+
+
+            }
+            else if (FilesysUtility.isFastqFile(f1)) {
+                totalReads = FilesysUtility.readsInFastqFile(f1);
+
+
+            }
+            else {
+                LOG.error("Not recognized file format in " + f1);
+                System.exit(1);
+            }
+
+
+            // Copy files to local in executors
+            this.db.copy_files_to_local_for_query(f1, "");
+
+            long startRead;
+            int bufferSize = this.param.getBuffer_size();
+
+            SequenceFileReaderLocal seqReader = new SequenceFileReaderLocal(f1, 0, this.param);
+
+            //LOG.info("Sequence reader created. Current index: " + seqReader.getReadedValues());
+
+            ThreadPoolExecutor executorPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(this.param.getNumThreads());
+            Map<Integer, Classification> classifications = Collections.synchronizedMap(new HashMap<>());
+            List<String> global_headers = new ArrayList<>();
+
+            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
+
+
+                List<String> headers = new ArrayList<>();
+                List<Integer> data = new ArrayList<>();
+
+                int current_thread = 0;
+
+                for (long j = startRead; j < startRead + bufferSize; j++) {
+                    SequenceData seq_data = seqReader.next();
+
+                    if (seq_data == null) {
+                        LOG.warn("Data is null!! for hits: " + j);
+                        break;
+                    }
+
+                    data.add(seq_data.getData().length());
+                    headers.add(seq_data.getHeader());
+                    global_headers.add(seq_data.getHeader());
+
+                }
+
+
+                executorPool.execute(new RunnableClassificationSingle(this,
+                        classifications, f1, "Thread" + current_thread + "Buf" + startRead,
+                        (int) startRead, bufferSize, (int) this.db.getTargetWindowStride_(),
+                        this.param,
+                        data, headers));
+
+                if (current_thread >= this.param.getNumThreads()) {
+                    current_thread = 0;
+                    /*synchronized (this) {
+                        for(int key: classifications.keySet()) {
+
+                            this.print_classification(classifications.get(key), d, stats, global_headers.get(key));
+
+                        }
+
+                        classifications.clear();
+                    }*/
+                } else {
+                    current_thread++;
+                }
+
+
+            }
+
+            executorPool.shutdown();
+
+            try {
+                executorPool.awaitTermination(max_wait_time, TimeUnit.SECONDS);
+            }
+            catch (InterruptedException e) {
+                System.out.println("InterruptedException " + e.getMessage());
+            }
+
+            //for (int i = 0; i < hits.size(); i++) {
+            for(int key: classifications.keySet()) {
+
+
+                //this.print_classification(classifications.get(key), d, stats, global_headers.get((int) key));
+
+                //if(classifications.containsKey(key)) {
+                this.print_classification(classifications.get(key), d, stats, global_headers.get(key));
+                //}
+                //else {
+                //    LOG.warn("Processing " + key + " is null");
+                //    this.print_classification(new Classification(), d, stats, global_headers.get((int) key));
+                //}
+
+
+            }
+
+            classifications.clear();
+            global_headers.clear();
+
+            seqReader.close();
+
+            long endTime = System.nanoTime();
+
+            LOG.warn("[QUERY] Time in classify_pairs_best for " + this.param.getOutfile() + " is: " + ((endTime - initTime) / 1e9) + " seconds");
+            //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
+
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            LOG.error("General error in classify_pairs: "+e.getMessage());
+            System.exit(1);
+        }
+
+    }
 
     /**
      * Function to load a FASTQ file from HDFS into a JavaPairRDD<Long, String>
@@ -1508,87 +1611,6 @@ public class Query implements Serializable {
             LOG.error("Exception in function show_matches: "+ e.getMessage());
             System.exit(1);
         }
-    }
-
-
-    class RunnableProcessDatabaseAnswer implements Runnable {
-        private Thread t;
-        private Query query_obj;
-        private List<MatchCandidate> hits;
-        //private Classification[] classifications;
-        private Map<Integer, Classification> classifications;
-        private String threadName;
-        private String header;
-        private int size_data1;
-        private int size_data2;
-        private int targetWindowStride;
-        private MetaCacheOptions options;
-        private int currentSequence;
-
-        RunnableProcessDatabaseAnswer(Query query_obj, Map<Integer, Classification> classifications, List<MatchCandidate> hits, String name, String header, int size_data1, int size_data2, int targetWindowStride,
-                               MetaCacheOptions options, int currentSequence) {
-            this.query_obj = query_obj;
-            this.classifications = classifications;
-            this.hits = hits;
-            this.threadName = name;
-            this.header =header;
-            this.size_data1 = size_data1;
-            this.size_data2 = size_data2;
-            this.targetWindowStride = targetWindowStride;
-            this.options = options;
-            this.currentSequence = currentSequence;
-        }
-
-        public void run() {
-            //System.out.println("Running " +  threadName );
-            try {
-                if(this.header.isEmpty()) return;
-
-                //preparation -------------------------------
-                Classification groundTruth = new Classification();
-
-                if(this.options.getProperties().isTestPrecision() ||
-                        (this.options.getProperties().getMapViewMode() != EnumModes.map_view_mode.none && this.options.getProperties().isShowGroundTruth()) ||
-                        (this.options.getProperties().getExcludedRank() != Taxonomy.Rank.none) ) {
-
-                    groundTruth = this.query_obj.db.ground_truth(header);
-
-                }
-
-                //clade exclusion
-                if(this.options.getProperties().getExcludedRank() != Taxonomy.Rank.none && groundTruth.has_taxon()) {
-                    long exclTaxid = this.query_obj.db.ranks(groundTruth.tax())[this.options.getProperties().getExcludedRank().ordinal()];
-                    remove_hits_on_rank( this.options.getProperties().getExcludedRank(), exclTaxid); //Todo: Look what this function does
-                }
-
-                //classify ----------------------------------
-                long numWindows = ( 2 + Math.max(size_data1 + size_data2,this.options.getProperties().getInsertSizeMax()) / this.targetWindowStride);
-
-                //LOG.warn("Starting classification");
-                MatchesInWindowList tophits = new MatchesInWindowList(this.hits, (int)numWindows, this.query_obj.db.getTargets_(), this.query_obj.db.getTaxa_(), this.options);
-                //tophits.print_top_hits();
-                Classification cls = this.query_obj.sequence_classification(tophits);
-
-                //this.classifications[this.currentSequence] = cls;
-
-                this.classifications.put(this.currentSequence, cls);
-
-            }
-            catch (Exception e) {
-                System.out.println("Thread " +  threadName + " interrupted.");
-                e.printStackTrace();
-            }
-            //System.out.println("Thread " +  threadName + " exiting.");
-        }
-
-        public void start () {
-            //System.out.println("Starting " +  threadName );
-            if (t == null) {
-                t = new Thread (this, threadName);
-                t.start ();
-            }
-        }
-
     }
 
 

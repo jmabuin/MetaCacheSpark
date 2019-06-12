@@ -85,8 +85,8 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
         List<Tuple2<Long, List<MatchCandidate>>> finalResults = new ArrayList<Tuple2<Long, List<MatchCandidate>>>();
 
         try {
-            SequenceFileReaderNative seqReader;
-            SequenceFileReaderNative2 seqReader2;
+            SequenceFileReaderLocal seqReader;
+            SequenceFileReaderLocal seqReader2;
 
             Configuration conf = new Configuration();
             FileSystem fs = FileSystem.get(conf);
@@ -118,13 +118,13 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
             String local_file_name = local_file_path.getName();
             String local_file_name2 = local_file_path2.getName();
 
-            seqReader = new SequenceFileReaderNative(local_file_name);
-            seqReader2 = new SequenceFileReaderNative2(local_file_name2);
+            seqReader = new SequenceFileReaderLocal(local_file_name, this.init, this.options);
+            seqReader2 = new SequenceFileReaderLocal(local_file_name2, this.init, this.options);
 
-            if (this.init != 0) {
+            /*if (this.init != 0) {
                 seqReader.skip(this.init);
                 seqReader2.skip(this.init);
-            }
+            }*/
 
             ArrayList<Sketch> locations = new ArrayList<Sketch>();
             ArrayList<Sketch> locations2 = new ArrayList<Sketch>();
@@ -146,15 +146,19 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
 
                 //LOG.info("Processing hashmap " + currentSequence );
 
-                while ((seqReader.next() != null) && (seqReader2.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
+                //while ((seqReader.next() != null) && (seqReader2.next() != null) && (currentSequence < (this.init + this.bufferSize))) {
+                SequenceData seq_data1;
+                SequenceData seq_data2;
+                while (((seq_data1 = seqReader.next()) != null) && ((seq_data2 = seqReader2.next()) != null) && (currentSequence < (this.init + this.bufferSize))) {
 
-                    String header = seqReader.get_header();
-                    String data = seqReader.get_data();
-                    String qua = seqReader.get_quality();
+                    String header = seq_data1.getHeader();
+                    String data = seq_data1.getData();
+                    String qua = seq_data1.getQuality();
 
-                    String header2 = seqReader2.get_header();
-                    String data2 = seqReader2.get_data();
-                    String qua2 = seqReader2.get_quality();
+                    String header2 = seq_data2.getHeader();
+                    String data2 = seq_data2.getData();
+                    String qua2 = seq_data2.getQuality();
+
 /*
                     str_header.append(seqReader.get_header());
                     str_data.append(seqReader.get_data());
@@ -167,17 +171,16 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
                     long numWindows = (2 + Math.max(data.length() + data2.length(), this.options.getProperties().getInsertSizeMax()) / this.window_stride);
                     //long numWindows = (2 + Math.max(str_data.length() + str_data2.length(), this.options.getProperties().getInsertSizeMax()) / this.window_stride);
 
-                    if (seqReader.get_header().isEmpty() || seqReader2.get_header().isEmpty()) {
+                    if (header.isEmpty() || header2.isEmpty()) {
                         continue;
                     }
 
                     // TreeMap where hits from this sequences will be stored
                     List<LocationBasic> current_results = new ArrayList<>();
 
-                    SequenceData currentData = new SequenceData(header, data, qua);
-                    SequenceData currentData2 = new SequenceData(header2, data2, qua2);
-                    //SequenceData currentData = new SequenceData(str_header.toString(), str_data.toString(), str_qua.toString());
-                    //SequenceData currentData2 = new SequenceData(str_header2.toString(), str_data2.toString(), str_qua2.toString());
+                    SequenceData currentData = seq_data1;//new SequenceData(header, data, qua);
+                    SequenceData currentData2 = seq_data2;//new SequenceData(header2, data2, qua2);
+
 
                     locations = SequenceFileReader.getSketchStatic(currentData, this.options);
                     locations2 = SequenceFileReader.getSketchStatic(currentData2, this.options);
@@ -228,7 +231,7 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
 
             long endTime = System.nanoTime();
 
-            LOG.warn("Time spent in executor starting in  "+ this.init +"is: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("Time spent in executor starting in  "+ this.init +" is: " + ((endTime - initTime) / 1e9) + " seconds");
 
             return finalResults.iterator();
 

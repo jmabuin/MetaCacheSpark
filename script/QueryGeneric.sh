@@ -3,6 +3,7 @@
 INPUT_SEQUENCES="Genomica/InputDatasets/AFS/SausageData/113003602_S4_forward_paired.fq Genomica/InputDatasets/AFS/SausageData/113003602_S4_reverse_paired.fq"
 PARTITION_NUMBER=32
 EXECUTOR_MEM="30G"
+DRIVER_MEM="30G"
 TMP_DATASET="S4"
 THREADS_NUM=1
 OUTPUT_DIR="Genomica/Output_${TMP_DATASET}_${THREADS_NUM}Thread_${PARTITION_NUMBER}Ex"
@@ -112,30 +113,44 @@ esac
 
 case "$PARTITION_NUMBER" in
         8)
-            EXECUTOR_MEM="100G"
+            EXECUTOR_MEM="200G"
+            DRIVER_MEM="125G"
+            BUFFER_SIZE=250000
             ;;
 
         16)
-            EXECUTOR_MEM="50G"
+            EXECUTOR_MEM="100G"
+            DRIVER_MEM="75G"
+            BUFFER_SIZE=250000
             ;;
 
         32)
-            EXECUTOR_MEM="40G"
+            EXECUTOR_MEM="50G"
+            DRIVER_MEM="50G"
+            BUFFER_SIZE=250000
             ;;
 
         64)
             EXECUTOR_MEM="30G"
+            DRIVER_MEM="40G"
+            BUFFER_SIZE=250000
             ;;
 
         100)
             EXECUTOR_MEM="25G"
+            DRIVER_MEM="30G"
+            BUFFER_SIZE=250000
             ;;
         128)
-            EXECUTOR_MEM="20G"
+            EXECUTOR_MEM="25G"
+            DRIVER_MEM="30G"
+            BUFFER_SIZE=250000
             ;;
 
         200)
             EXECUTOR_MEM="15G"
+            DRIVER_MEM="30G"
+            BUFFER_SIZE=250000
             ;;
 
         *)
@@ -154,7 +169,7 @@ if [ "$THREADS_NUM" -eq 1 ]; then
 
 else
     echo "spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors $PARTITION_NUMBER --executor-cores $THREADS_NUM --driver-cores $THREADS_NUM --master yarn --deploy-mode cluster --executor-memory $EXECUTOR_MEM --driver-memory 20G MetaCacheSpark-0.4.0.jar -m query -p $PARTITION_NUMBER -b $BUFFER_SIZE -n $THREADS_NUM -r $DATABASE_NAME $OUTPUT_DIR $INPUT_SEQUENCES"
-    spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors $PARTITION_NUMBER --executor-cores $THREADS_NUM --driver-cores $THREADS_NUM --master yarn --deploy-mode cluster --executor-memory $EXECUTOR_MEM --driver-memory 30G MetaCacheSpark-0.4.0.jar -m query -p $PARTITION_NUMBER -a species -o -b $BUFFER_SIZE -n $THREADS_NUM -r $DATABASE_NAME $OUTPUT_DIR $INPUT_SEQUENCES
+    spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors $PARTITION_NUMBER --executor-cores $THREADS_NUM --driver-cores $THREADS_NUM --master yarn --deploy-mode cluster --executor-memory $EXECUTOR_MEM --driver-memory $DRIVER_MEM MetaCacheSpark-0.4.0.jar -m query -p $PARTITION_NUMBER -a species -o -b $BUFFER_SIZE -n $THREADS_NUM -r $DATABASE_NAME $OUTPUT_DIR $INPUT_SEQUENCES
 
 fi
 

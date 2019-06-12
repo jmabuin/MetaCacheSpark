@@ -32,10 +32,7 @@ import org.apache.spark.HashPartitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
+import org.apache.spark.api.java.function.*;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.*;
 import org.apache.spark.storage.StorageLevel;
@@ -1339,31 +1336,19 @@ public class Database implements Serializable{
     public Map<Long, List<MatchCandidate>> accumulate_matches_paired(String fileName, String fileName2,
                                                                      long init, int size) {
 
-        Map<Long, List<MatchCandidate>> results = null;
-
-        //CandidateGenerationRules rules = new CandidateGenerationRules(this.params.getProperties());
-        long initTime = System.nanoTime();
-
-        if (this.params.getNumThreads() == 1) {
-
-            results = this.locationJavaRDDHashMultiMapNative
-                    .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params))
-                    .reduceByKey(new QueryReducerListNative(this.params))
-                    .collectAsMap();
-
-        }
-        else {
-
-            results = this.locationJavaRDDHashMultiMapNative
-                    .mapPartitionsToPair(new PartialQueryNativeMultiThreadPaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params))
-                    .reduceByKey(new QueryReducerListNative(this.params))
-                    .collectAsMap();
-        }
+        //long initTime = System.nanoTime();
 
 
-        long endTime = System.nanoTime();
+        Map<Long, List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
+                .mapPartitionsToPair(new PartialQueryNativePaired(fileName, fileName2, init, size, this.getTargetWindowStride_(), this.params))
+                .reduceByKey(new QueryReducerListNative(this.params))
+                .collectAsMap();
 
-        LOG.warn("Time in MapReduce operation for start in " + init + " is : " + ((endTime - initTime) / 1e9) + " seconds");
+
+
+        //long endTime = System.nanoTime();
+
+        //LOG.warn("Time in MapReduce operation for start in " + init + " is : " + ((endTime - initTime) / 1e9) + " seconds");
 
         return results;
     }
@@ -1372,25 +1357,11 @@ public class Database implements Serializable{
     public Map<Long, List<MatchCandidate>> accumulate_matches_single(String fileName,
                                                                      long init, int size) {
 
-        Map<Long, List<MatchCandidate>> results = null;
+        Map<Long, List<MatchCandidate>> results = this.locationJavaRDDHashMultiMapNative
+                .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
+                .reduceByKey(new QueryReducerListNative(this.params))
+                .collectAsMap();
 
-        if (this.params.getNumThreads() == 1) {
-
-            results = this.locationJavaRDDHashMultiMapNative
-                    .mapPartitionsToPair(new PartialQueryNative(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                    .reduceByKey(new QueryReducerListNative(this.params))
-                    .collectAsMap();
-
-
-        }
-        else {
-
-            results = this.locationJavaRDDHashMultiMapNative
-                    .mapPartitionsToPair(new PartialQueryNativeMultiThread(fileName, init, size, this.getTargetWindowStride_(), this.params), true)
-                    .reduceByKey(new QueryReducerListNative(this.params))
-                    .collectAsMap();
-
-        }
 
         return results;
     }

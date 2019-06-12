@@ -349,4 +349,20 @@ public class SequenceFileReaderLocal implements Serializable{
 
 
     }
+
+    public String get_header() {
+
+        return this.bufferHeader.toString();
+    }
+
+    public String get_data() {
+
+        return this.bufferData.toString();
+    }
+
+    public String get_quality() {
+
+        return this.bufferQuality.toString();
+    }
+
 }

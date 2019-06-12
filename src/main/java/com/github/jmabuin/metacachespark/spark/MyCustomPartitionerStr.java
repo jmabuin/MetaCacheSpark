@@ -68,7 +68,7 @@ public class MyCustomPartitionerStr extends Partitioner {
 
     @Override
     public boolean equals(Object obj){
-        if(obj instanceof MyCustomPartitioner)
+        if(obj instanceof MyCustomPartitionerStr)
         {
             MyCustomPartitionerStr partitionerObject = (MyCustomPartitionerStr)obj;
             if(partitionerObject.numPartitions() == this.numParts)
