@@ -544,8 +544,9 @@ public class Query implements Serializable {
             Map<Integer, Classification> classifications = Collections.synchronizedMap(new HashMap<>());
             List<String> global_headers = new ArrayList<>();
 
-            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
+            //boolean exit_loop = false;
 
+            for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
 
                 List<String> headers = new ArrayList<>();
                 List<Integer> data = new ArrayList<>();
@@ -559,6 +560,7 @@ public class Query implements Serializable {
 
                     if ((seq_data == null) || (seq_data2 == null)) {
                         LOG.warn("Data is null!! for hits: " + j);
+                        //exit_loop = true;
                         break;
                     }
 
@@ -578,19 +580,13 @@ public class Query implements Serializable {
 
                 if (current_thread >= this.param.getNumThreads()) {
                     current_thread = 0;
-                    /*synchronized (this) {
-                        for(int key: classifications.keySet()) {
-
-                            this.print_classification(classifications.get(key), d, stats, global_headers.get(key));
-
-                        }
-
-                        classifications.clear();
-                    }*/
                 } else {
                     current_thread++;
                 }
 
+                /*if (exit_loop) {
+                    break;
+                }*/
 
             }
 
@@ -603,20 +599,9 @@ public class Query implements Serializable {
                 System.out.println("InterruptedException " + e.getMessage());
             }
 
-            //for (int i = 0; i < hits.size(); i++) {
-            for(int key: classifications.keySet()) {
+            for(int key = 0; key < classifications.size(); ++key) {
 
-
-                    //this.print_classification(classifications.get(key), d, stats, global_headers.get((int) key));
-
-                //if(classifications.containsKey(key)) {
-                    this.print_classification(classifications.get(key), d, stats, global_headers.get(key));
-                //}
-                //else {
-                //    LOG.warn("Processing " + key + " is null");
-                //    this.print_classification(new Classification(), d, stats, global_headers.get((int) key));
-                //}
-
+                this.print_classification(classifications.get(key), d, stats, global_headers.get(key));
 
             }
 
@@ -630,7 +615,7 @@ public class Query implements Serializable {
 
             long endTime = System.nanoTime();
 
-            LOG.warn("[QUERY] Time in classify_pairs_best for " + this.param.getOutfile() + " is: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("[QUERY] Time in classify_pairs_multithread for " + this.param.getOutfile() + " is: " + ((endTime - initTime) / 1e9) + " seconds");
             //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
 
         }
@@ -647,9 +632,6 @@ public class Query implements Serializable {
 
         LOG.warn("Entering classify_pairs");
         long initTime = System.nanoTime();
-
-        //Broadcast<Taxonomy> taxonomy_broadcast = this.jsc.broadcast(this.db.getTaxa_());
-        //Broadcast<List<TargetProperty>> targets_broadcast = this.jsc.broadcast(this.db.getTargets_());
 
 
         try {
@@ -701,33 +683,12 @@ public class Query implements Serializable {
             SequenceData data2;
 
             for(startRead = 0; startRead < totalReads; startRead+=bufferSize) {
-                //while((currentRead < startRead+bufferSize) && ) {
-
-                //LOG.warn("Parsing new reads block. Starting in: "+startRead + " and ending in  " + (startRead + bufferSize));
-
 
                 // Get corresponding hits for this buffer
-                //List<List<MatchCandidate>> hits = this.db.accumulate_matches_native_buffered_best(f1, f2,
-                //        startRead, bufferSize);
                 Map<Long, List<MatchCandidate>> hits;
-
-                /*if(!this.param.isRemove_overpopulated_features()) {
-                    hits = this.db.accumulate_matches_paired_full(f1, f2,
-                            startRead, bufferSize);
-                }
-                else {
-                    hits = this.db.accumulate_matches_paired(f1, f2,
-                            startRead, bufferSize);
-                }*/
 
                 hits = this.db.accumulate_matches_paired(f1, f2,
                         startRead, bufferSize);
-
-                //LOG.warn("Results in buffer: " + hits.size() + ". Buffer size is:: "+bufferSize);
-
-                //for(long i = 0;  (i < totalReads) && (i < currentRead + bufferSize); i++) {
-
-                //LocationBasic current_key;
 
                 long current_read;
 
@@ -768,7 +729,7 @@ public class Query implements Serializable {
 
             long endTime = System.nanoTime();
 
-            LOG.warn("[QUERY] Time in classify_pairs_best for " + this.param.getOutfile() + " is: " + ((endTime - initTime) / 1e9) + " seconds");
+            LOG.warn("[QUERY] Time in classify_pairs for " + this.param.getOutfile() + " is: " + ((endTime - initTime) / 1e9) + " seconds");
             //LOG.warn("Total characters readed: " + seqReader.getReadedValues());
 
         }
