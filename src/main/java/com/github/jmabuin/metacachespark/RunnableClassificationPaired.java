@@ -65,8 +65,6 @@ class RunnableClassificationPaired implements Runnable {
 
             for(int i = 0;  i < hits.size() ; i++) {
 
-
-
                 long current_read = startRead + i;
                 int current_read_int = startRead + i;
 
@@ -75,13 +73,9 @@ class RunnableClassificationPaired implements Runnable {
                 int data2_len = data2.get(i);
                 String header_str = headers.get(i);
 
-
                 List<MatchCandidate> currentHits = hits.get(current_read);
 
-
-
                 if (header_str.isEmpty()) return;
-
 
                 //preparation -------------------------------
                 Classification groundTruth = new Classification();
