@@ -229,7 +229,6 @@ public class SequenceFileReaderLocal implements Serializable{
 
                 }
 
-                LOG.warn("Como chega aqui??? :: " + this.bufferHeader.toString()+" :: "+ this.bufferData.toString()+" :: "+this.bufferQuality.toString() );
                 // At the end, if we don't have data, is because we are at the end of the file. Return null
                 if(this.bufferData.toString().isEmpty() && (this.bufferHeader.toString().isEmpty())) {
                     return null;
