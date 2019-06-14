@@ -8,7 +8,7 @@ TMP_DATASET="S4"
 THREADS_NUM=1
 OUTPUT_DIR="Genomica/Output_${TMP_DATASET}_${THREADS_NUM}Thread_${PARTITION_NUMBER}Ex"
 DATABASE_NAME=DatabaseNativeAFS20_$PARTITION_NUMBER
-BUFFER_SIZE=500000
+BUFFER_SIZE=250000
 
 TMP_DATASET="S4"
 
@@ -47,6 +47,19 @@ elif [ "$#" -eq 4 ]; then
     TMP_DATASET=$2
     THREADS_NUM=$3
     DATABASE_NAME="DatabaseNative${4}_${PARTITION_NUMBER}"
+
+elif [ "$#" -eq 5 ]; then
+    echo "Number of INPUT executors is: $1"
+    echo "Number of INPUT threads is: $3"
+    echo "Input data set is: $2"
+    echo "Database is: $4"
+    echo "Buffer size is: $5"
+
+    PARTITION_NUMBER=$1
+    TMP_DATASET=$2
+    THREADS_NUM=$3
+    DATABASE_NAME="DatabaseNative${4}_${PARTITION_NUMBER}"
+    BUFFER_SIZE=$5
 
 fi
 
@@ -114,43 +127,36 @@ esac
 case "$PARTITION_NUMBER" in
         8)
             EXECUTOR_MEM="200G"
-            DRIVER_MEM="125G"
-            BUFFER_SIZE=250000
+            DRIVER_MEM="145G"
             ;;
 
         16)
             EXECUTOR_MEM="100G"
             DRIVER_MEM="75G"
-            BUFFER_SIZE=250000
             ;;
 
         32)
             EXECUTOR_MEM="50G"
             DRIVER_MEM="50G"
-            BUFFER_SIZE=250000
             ;;
 
         64)
             EXECUTOR_MEM="30G"
             DRIVER_MEM="40G"
-            BUFFER_SIZE=250000
             ;;
 
         100)
             EXECUTOR_MEM="25G"
             DRIVER_MEM="30G"
-            BUFFER_SIZE=250000
             ;;
         128)
             EXECUTOR_MEM="25G"
             DRIVER_MEM="30G"
-            BUFFER_SIZE=250000
             ;;
 
         200)
             EXECUTOR_MEM="15G"
             DRIVER_MEM="30G"
-            BUFFER_SIZE=250000
             ;;
 
         *)
