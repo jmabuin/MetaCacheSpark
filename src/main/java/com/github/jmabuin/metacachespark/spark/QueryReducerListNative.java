@@ -83,6 +83,14 @@ public class QueryReducerListNative implements Function2<List<MatchCandidate>, L
                         return -1;
                     }
 
+                    if (o1.getTgt() > o2.getTgt()) {
+                        return 1;
+                    }
+
+                    if (o1.getTgt() < o2.getTgt()) {
+                        return -1;
+                    }
+
                     return 0;
 
                 }
