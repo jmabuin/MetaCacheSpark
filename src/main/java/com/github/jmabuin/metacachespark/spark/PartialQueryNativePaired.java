@@ -398,6 +398,14 @@ public class PartialQueryNativePaired implements PairFlatMapFunction<Iterator<Ha
                     return -1;
                 }
 
+                if (o1.getTgt() > o2.getTgt()) {
+                    return 1;
+                }
+
+                if (o1.getTgt() < o2.getTgt()) {
+                    return -1;
+                }
+
                 return 0;
 
             }
