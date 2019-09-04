@@ -6,6 +6,10 @@ If you use **MetaCacheSpark**, please cite this article:
 
 > TBA
 
+The original **metacache** article is:
+
+> André Müller, Christian Hundt, Andreas Hildebrandt, Thomas Hankeln, Bertil Schmidt. ["MetaCache: context-aware classification of metagenomic reads using minhashing"][3]. Bioinformatics, Volume 33, Issue 23, 01 December 2017, Pages 3740–3748.
+
 # Structure #
 The project keeps a standard Maven structure. The source code is in the *src/main* folder. Inside it, we can find two subfolders:
 
@@ -17,7 +21,8 @@ The project keeps a standard Maven structure. The source code is in the *src/mai
 ## Requirements
 In order to build and run **MetaCacheSpark** the following items are needed:
 
-* A Big Data cluster with YARN and HDFS.
+* A Big Data cluster with YARN and HDFS ([Hadoop][2] ecosystem).
+* Spark 2.
 * Java 8.
 * Maven 3.
 * A C++ compiler able to build C++14 code.
@@ -33,4 +38,12 @@ This will create the *target* folder, which will contain the *jar* file needed t
 
 * **MetaCacheSpark-0.4.0.jar** - jar file to launch with Spark.
 
+## Launching
+### For building
+
+
+### For classifying
+
 [1]: https://github.com/muellan/metacache
+[2]: https://hadoop.apache.org/
+[3]: https://doi.org/10.1093/bioinformatics/btx520
