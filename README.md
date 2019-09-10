@@ -39,10 +39,65 @@ This will create the *target* folder, which will contain the *jar* file needed t
 * **MetaCacheSpark-0.4.0.jar** - jar file to launch with Spark.
 
 ## Launching
+Examples of how to launch **MetaCacheSpark** for building and querying are available at the *script* directory. So far **MetaCacheSpark** only supports *build* and *query* modes.
+
+Available parameters are:
+
+    usage: spark-submit --class com.github.metachachespark.MetaCacheSpark
+           MetaCacheSpark-0.4.0.jar [-a <arg>] [-b <arg>] [-c <arg>] [-e] [-g
+           <arg>] [-h] [-m <arg>] [-n <arg>] [-o] [-p <arg>] [-q <arg>] [-r]
+           [-t <arg>]
+    
+    MetaCacheSpark performs metagenomics analysis by means of Apache Spark and
+    the metacache minhashing algorithm.
+    Available parameters:
+     -a,--abundance_per <arg>             [QUERY] Indicates if use the
+                                          abundance estimation feature and at
+                                          which level.
+     -b,--buffer_size <arg>               [QUERY] Buffer size to perform query
+                                          operations. It indicates the number
+                                          of sequences to be query by each
+                                          thread.
+     -c,--configuration <arg>             [BUILD|QUERY] Configuration file
+                                          with parameters to be used inside
+                                          MetaCacheSpark.
+     -e,--repartition                     [BUILD] Uses Spark repartition
+                                          method to repartition sequences
+                                          among executors.
+     -g,--hits_greater_than <arg>         [QUERY] Gets candidates with more
+                                          than specified hits in the
+                                          classification maps.
+     -h,--help                            Shows documentation
+     -m,--mode <arg>                      Operation mode to use with
+                                          MetaCacheSpark.
+                                          Available options are: build, query,
+                                          add, info, annotate.
+     -n,--num_threads <arg>               [QUERY] Number of threads per
+                                          executor to use in the
+                                          classification phase.
+     -o,--remove_overpopulated_features   [BUILD] Uses remove overpopulated
+                                          features when building.
+     -p,--partitions <arg>                [BUILD|QUERY] Number of partitions
+                                          to use.
+     -q,--query_mode <arg>                [QUERY] Mode selected for query.
+                                          Available options are: precise,
+                                          threshold, fast, very_fast. Default:
+                                          threshold
+     -r,--paired_reads                    [QUERY] Use paired reads in the
+                                          classification or not.
+     -t,--taxonomy <arg>                  [BUILD] Path to the taxonomy to be
+                                          used in the HDFS.
+    
+    Please report issues at josemanuel.abuin@usc.es
+
 ### For building
+To indicate **MetaCacheSpark** that the build mode is going to be used, the user must indicate the option `-m build`. Important parameters in this mode are:
 
-
+* **-e**: Indicates if the input reads are distributed among the cluster by using a Spark *repartition* or not. If not, sequences are distributed according their length.
+* **-o**: Uses the *remove-overpopulated-features*. As theoretically, in the case of using **MetaCacheSpark** the user is dealing with a lot of data, this option should be used in order to avoid errors during the classification phase.
 ### For classifying
+To indicate **MetaCacheSpark** that the build mode is going to be used, the user must indicate the option `-m query`. Important parameters in this mode are:
+
 
 [1]: https://github.com/muellan/metacache
 [2]: https://hadoop.apache.org/
