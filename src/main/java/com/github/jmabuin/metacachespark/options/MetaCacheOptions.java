@@ -72,11 +72,11 @@ public class MetaCacheOptions implements Serializable {
     private Taxonomy.Rank abundance_per = Taxonomy.Rank.none;
 
 	private String correctUse =
-			"spark-submit --class com.github.metachachespark.MetaCacheSpark MetaCacheSpark-0.3.0.jar";// [SparkBWA Options] Input.fastq [Input2.fastq] Output\n";
+			"spark-submit --class com.github.metachachespark.MetaCacheSpark MetaCacheSpark-0.4.0.jar";// [SparkBWA Options] Input.fastq [Input2.fastq] Output\n";
 
 
 	// Header to show when the program is not launched correctly
-	private String header = "\tMetaCacheSpark performs metagenomics ...\nAvailable operating modes are:\n";
+	private String header = "\tMetaCacheSpark performs metagenomics analysis by means of Apache Spark and the metacache minhashing algorithm.\nAvailable parameters:\n";
 
 	// Footer to show when the program is not launched correctly
 	private String footer = "\nPlease report issues at josemanuel.abuin@usc.es";
@@ -344,17 +344,17 @@ public class MetaCacheOptions implements Serializable {
                 "hashmultimap_native, parquet, combine.");
         privateOptions.addOption(database_type);*/
 
-        Option taxonomy = new Option("t", "taxonomy", true, "Path to the taxonomy to be used in the HDFS.");
+        Option taxonomy = new Option("t", "taxonomy", true, "[BUILD] Path to the taxonomy to be used in the HDFS.");
         //taxonomy.setRequired(true);
         privateOptions.addOption(taxonomy);
 
-        Option partitions =  new Option("p", "partitions", true, "Number of partitions to use.");
+        Option partitions =  new Option("p", "partitions", true, "[BUILD|QUERY] Number of partitions to use.");
         privateOptions.addOption(partitions);
 
-        Option configuration = new Option("c", "configuration", true, "Configuration file with parameters to be used inside MetaCacheSpark.");
+        Option configuration = new Option("c", "configuration", true, "[BUILD|QUERY] Configuration file with parameters to be used inside MetaCacheSpark.");
         privateOptions.addOption(configuration);
 
-        Option buffer_size = new Option("b", "buffer_size", true, "Buffer size to perform query operations. if not specified, no buffer mode.");
+        Option buffer_size = new Option("b", "buffer_size", true, "[QUERY] Buffer size to perform query operations. It indicates the number of sequences to be query by each thread.");
         privateOptions.addOption(buffer_size);
 
         //Option myWholeTextFiles = new Option("w", "myWholeTextFiles", false, "Use customize wholetextfiles or not");
@@ -366,28 +366,28 @@ public class MetaCacheOptions implements Serializable {
         //Option metacache_like_input = new Option("i", "metacache_like_input", false, "Reads the input sequences in alpabetic order, just like metacache (only for building)");
         //privateOptions.addOption(metacache_like_input);
 
-        Option paired_reads = new Option("r", "paired_reads", false, "Use paired reads or not");
+        Option paired_reads = new Option("r", "paired_reads", false, "[QUERY] Use paired reads in the classification or not.");
         privateOptions.addOption(paired_reads);
 
-        Option num_threads = new Option("n", "num_threads", true, "Number of threads per executor to use in the classification phase");
+        Option num_threads = new Option("n", "num_threads", true, "[QUERY] Number of threads per executor to use in the classification phase.");
         privateOptions.addOption(num_threads);
 
         //Option simple = new Option("s", "simple", false, "Builds database in simple mode (only for building)");
         //privateOptions.addOption(simple);
 
-        Option repartition = new Option("e", "repartition", false, "Uses Spark repartition method to repartition sequences among executors (only for building)");
+        Option repartition = new Option("e", "repartition", false, "[BUILD] Uses Spark repartition method to repartition sequences among executors.");
         privateOptions.addOption(repartition);
 
-        Option abundance_per = new Option("a", "abundance_per", true, "Indicates if use the abundance estimation feature and at which level");
+        Option abundance_per = new Option("a", "abundance_per", true, "[QUERY] Indicates if use the abundance estimation feature and at which level.");
         privateOptions.addOption(abundance_per);
 
-        Option remove_overpopulated_features = new Option("o", "remove_overpopulated_features", false, "Usees remove overpopulated features when building");
+        Option remove_overpopulated_features = new Option("o", "remove_overpopulated_features", false, "[BUILD] Uses remove overpopulated features when building.");
         privateOptions.addOption(remove_overpopulated_features);
 
-        Option hits_greater_than = new Option("g", "hits_greater_than", true, "Gets candidates with more than specified hits in the classification maps");
+        Option hits_greater_than = new Option("g", "hits_greater_than", true, "[QUERY] Gets candidates with more than specified hits in the classification maps.");
         privateOptions.addOption(hits_greater_than);
 
-        Option query_mode = new Option("q", "query_mode", true, "Mode selected for query. Available options are: precise, threshold, fast, very_fast. Default: threshold");
+        Option query_mode = new Option("q", "query_mode", true, "[QUERY] Mode selected for query. Available options are: precise, threshold, fast, very_fast. Default: threshold");
         privateOptions.addOption(query_mode);
 
 		return privateOptions;
