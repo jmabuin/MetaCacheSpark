@@ -39,7 +39,7 @@ This will create the *target* folder, which will contain the *jar* file needed t
 * **MetaCacheSpark-0.4.0.jar** - jar file to launch with Spark.
 
 ## Launching
-Examples of how to launch **MetaCacheSpark** for building and querying are available at the *script* directory. So far **MetaCacheSpark** only supports *build* and *query* modes.
+Examples of how to launch **MetaCacheSpark** for building and querying are available at the *script* directory. So far **MetaCacheSpark** only supports *build* and *query* modes. Some of the parameters also used in **metacache** are available in the configuration file *src/main/resources/config.properties*. This file can also be passed as argument by using the *-c* option. 
 
 Available parameters are:
 
@@ -98,7 +98,22 @@ To indicate **MetaCacheSpark** that the build mode is going to be used, the user
 ### For classifying
 To indicate **MetaCacheSpark** that the build mode is going to be used, the user must indicate the option `-m query`. Important parameters in this mode are:
 
+* **-q**: Indicates the mode preferred to filter hits during classification. Available modes are, sorted from slower to faster and more precise to less precise:
+    * *precise*: All candidates are added to the candidates list.
+    * *threshold*: A threshold value is calculated according different parameters. If the number of hits of this candidate is bigger than this threshold value, the candidate is then added to the candidates list.
+    * *fast*: Only candidates with more hits than the *hits_greater_than* option are added.
+    * *ver_fast*: In this case, only a determined number of candidates (equal or less than *hits_greater_than*) are added to the list.
 
+## Examples
+### Build
+Execute **MetaCacheSpark** for building with 16 executors. The database will be stored in HDFS at the user home with the name *Database_16*.
+
+    spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --conf spark.network.timeout=10000000  --num-executors 16 --master yarn --executor-memory 15G --driver-memory 20G MetaCacheSpark-0.4.0.jar -m build -o -p 16 -t /path/to/taxonomy/in/hdfs/ Database_16 /path/to/input/sequences/in/hdfs/
+
+### Query
+Execute **MetaCacheSpark** for classification with 16 executors and 4 threads per executor. Results will be stored in HDFS at the user home with the name *Output_File*.
+
+    spark-submit --class com.github.jmabuin.metacachespark.MetaCacheSpark --num-executors 16 --executor-cores 4 --driver-cores 4 --master yarn --deploy-mode cluster --executor-memory 15G --driver-memory 20G MetaCacheSpark-0.4.0.jar -m query -p 16 -a species -o -b 128000 -n 4 -r Database_16 Output_File /path/to/input/sequences/in/hdfs/
 [1]: https://github.com/muellan/metacache
 [2]: https://hadoop.apache.org/
 [3]: https://doi.org/10.1093/bioinformatics/btx520
