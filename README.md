@@ -4,7 +4,7 @@
 
 If you use **MetaCacheSpark**, please cite this article:
 
-> TBA
+> Robin Kobus, José M. Abuín, André Müller, Sören Lukas Hellmann, Juan C. Pichel, Tomás F. Pena, Andreas Hildebrandt, Thomas Hankeln and Bertil Schmidt. ["A Big Data Approach to Metagenomics for All-Food-Sequencing"][4]. BMC Bioinformatics, 21, Article number: 102 (2020).
 
 The original **metacache** article is:
 
@@ -117,3 +117,4 @@ Execute **MetaCacheSpark** for classification with 16 executors and 4 threads pe
 [1]: https://github.com/muellan/metacache
 [2]: https://hadoop.apache.org/
 [3]: https://doi.org/10.1093/bioinformatics/btx520
+[4]: http://dx.doi.org/10.1186%2Fs12859-020-3429-6
